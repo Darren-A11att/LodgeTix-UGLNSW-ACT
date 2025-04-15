@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { CreditCard, ShieldCheck, User } from 'lucide-react';
-import { FormState } from '../../context/RegisterFormContext';
-import { TicketType } from '../../types/register';
+import type { FormState } from '../../shared/types/register';
 import PhoneInputWrapper from './PhoneInputWrapper';
 import AutocompleteInput from './AutocompleteInput';
 
 interface PaymentSectionProps {
   formState: FormState;
-  selectedTicketData: TicketType | undefined;
   totalPrice: number;
   handleSubmit: (e: React.FormEvent) => void;
   prevStep: () => void;
@@ -15,7 +13,6 @@ interface PaymentSectionProps {
 
 const PaymentSection: React.FC<PaymentSectionProps> = ({
   formState,
-  selectedTicketData,
   totalPrice,
   handleSubmit,
   prevStep
@@ -138,8 +135,29 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
   // Common class for form inputs to ensure consistent height
   const inputClass = "w-full h-11 px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50";
 
+  const [cardName, setCardName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCVC, setCardCVC] = useState('');
+
+  const formatCardNumber = (value: string) => {
+    return value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim();
+  };
+
+  const formatExpiryDate = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length >= 3) {
+      return `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}`;
+    }
+    return cleaned;
+  };
+
+  const formatCVC = (value: string) => {
+    return value.replace(/\D/g, '').slice(0, 4);
+  };
+
   return (
-    <div>
+    <form onSubmit={handleSubmit}>
       <h2 className="text-2xl font-bold mb-6">Payment Information</h2>
       
       <div className="bg-slate-50 p-6 rounded-lg mb-8">
@@ -372,66 +390,79 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
           Complete your registration by providing your payment details below.
         </p>
         
-        {/* Stripe Payment Form Will Go Here */}
-        <div className="border border-slate-200 rounded-md p-6 bg-white">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Card Holder Name *</label>
+        <div className="space-y-4 mb-6">
+          <div>
+            <label htmlFor="cardName" className="block text-sm font-medium mb-1">Name on Card</label>
+            <div className="relative">
               <input 
                 type="text" 
-                className={inputClass}
-                placeholder="Name on card"
+                id="cardName"
+                name="cardName" 
                 required
+                className="form-control pl-10"
+                placeholder="John M Doe"
+                value={cardName}
+                onChange={(e) => setCardName(e.target.value)}
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Card Number *</label>
-              <input 
-                type="text" 
-                className={inputClass}
-                placeholder="•••• •••• •••• ••••"
-                required
-              />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             </div>
           </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div className="col-span-1">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Expiry Month *</label>
+
+          <div>
+            <label htmlFor="cardNumber" className="block text-sm font-medium mb-1">Card Number</label>
+            <div className="relative">
               <input 
                 type="text" 
-                className={inputClass}
-                placeholder="MM"
+                id="cardNumber"
+                name="cardNumber" 
                 required
-                maxLength={2}
+                inputMode="numeric"
+                className="form-control pl-10"
+                placeholder="0000 0000 0000 0000"
+                value={formatCardNumber(cardNumber)}
+                onChange={(e) => setCardNumber(e.target.value)}
+                maxLength={19}
+              />
+              <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="cardExpiry" className="block text-sm font-medium mb-1">Expiry Date</label>
+              <input 
+                type="text" 
+                id="cardExpiry"
+                name="cardExpiry" 
+                required
+                className="form-control"
+                placeholder="MM/YY"
+                value={formatExpiryDate(cardExpiry)}
+                onChange={(e) => setCardExpiry(e.target.value)}
+                maxLength={5}
               />
             </div>
-            <div className="col-span-1">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Expiry Year *</label>
+            <div>
+              <label htmlFor="cardCVC" className="block text-sm font-medium mb-1">CVC</label>
               <input 
                 type="text" 
-                className={inputClass}
-                placeholder="YY"
+                id="cardCVC"
+                name="cardCVC" 
                 required
-                maxLength={2}
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">CVC *</label>
-              <input 
-                type="text" 
-                className={inputClass}
-                placeholder="CVC"
-                required
+                inputMode="numeric"
+                className="form-control"
+                placeholder="123"
+                value={formatCVC(cardCVC)}
+                onChange={(e) => setCardCVC(e.target.value)}
                 maxLength={4}
               />
             </div>
           </div>
-          
-          <div className="flex items-center mt-4">
-            <ShieldCheck className="w-5 h-5 text-green-500 mr-2" />
-            <span className="text-sm text-slate-600">Your payment information is secure and encrypted</span>
-          </div>
+        </div>
+        
+        <div className="flex items-center text-xs text-slate-500 mb-6">
+          <ShieldCheck className="h-4 w-4 mr-2 text-green-600" />
+          <span>Your payment information is securely processed.</span>
         </div>
       </div>
       
@@ -446,12 +477,11 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
         <button 
           type="submit"
           className="btn-primary"
-          onClick={handleSubmit}
         >
-          Pay Now and Complete Registration
+          Pay ${totalPrice} and Complete Registration
         </button>
       </div>
-    </div>
+    </form>
   );
 };
 

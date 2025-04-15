@@ -1,7 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import { CheckCircle, PrinterIcon } from 'lucide-react';
-import { FormState } from '../../context/RegisterFormContext';
-import { TicketType } from '../../shared/types/register';
+import { 
+  FormState, 
+  MasonData, 
+  GuestData, 
+  LadyPartnerData, 
+  GuestPartnerData,
+  TicketType
+} from '../../shared/types/register';
 import { events } from '../../shared/data/events';
 
 interface ConfirmationSectionProps {
@@ -17,9 +23,6 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
   const primaryMason = formState.masons[0];
   const printRef = useRef<HTMLDivElement>(null);
   
-  // State for expanded attendees in printing view
-  const [expandedPrintSection, setExpandedPrintSection] = useState<boolean>(true);
-
   // Helper function to get ticket name
   const getTicketName = (ticketId: string | undefined): string => {
     if (!ticketId) return 'No ticket';
@@ -34,21 +37,9 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
 
   // Generate summary of tickets
   const generateTicketSummary = () => {
-    // Helper function to get ticket name
-    const getTicketName = (ticketId: string): string => {
-      if (!ticketId) return 'No ticket';
-      if (ticketId === 'full') return 'Full Package';
-      if (ticketId === 'ceremony') return 'Ceremony Only';
-      if (ticketId === 'social') return 'Social Events';
-      
-      // Check if it's an individual event
-      const event = events.find(e => e.id === ticketId);
-      return event ? event.title : ticketId;
-    };
-
     // If using uniform ticketing, return a simple summary
     if (formState.useUniformTicketing) {
-      const ticketName = selectedTicketData?.name || getTicketName(formState.selectedTicket);
+      const ticketName = selectedTicketData?.name ?? getTicketName(formState.selectedTicket);
       const attendeeCount = formState.masons.length + formState.ladyPartners.length + 
                            formState.guests.length + formState.guestPartners.length;
       
@@ -59,29 +50,29 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
     const ticketCounts: { [key: string]: number } = {};
     
     // Count tickets by ID
-    formState.masons.forEach(mason => {
-      const ticketId = mason.ticket?.ticketId || '';
+    formState.masons.forEach((mason: MasonData) => {
+      const ticketId = mason.ticket?.ticketId ?? '';
       if (ticketId) {
         ticketCounts[ticketId] = (ticketCounts[ticketId] || 0) + 1;
       }
     });
     
-    formState.ladyPartners.forEach(partner => {
-      const ticketId = partner.ticket?.ticketId || '';
+    formState.ladyPartners.forEach((partner: LadyPartnerData) => {
+      const ticketId = partner.ticket?.ticketId ?? '';
       if (ticketId) {
         ticketCounts[ticketId] = (ticketCounts[ticketId] || 0) + 1;
       }
     });
     
-    formState.guests.forEach(guest => {
-      const ticketId = guest.ticket?.ticketId || '';
+    formState.guests.forEach((guest: GuestData) => {
+      const ticketId = guest.ticket?.ticketId ?? '';
       if (ticketId) {
         ticketCounts[ticketId] = (ticketCounts[ticketId] || 0) + 1;
       }
     });
     
-    formState.guestPartners.forEach(partner => {
-      const ticketId = partner.ticket?.ticketId || '';
+    formState.guestPartners.forEach((partner: GuestPartnerData) => {
+      const ticketId = partner.ticket?.ticketId ?? '';
       if (ticketId) {
         ticketCounts[ticketId] = (ticketCounts[ticketId] || 0) + 1;
       }
@@ -99,8 +90,6 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
   const ticketSummary = generateTicketSummary();
   
   const handlePrint = () => {
-    // Set all sections to expanded before printing
-    setExpandedPrintSection(true);
     setTimeout(() => {
       window.print();
     }, 100);
@@ -108,7 +97,7 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
 
   // Generate a list of all attendees in the proper order
   const getOrderedAttendeeList = () => {
-    const orderedList = [];
+    const orderedList: AttendeeListItem[] = [];
     
     // 1. Primary Mason
     if (formState.masons.length > 0) {
@@ -120,7 +109,7 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
       });
       
       // 2. Primary Mason's Lady/Partner (if any)
-      const primaryLadyPartner = formState.ladyPartners.find(lp => lp.masonIndex === 0);
+      const primaryLadyPartner = formState.ladyPartners.find((lp: LadyPartnerData) => lp.masonIndex === 0);
       if (primaryLadyPartner) {
         orderedList.push({
           type: 'ladyPartner',
@@ -145,7 +134,7 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
       });
       
       // Add Lady/Partner if exists
-      const ladyPartner = formState.ladyPartners.find(lp => lp.masonIndex === i);
+      const ladyPartner = formState.ladyPartners.find((lp: LadyPartnerData) => lp.masonIndex === i);
       if (ladyPartner) {
         orderedList.push({
           type: 'ladyPartner',
@@ -170,7 +159,7 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
       });
       
       // Add Guest Partner if exists
-      const guestPartner = formState.guestPartners.find(gp => gp.guestIndex === i);
+      const guestPartner = formState.guestPartners.find((gp: GuestPartnerData) => gp.guestIndex === i);
       if (guestPartner) {
         orderedList.push({
           type: 'guestPartner',
@@ -188,8 +177,20 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
     return orderedList;
   };
   
+  // Define type for items in orderedAttendeeList
+  type AttendeeListItem = {
+    type: 'mason' | 'ladyPartner' | 'guest' | 'guestPartner';
+    name: string;
+    details: MasonData | LadyPartnerData | GuestData | GuestPartnerData;
+    relationshipInfo?: {
+      type: 'mason' | 'guest';
+      index: number;
+      relationship: string;
+    };
+  };
+  
   // Get Mason Grand Lodge display info
-  const getMasonLodgeInfo = (mason: any) => {
+  const getMasonLodgeInfo = (mason: MasonData) => {
     if (mason.rank === 'GL' && mason.grandOfficer === 'Current') {
       if (mason.grandOffice === 'Other' && mason.grandOfficeOther) {
         return `${mason.grandOfficeOther} of ${mason.grandLodge}`;
@@ -203,7 +204,7 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
   };
   
   // Get relationship info display
-  const getRelationshipInfo = (attendee: any, relationshipInfo: any) => {
+  const getRelationshipInfo = (relationshipInfo: AttendeeListItem['relationshipInfo']) => {
     if (!relationshipInfo) return null;
     
     if (relationshipInfo.type === 'mason') {
@@ -218,11 +219,15 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
   };
 
   // Get contact details for display
-  const getContactInfo = (attendee: any) => {
+  const getContactInfo = (attendee: AttendeeListItem['details']) => {
     if (!attendee) return '';
     
-    if (attendee.contactPreference === 'Directly' && attendee.phone && attendee.email) {
-      return `${attendee.email} | ${attendee.phone.startsWith('61') ? '0' + attendee.phone.substring(2) : attendee.phone}`;
+    if (attendee.contactPreference === 'Directly') {
+      if ('phone' in attendee && attendee.phone && 'email' in attendee && attendee.email) {
+        return `${attendee.email} | ${attendee.phone.startsWith('61') ? '0' + attendee.phone.substring(2) : attendee.phone}`;
+      } else {
+        return 'Contact details incomplete';
+      }
     } else if (attendee.contactPreference === 'Primary Attendee') {
       return 'Contact via Primary Attendee';
     } else if (attendee.contactPreference === 'Provide Later') {
@@ -240,15 +245,15 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
   const orderedAttendeeList = getOrderedAttendeeList();
 
   return (
-    <div className="text-center">
-      <div className="mb-6">
+    <div className="text-center print:font-serif print:text-black print:bg-white">
+      <div className="mb-6 print:hidden">
         <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold mb-2">Registration Complete!</h2>
         <p className="text-slate-700">
           Thank you for registering for the Grand Installation 2025.
         </p>
       </div>
-      
+ 
       <div className="bg-slate-50 p-6 rounded-lg mb-4 max-w-lg mx-auto">
         <h3 className="font-bold mb-4 text-primary">Registration Details</h3>
         <div className="text-left">
@@ -281,11 +286,11 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
       </div>
       
       {/* Print Button */}
-      <div className="mb-6">
+      <div className="mb-6 print:hidden">
         <button 
           type="button" 
           onClick={handlePrint}
-          className="btn-outline flex items-center mx-auto"
+          className="btn-outline flex items-center mx-auto print:hidden"
         >
           <PrinterIcon className="h-4 w-4 mr-2" />
           Print Registration Details
@@ -308,8 +313,8 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
           <div className="border-2 border-black p-4 mb-4">
             <h2 className="text-2xl font-bold mb-4 text-center">Attendee Details</h2>
           
-            {orderedAttendeeList.map((attendee, index) => (
-              <div key={index} className="mb-8 border-b border-gray-300 pb-6 last:border-b-0 last:pb-0">
+            {orderedAttendeeList.map((attendee: AttendeeListItem, index) => (
+              <div key={`${attendee.type}-${index}`} className="mb-8 border-b border-gray-300 pb-6 last:border-b-0 last:pb-0">
                 {/* Header row with name */}
                 <div className="flex items-center">
                   {attendee.type === 'mason' && (
@@ -321,18 +326,18 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
                   )}
                   <h3 className="font-bold">
                     {attendee.name} 
-                    {attendee.type === 'mason' && attendee.details.rank && ` ${attendee.details.rank}`}
-                    {attendee.type === 'mason' && attendee.details.rank === 'GL' && attendee.details.grandRank && ` ${attendee.details.grandRank}`}
+                    {attendee.type === 'mason' && (attendee.details as MasonData).rank && ` ${(attendee.details as MasonData).rank}`}
+                    {attendee.type === 'mason' && (attendee.details as MasonData).rank === 'GL' && (attendee.details as MasonData).grandRank && ` ${(attendee.details as MasonData).grandRank}`}
                   </h3>
                 </div>
                 
                 {/* Second row with additional info */}
                 {attendee.type === 'mason' && (
-                  <p className="text-sm mt-1">{getMasonLodgeInfo(attendee.details)}</p>
+                  <p className="text-sm mt-1">{getMasonLodgeInfo(attendee.details as MasonData)}</p>
                 )}
                 
                 {(attendee.type === 'ladyPartner' || attendee.type === 'guestPartner') && attendee.relationshipInfo && (
-                  <p className="text-sm mt-1">{getRelationshipInfo(attendee.details, attendee.relationshipInfo)}</p>
+                  <p className="text-sm mt-1">{getRelationshipInfo(attendee.relationshipInfo)}</p>
                 )}
                 
                 {/* Third row with contact info */}
@@ -343,20 +348,21 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
                   <p className="text-sm mt-2"><span className="font-medium">Dietary Needs:</span> {attendee.details.dietary}</p>
                 )}
                 
-                {attendee.details.specialNeeds && (
+                {('specialNeeds' in attendee.details && attendee.details.specialNeeds) && (
                   <p className="text-sm mt-1"><span className="font-medium">Special Needs:</span> {attendee.details.specialNeeds}</p>
                 )}
                 
                 {/* Ticket information */}
                 <div className="mt-3 pt-3 border-t border-gray-200">
-                  <p className="font-medium">
-                    {formState.useUniformTicketing 
-                      ? getTicketName(formState.selectedTicket)
-                      : attendee.details.ticket?.ticketId 
-                        ? getTicketName(attendee.details.ticket.ticketId)
-                        : 'No ticket selected'
+                  {(() => { // IIFE to calculate ticket name
+                    let ticketName = 'No ticket selected';
+                    if (formState.useUniformTicketing) {
+                      ticketName = getTicketName(formState.selectedTicket);
+                    } else if (attendee.details.ticket?.ticketId) {
+                      ticketName = getTicketName(attendee.details.ticket.ticketId);
                     }
-                  </p>
+                    return <p className="font-medium">{ticketName}</p>;
+                  })()}
                 </div>
               </div>
             ))}
@@ -400,28 +406,10 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
       <button 
         type="button" 
         onClick={() => window.location.href = '/'}
-        className="btn-primary"
+        className="btn-primary print:hidden"
       >
         Return to Homepage
       </button>
-
-      {/* Print-only styles */}
-      <style jsx>{`
-        @media print {
-          @page {
-            size: portrait;
-            margin: 0.5in;
-          }
-          body {
-            font-family: serif !important;
-            color: black !important;
-            background: white !important;
-          }
-          button, .print\:hidden {
-            display: none !important;
-          }
-        }
-      `}</style>
     </div>
   );
 };
