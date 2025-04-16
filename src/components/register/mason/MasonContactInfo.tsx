@@ -1,5 +1,5 @@
 import React from 'react';
-import { MasonData } from '../../../types/register';
+import { MasonData } from '../../../shared/types/register';
 import { HelpCircle } from 'lucide-react';
 import PhoneInputWrapper from '../PhoneInputWrapper';
 
@@ -38,6 +38,7 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
             <PhoneInputWrapper
               value={mason.phone}
               onChange={handlePhoneChange}
+              name={`phone-${index}`}
               inputProps={{
                 id: `phone-${index}`,
                 name: `phone-${index}`
@@ -64,25 +65,24 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
       ) : (
         /* Contact Preference Section for Additional Masons */
         <div className="mb-4">
-          <div className="flex items-center mb-1">
-            <label className="block text-sm font-medium text-slate-700" htmlFor={`contactPreference-${index}`}>
-              Contact *
-            </label>
-            <div className="relative inline-block ml-2 group">
-              <HelpCircle className="h-4 w-4 text-primary cursor-help" />
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 -translate-y-1 invisible group-hover:visible bg-white text-slate-700 text-xs p-2 rounded shadow-lg w-48 z-10">
-                Select how we should contact this attendee regarding event information
-              </div>
-            </div>
-          </div>
-          
           <div className="grid grid-cols-12 gap-4">
             {/* Contact dropdown */}
-            <div className={showConfirmation ? "col-span-3" : "col-span-3"}>
+            <div className="col-span-4">
+              <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`contactPreference-${index}`}>
+                <span>Contact *</span>
+                <span className="inline-block ml-1">
+                  <div className="relative inline-block group">
+                    <HelpCircle className="h-4 w-4 text-primary cursor-help" />
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 -translate-y-1 invisible group-hover:visible bg-white text-slate-700 text-xs p-2 rounded shadow-lg w-48 z-10">
+                      Select how we should contact this attendee regarding event information
+                    </div>
+                  </div>
+                </span>
+              </label>
               <select
                 id={`contactPreference-${index}`}
                 name={`contactPreference-${index}`}
-                value={mason.contactPreference || 'Please Select'}
+                value={mason.contactPreference ?? 'Please Select'}
                 onChange={(e) => onChange(index, 'contactPreference', e.target.value)}
                 required
                 className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -93,14 +93,14 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
               </select>
             </div>
             
-            {/* Confirmation checkbox inline with dropdown */}
-            {showConfirmation && (
-              <div className="col-span-9 flex items-center">
+            {/* Confirmation checkbox - displayed instead of input fields */}
+            {showConfirmation ? (
+              <div className="col-span-8 flex items-center">
                 <div className="flex items-center">
                   <input
                     type="checkbox"
                     id={`contactConfirmed-${index}`}
-                    checked={mason.contactConfirmed || false}
+                    checked={mason.contactConfirmed ?? false}
                     onChange={(e) => onChange(index, 'contactConfirmed', e.target.checked)}
                     required
                     className="h-4 w-4 text-primary border-slate-300 rounded focus:ring-primary"
@@ -110,37 +110,43 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
                   </label>
                 </div>
               </div>
-            )}
-            
-            {/* Contact fields show when appropriate */}
-            {!hideContactFields && !showConfirmation && (
-              <>
-                <div className="col-span-4">
-                  <PhoneInputWrapper
-                    value={mason.phone}
-                    onChange={handlePhoneChange}
-                    inputProps={{
-                      id: `phone-${index}`,
-                      name: `phone-${index}`,
-                      placeholder: "Mobile Number"
-                    }}
-                    required={mason.contactPreference === "Directly"}
-                  />
-                </div>
-                
-                <div className="col-span-5">
-                  <input
-                    type="email"
-                    id={`email-${index}`}
-                    name={`email-${index}`}
-                    value={mason.email}
-                    onChange={(e) => onChange(index, 'email', e.target.value)}
-                    required={mason.contactPreference === "Directly"}
-                    placeholder="Email Address"
-                    className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                </div>
-              </>
+            ) : (
+              !hideContactFields && (
+                <>
+                  {/* Phone input */}
+                  <div className="col-span-4">
+                    <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`phone-${index}`}>
+                      Mobile Number *
+                    </label>
+                    <PhoneInputWrapper
+                      value={mason.phone}
+                      onChange={handlePhoneChange}
+                      name={`phone-${index}`}
+                      inputProps={{
+                        id: `phone-${index}`,
+                        name: `phone-${index}`
+                      }}
+                      required={true}
+                    />
+                  </div>
+                  
+                  {/* Email input */}
+                  <div className="col-span-4">
+                    <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`email-${index}`}>
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      id={`email-${index}`}
+                      name={`email-${index}`}
+                      value={mason.email}
+                      onChange={(e) => onChange(index, 'email', e.target.value)}
+                      required={true}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                  </div>
+                </>
+              )
             )}
           </div>
         </div>

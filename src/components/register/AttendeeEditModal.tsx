@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MasonData, LadyPartnerData, GuestData, GuestPartnerData } from '../../shared/types/register';
-import { FormState } from '../../context/RegisterFormContext';
+import { MasonData, LadyPartnerData, GuestData, GuestPartnerData, FormState } from '../../shared/types/register';
 import { X } from 'lucide-react';
 
 interface AttendeeEditModalProps {
@@ -21,7 +20,7 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
   const modalContentRef = useRef<HTMLDivElement>(null);
   
   // Get the appropriate attendee data
-  const getAttendeeData = (): any => {
+  const getAttendeeData = (): MasonData | LadyPartnerData | GuestData | GuestPartnerData | null => {
     switch(attendeeType) {
       case 'mason':
         return formState.masons[attendeeIndex];
@@ -52,38 +51,42 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
       }
     };
 
+    // Handle ESC key to close the modal
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
     // Add event listener when modal is open
     document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscKey);
     
     // Prevent scrolling on the body when modal is open
     document.body.style.overflow = 'hidden';
     
+    // Add inert attribute to main content to improve accessibility
+    const mainContent = document.getElementById('main-content');
+    if (mainContent) {
+      mainContent.setAttribute('inert', '');
+    }
+    
     return () => {
       // Clean up event listener and restore scrolling when modal closes
       document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscKey);
       document.body.style.overflow = 'auto';
+      
+      // Remove inert attribute when modal closes
+      if (mainContent) {
+        mainContent.removeAttribute('inert');
+      }
     };
   }, [onClose]);
   
   if (!attendeeData) {
     return null;
   }
-
-  // Get a human-readable label for the attendee type
-  const getAttendeeTypeLabel = (): string => {
-    switch(attendeeType) {
-      case 'mason':
-        return attendeeIndex === 0 ? 'Primary Mason' : 'Mason';
-      case 'ladyPartner':
-        return 'Lady & Partner';
-      case 'guest':
-        return 'Guest';
-      case 'guestPartner':
-        return 'Guest Partner';
-      default:
-        return 'Attendee';
-    }
-  };
 
   // Get a form title based on attendee name
   const getFormTitle = (): string => {
@@ -145,6 +148,7 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
           <button 
             onClick={handleCloseClick}
             className="text-slate-500 hover:text-slate-700"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
@@ -163,8 +167,9 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <label htmlFor="edit-mason-title" className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                     <input 
+                      id="edit-mason-title"
                       type="text" 
                       value={attendeeData.title} 
                       readOnly
@@ -172,10 +177,11 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Rank</label>
+                    <label htmlFor="edit-mason-rank" className="block text-sm font-medium text-gray-700 mb-1">Rank</label>
                     <input 
+                      id="edit-mason-rank"
                       type="text" 
-                      value={attendeeData.rank} 
+                      value={(attendeeData as MasonData).rank}
                       readOnly
                       className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
                     />
@@ -183,8 +189,9 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                    <label htmlFor="edit-mason-firstName" className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                     <input 
+                      id="edit-mason-firstName"
                       type="text" 
                       value={attendeeData.firstName} 
                       readOnly
@@ -192,8 +199,9 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                    <label htmlFor="edit-mason-lastName" className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
                     <input 
+                      id="edit-mason-lastName"
                       type="text" 
                       value={attendeeData.lastName} 
                       readOnly
@@ -202,13 +210,14 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                   </div>
                 </div>
                 
-                {attendeeData.rank === 'GL' && (
+                {(attendeeData as MasonData).rank === 'GL' && (
                   <div className="grid grid-cols-1 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Grand Rank</label>
+                      <label htmlFor="edit-mason-grandRank" className="block text-sm font-medium text-gray-700 mb-1">Grand Rank</label>
                       <input 
+                        id="edit-mason-grandRank"
                         type="text" 
-                        value={attendeeData.grandRank} 
+                        value={(attendeeData as MasonData).grandRank}
                         readOnly
                         className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
                       />
@@ -217,19 +226,21 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                 )}
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Lodge</label>
+                  <label htmlFor="edit-mason-lodge" className="block text-sm font-medium text-gray-700 mb-1">Lodge</label>
                   <input 
+                    id="edit-mason-lodge"
                     type="text" 
-                    value={attendeeData.lodge} 
+                    value={(attendeeData as MasonData).lodge}
                     readOnly
                     className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Grand Lodge</label>
+                  <label htmlFor="edit-mason-grandLodge" className="block text-sm font-medium text-gray-700 mb-1">Grand Lodge</label>
                   <input 
+                    id="edit-mason-grandLodge"
                     type="text" 
-                    value={attendeeData.grandLodge} 
+                    value={(attendeeData as MasonData).grandLodge}
                     readOnly
                     className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
                   />
@@ -240,8 +251,9 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
               <>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <label htmlFor="edit-lp-title" className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                     <input 
+                      id="edit-lp-title"
                       type="text" 
                       value={attendeeData.title} 
                       readOnly
@@ -249,8 +261,9 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                    <label htmlFor="edit-lp-firstName" className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                     <input 
+                      id="edit-lp-firstName"
                       type="text" 
                       value={attendeeData.firstName} 
                       readOnly
@@ -258,8 +271,9 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                    <label htmlFor="edit-lp-lastName" className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
                     <input 
+                      id="edit-lp-lastName"
                       type="text" 
                       value={attendeeData.lastName} 
                       readOnly
@@ -268,20 +282,22 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
+                  <label htmlFor="edit-lp-relationship" className="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
                   <input 
+                    id="edit-lp-relationship"
                     type="text" 
-                    value={attendeeData.relationship} 
+                    value={(attendeeData as LadyPartnerData).relationship}
                     readOnly
                     className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
                   />
                 </div>
                 <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Related to Mason</label>
+                    <label htmlFor="edit-lp-relatedMason" className="block text-sm font-medium text-gray-700 mb-1">Related to Mason</label>
                     <input 
+                      id="edit-lp-relatedMason"
                       type="text" 
-                      value={`${formState.masons[attendeeData.masonIndex]?.title || ''} ${formState.masons[attendeeData.masonIndex]?.firstName || ''} ${formState.masons[attendeeData.masonIndex]?.lastName || ''}`} 
+                      value={`${formState.masons[(attendeeData as LadyPartnerData).masonIndex]?.title || ''} ${formState.masons[(attendeeData as LadyPartnerData).masonIndex]?.firstName || ''} ${formState.masons[(attendeeData as LadyPartnerData).masonIndex]?.lastName || ''}`}
                       readOnly
                       className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
                     />
@@ -293,8 +309,9 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
               <>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <label htmlFor={`edit-${attendeeType}-title`} className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                     <input 
+                      id={`edit-${attendeeType}-title`}
                       type="text" 
                       value={attendeeData.title} 
                       readOnly
@@ -302,8 +319,9 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                    <label htmlFor={`edit-${attendeeType}-firstName`} className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                     <input 
+                      id={`edit-${attendeeType}-firstName`}
                       type="text" 
                       value={attendeeData.firstName} 
                       readOnly
@@ -311,8 +329,9 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                    <label htmlFor={`edit-${attendeeType}-lastName`} className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
                     <input 
+                      id={`edit-${attendeeType}-lastName`}
                       type="text" 
                       value={attendeeData.lastName} 
                       readOnly
@@ -324,19 +343,21 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                 {attendeeType === 'guestPartner' && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
+                      <label htmlFor="edit-gp-relationship" className="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
                       <input 
+                        id="edit-gp-relationship"
                         type="text" 
-                        value={attendeeData.relationship} 
+                        value={(attendeeData as GuestPartnerData).relationship}
                         readOnly
                         className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Related to Guest</label>
+                      <label htmlFor="edit-gp-relatedGuest" className="block text-sm font-medium text-gray-700 mb-1">Related to Guest</label>
                       <input 
+                        id="edit-gp-relatedGuest"
                         type="text" 
-                        value={`${formState.guests[attendeeData.guestIndex]?.title || ''} ${formState.guests[attendeeData.guestIndex]?.firstName || ''} ${formState.guests[attendeeData.guestIndex]?.lastName || ''}`} 
+                        value={`${formState.guests[(attendeeData as GuestPartnerData).guestIndex]?.title || ''} ${formState.guests[(attendeeData as GuestPartnerData).guestIndex]?.firstName || ''} ${formState.guests[(attendeeData as GuestPartnerData).guestIndex]?.lastName || ''}`}
                         readOnly
                         className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
                       />
@@ -351,8 +372,9 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
               <h3 className="font-bold mb-3">Contact Information</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label htmlFor={`edit-${attendeeType}-email`} className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                   <input 
+                    id={`edit-${attendeeType}-email`}
                     type="email" 
                     value={attendeeData.email || '—'} 
                     readOnly
@@ -360,8 +382,9 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <label htmlFor={`edit-${attendeeType}-phone`} className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                   <input 
+                    id={`edit-${attendeeType}-phone`}
                     type="text" 
                     value={attendeeData.phone ? (attendeeData.phone.startsWith('61') && attendeeData.phone.charAt(2) === '4' ? '0' + attendeeData.phone.substring(2) : attendeeData.phone) : '—'} 
                     readOnly
@@ -369,10 +392,11 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Preference</label>
+                  <label htmlFor={`edit-${attendeeType}-contactPreference`} className="block text-sm font-medium text-gray-700 mb-1">Contact Preference</label>
                   <input 
+                    id={`edit-${attendeeType}-contactPreference`}
                     type="text" 
-                    value={attendeeData.contactPreference || '—'} 
+                    value={(attendeeData as MasonData | LadyPartnerData | GuestData | GuestPartnerData).contactPreference || '—'}
                     readOnly
                     className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
                   />
@@ -383,19 +407,21 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
             <div className="mt-6 border-t border-gray-200 pt-4">
               <h3 className="font-bold mb-3">Additional Information</h3>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Dietary Requirements</label>
+                <label htmlFor={`edit-${attendeeType}-dietary`} className="block text-sm font-medium text-gray-700 mb-1">Dietary Requirements</label>
                 <input 
+                  id={`edit-${attendeeType}-dietary`}
                   type="text" 
-                  value={attendeeData.dietary || '—'} 
+                  value={(attendeeData as MasonData | LadyPartnerData | GuestData | GuestPartnerData).dietary || '—'}
                   readOnly
                   className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
                 />
               </div>
-              {attendeeData.specialNeeds !== undefined && (
+              {(attendeeData as MasonData | LadyPartnerData | GuestData | GuestPartnerData).specialNeeds !== undefined && (
                 <div className="mt-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Special Needs</label>
+                  <label htmlFor={`edit-${attendeeType}-specialNeeds`} className="block text-sm font-medium text-gray-700 mb-1">Special Needs</label>
                   <textarea 
-                    value={attendeeData.specialNeeds || '—'} 
+                    id={`edit-${attendeeType}-specialNeeds`}
+                    value={(attendeeData as MasonData | LadyPartnerData | GuestData | GuestPartnerData).specialNeeds || '—'}
                     readOnly
                     className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
                     rows={2}

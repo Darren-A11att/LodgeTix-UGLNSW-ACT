@@ -1,0 +1,59 @@
+.custom-phone-input {
+  width: 100%;
+}
+
+.custom-phone-input input {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: 1px solid rgb(203 213 225);
+  border-radius: 0.375rem;
+  outline: none;
+}
+
+.custom-phone-input input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+/* Flag and dropdown styling */
+.PhoneInputCountryIcon {
+  width: 1.5em;
+  height: 1em;
+}
+
+.PhoneInputCountrySelectArrow {
+  width: 0.5em;
+  margin-right: 0.5em;
+}
+
+/* Container for the payment form phone input */
+.phone-input-container {
+  width: 100%;
+}
+
+.phone-input-container .PhoneInput {
+  display: flex;
+  align-items: center;
+  height: 2.75rem; /* h-11 equivalent */
+  border: 1px solid rgb(203 213 225);
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background-color: white;
+}
+
+.phone-input-container .PhoneInputInput {
+  flex: 1;
+  border: none;
+  padding: 0.5rem;
+  outline: none;
+  height: 100%;
+}
+
+.phone-input-container .PhoneInputCountry {
+  display: flex;
+  align-items: center;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  background-color: #f8fafc;
+  border-right: 1px solid rgb(226 232 240);
+}

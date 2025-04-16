@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { MasonData, GuestData, LadyPartnerData, GuestPartnerData, FormState, AttendeeTicket } from '../shared/types/register';
+import React, { createContext, useState, ReactNode, useMemo, useCallback } from 'react';
+import { MasonData, GuestData, LadyPartnerData, GuestPartnerData, FormState } from '../shared/types/register';
 
 interface RegisterFormContextType {
   formState: FormState;
-  updateFormField: (field: string, value: any) => void;
+  updateFormField: (field: string, value: unknown) => void;
   updateMasonField: (index: number, field: string, value: string | boolean) => void;
   updateGuestField: (index: number, field: string, value: string | boolean) => void;
   updateLadyPartnerField: (index: number, field: string, value: string | boolean) => void;
@@ -32,6 +32,7 @@ interface RegisterFormContextType {
 }
 
 const defaultMasonData: MasonData = {
+  id: 'primary-mason',
   title: 'Bro',
   firstName: '',
   lastName: '',
@@ -53,12 +54,14 @@ const defaultMasonData: MasonData = {
 };
 
 const defaultGuestData: GuestData = {
+  id: '',
   title: 'Mr',
   firstName: '',
   lastName: '',
   phone: '',
   email: '',
   dietary: '',
+  specialNeeds: '',
   contactPreference: 'Please Select',
   contactConfirmed: false,
   hasPartner: false,
@@ -66,6 +69,7 @@ const defaultGuestData: GuestData = {
 };
 
 const defaultLadyPartnerData: LadyPartnerData = {
+  id: '',
   title: 'Mrs',
   firstName: '',
   lastName: '',
@@ -81,6 +85,7 @@ const defaultLadyPartnerData: LadyPartnerData = {
 };
 
 const defaultGuestPartnerData: GuestPartnerData = {
+  id: '',
   title: 'Mrs',
   firstName: '',
   lastName: '',
@@ -119,7 +124,7 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
     selectedEventId: initialEventId
   });
 
-  const updateFormField = (field: string, value: any) => {
+  const updateFormField = (field: string, value: unknown) => {
     setFormState(prev => ({
       ...prev,
       [field]: value
@@ -182,8 +187,58 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
     });
   };
 
+  // Apply the same ticket to all attendees
+  const applyTicketToAllAttendees = useCallback((ticketId: string) => {
+    setFormState(prev => {
+      // Update masons tickets
+      const updatedMasons = prev.masons.map(mason => ({
+        ...mason,
+        ticket: { 
+          ticketId, 
+          events: mason.ticket?.events || [] 
+        }
+      }));
+      
+      // Update lady & partner tickets
+      const updatedLadyPartners = prev.ladyPartners.map(partner => ({
+        ...partner,
+        ticket: { 
+          ticketId, 
+          events: partner.ticket?.events || [] 
+        }
+      }));
+      
+      // Update guest tickets
+      const updatedGuests = prev.guests.map(guest => ({
+        ...guest,
+        ticket: { 
+          ticketId, 
+          events: guest.ticket?.events || [] 
+        }
+      }));
+      
+      // Update guest partner tickets
+      const updatedGuestPartners = prev.guestPartners.map(partner => ({
+        ...partner,
+        ticket: { 
+          ticketId, 
+          events: partner.ticket?.events || [] 
+        }
+      }));
+      
+      return {
+        ...prev,
+        masons: updatedMasons,
+        ladyPartners: updatedLadyPartners,
+        guests: updatedGuests,
+        guestPartners: updatedGuestPartners,
+        selectedTicket: ticketId
+      };
+    });
+  }, []);
+
   // Legacy ticket selection (for backward compatibility)
-  const selectTicket = (ticketId: string) => {
+  const selectTicket = useCallback((ticketId: string) => {
     // If uniform ticketing is enabled, apply to all attendees
     if (formState.useUniformTicketing) {
       applyTicketToAllAttendees(ticketId);
@@ -193,7 +248,7 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
       ...prev,
       selectedTicket: ticketId
     }));
-  };
+  }, [formState.useUniformTicketing, applyTicketToAllAttendees]);
 
   // New individual ticket selection functions
   const selectMasonTicket = (masonIndex: number, ticketId: string, events: string[] = []) => {
@@ -265,7 +320,7 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
   };
 
   // Toggle uniform ticketing mode
-  const toggleUniformTicketing = (enabled: boolean) => {
+  const toggleUniformTicketing = useCallback((enabled: boolean) => {
     setFormState(prev => ({
       ...prev,
       useUniformTicketing: enabled
@@ -275,66 +330,25 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
     if (enabled) {
       applyTicketToAllAttendees(formState.selectedTicket);
     }
-  };
+  }, [formState.selectedTicket, applyTicketToAllAttendees]);
 
-  // Apply the same ticket to all attendees
-  const applyTicketToAllAttendees = (ticketId: string) => {
+  const addMason = () => {
     setFormState(prev => {
-      // Update masons tickets
-      const updatedMasons = prev.masons.map(mason => ({
-        ...mason,
-        ticket: { 
-          ticketId, 
-          events: mason.ticket?.events || [] 
-        }
-      }));
-      
-      // Update lady & partner tickets
-      const updatedLadyPartners = prev.ladyPartners.map(partner => ({
-        ...partner,
-        ticket: { 
-          ticketId, 
-          events: partner.ticket?.events || [] 
-        }
-      }));
-      
-      // Update guest tickets
-      const updatedGuests = prev.guests.map(guest => ({
-        ...guest,
-        ticket: { 
-          ticketId, 
-          events: guest.ticket?.events || [] 
-        }
-      }));
-      
-      // Update guest partner tickets
-      const updatedGuestPartners = prev.guestPartners.map(partner => ({
-        ...partner,
-        ticket: { 
-          ticketId, 
-          events: partner.ticket?.events || [] 
-        }
-      }));
-      
+      if (prev.masons.length >= 10) return prev; // Max limit check
+      const newMason: MasonData = {
+        ...defaultMasonData,
+        id: crypto.randomUUID(), // Generate unique ID
+        sameLodgeAsPrimary: true, // Default to same lodge
+        hasLadyPartner: false, // Reset partner status
+      };
       return {
         ...prev,
-        masons: updatedMasons,
-        ladyPartners: updatedLadyPartners,
-        guests: updatedGuests,
-        guestPartners: updatedGuestPartners,
-        selectedTicket: ticketId
+        masons: [...prev.masons, newMason]
       };
     });
   };
 
-  const addMason = () => {
-    setFormState(prev => ({
-      ...prev,
-      masons: [...prev.masons, { ...defaultMasonData, sameLodgeAsPrimary: false }]
-    }));
-  };
-
-  const removeMason = () => {
+  const removeMason = useCallback(() => {
     if (formState.masons.length <= 1) return;
     
     setFormState(prev => {
@@ -352,10 +366,10 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
         ladyPartners: updatedLadyPartners
       };
     });
-  };
+  }, [formState.masons.length]);
 
   // New function to remove a specific mason by index
-  const removeMasonByIndex = (index: number) => {
+  const removeMasonByIndex = useCallback((index: number) => {
     // Don't allow removing the primary mason (index 0)
     if (index === 0 || formState.masons.length <= 1) return;
     
@@ -383,7 +397,7 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
         ladyPartners: updatedLadyPartners
       };
     });
-  };
+  }, [formState.masons.length]);
 
   const toggleSameLodge = (index: number, checked: boolean) => {
     setFormState(prev => {
@@ -413,35 +427,29 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
 
   const toggleHasLadyPartner = (index: number, checked: boolean) => {
     setFormState(prev => {
-      const updatedMasons = [...prev.masons];
-      updatedMasons[index] = {
-        ...updatedMasons[index],
-        hasLadyPartner: checked
-      };
-
       let updatedLadyPartners = [...prev.ladyPartners];
-      
-      // If checked, add a new lady partner
+
       if (checked) {
-        // Check if a lady partner already exists for this mason
-        const existingPartnerIndex = updatedLadyPartners.findIndex(
-          lp => lp.masonIndex === index
-        );
-        
+        // Add a new lady partner if not already present
+        const existingPartnerIndex = updatedLadyPartners.findIndex(lp => lp.masonIndex === index);
         if (existingPartnerIndex === -1) {
-          // Add new lady partner
-          updatedLadyPartners.push({
+          const newPartner: LadyPartnerData = {
             ...defaultLadyPartnerData,
+            id: crypto.randomUUID(), // Generate unique ID
             masonIndex: index
-          });
+          };
+          updatedLadyPartners.push(newPartner);
         }
       } else {
-        // If unchecked, remove the lady partner for this mason
-        updatedLadyPartners = updatedLadyPartners.filter(
-          lp => lp.masonIndex !== index
-        );
+        // Remove the lady partner associated with this mason
+        updatedLadyPartners = updatedLadyPartners.filter(lp => lp.masonIndex !== index);
       }
-      
+
+      const updatedMasons = [...prev.masons];
+      if (updatedMasons[index]) {
+        updatedMasons[index] = { ...updatedMasons[index], hasLadyPartner: checked };
+      }
+
       return {
         ...prev,
         masons: updatedMasons,
@@ -451,13 +459,21 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
   };
 
   const addGuest = () => {
-    setFormState(prev => ({
-      ...prev,
-      guests: [...prev.guests, { ...defaultGuestData }]
-    }));
+    setFormState(prev => {
+      if (prev.guests.length >= 10) return prev; // Max limit check
+      const newGuest: GuestData = {
+        ...defaultGuestData,
+        id: crypto.randomUUID(), // Generate unique ID
+        hasPartner: false // Reset partner status
+      };
+      return {
+        ...prev,
+        guests: [...prev.guests, newGuest]
+      };
+    });
   };
 
-  const removeGuest = () => {
+  const removeGuest = useCallback(() => {
     if (formState.guests.length <= 0) return;
     
     setFormState(prev => {
@@ -475,10 +491,10 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
         guestPartners: updatedGuestPartners
       };
     });
-  };
+  }, [formState.guests.length]);
 
   // New function to remove a specific guest by index
-  const removeGuestByIndex = (index: number) => {
+  const removeGuestByIndex = useCallback((index: number) => {
     if (index < 0 || index >= formState.guests.length) return;
     
     setFormState(prev => {
@@ -505,7 +521,7 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
         guestPartners: updatedGuestPartners
       };
     });
-  };
+  }, [formState.guests.length]);
 
   const toggleGuestUseContact = (index: number, checked: boolean) => {
     setFormState(prev => {
@@ -523,35 +539,29 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
 
   const toggleGuestHasPartner = (index: number, checked: boolean) => {
     setFormState(prev => {
-      const updatedGuests = [...prev.guests];
-      updatedGuests[index] = {
-        ...updatedGuests[index],
-        hasPartner: checked
-      };
+      let updatedGuestPartners = [...(prev.guestPartners || [])];
 
-      let updatedGuestPartners = [...prev.guestPartners];
-      
-      // If checked, add a new partner
       if (checked) {
-        // Check if a partner already exists for this guest
-        const existingPartnerIndex = updatedGuestPartners.findIndex(
-          gp => gp.guestIndex === index
-        );
-        
+        // Add a new guest partner if not already present
+        const existingPartnerIndex = updatedGuestPartners.findIndex(gp => gp.guestIndex === index);
         if (existingPartnerIndex === -1) {
-          // Add new partner
-          updatedGuestPartners.push({
+          const newPartner: GuestPartnerData = {
             ...defaultGuestPartnerData,
+            id: crypto.randomUUID(), // Generate unique ID
             guestIndex: index
-          });
+          };
+          updatedGuestPartners.push(newPartner);
         }
       } else {
-        // If unchecked, remove the partner for this guest
-        updatedGuestPartners = updatedGuestPartners.filter(
-          gp => gp.guestIndex !== index
-        );
+        // Remove the guest partner associated with this guest
+        updatedGuestPartners = updatedGuestPartners.filter(gp => gp.guestIndex !== index);
       }
-      
+
+      const updatedGuests = [...prev.guests];
+      if (updatedGuests[index]) {
+        updatedGuests[index] = { ...updatedGuests[index], hasPartner: checked };
+      }
+
       return {
         ...prev,
         guests: updatedGuests,
@@ -595,7 +605,7 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
   };
 
   return (
-    <RegisterFormContext.Provider value={{
+    <RegisterFormContext.Provider value={useMemo(() => ({
       formState,
       updateFormField,
       updateMasonField,
@@ -623,16 +633,20 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
       nextStep,
       prevStep,
       goToStep
-    }}>
+    }), [
+      formState,
+      selectTicket,
+      toggleUniformTicketing,
+      applyTicketToAllAttendees,
+      removeMason,
+      removeMasonByIndex,
+      removeGuest,
+      removeGuestByIndex
+    ])}>
       {children}
     </RegisterFormContext.Provider>
   );
 };
 
-export const useRegisterForm = () => {
-  const context = useContext(RegisterFormContext);
-  if (context === undefined) {
-    throw new Error('useRegisterForm must be used within a RegisterFormProvider');
-  }
-  return context;
-};
+// Export the context directly instead of the hook
+export { RegisterFormContext };

@@ -5,9 +5,9 @@ const AboutPage: React.FC = () => {
     <div>
       <section className="bg-primary text-white py-16">
         <div className="container-custom">
-          <h1 className="text-4xl font-bold mb-6">About The Grand Installation</h1>
+          <h1 className="text-4xl font-bold mb-6">About The Grand Proclamation</h1>
           <p className="text-xl max-w-3xl">
-            Learn about the history, significance, and ceremony of the Grand Installation
+            Learn about the history, significance, and ceremony of the Grand Proclamation
             for the United Grand Lodge of NSW & ACT.
           </p>
         </div>
@@ -19,12 +19,12 @@ const AboutPage: React.FC = () => {
             <div>
               <h2 className="text-3xl font-bold mb-6 text-primary">A Historic Tradition</h2>
               <p className="text-slate-700 mb-4">
-                The Grand Installation is a time-honored ceremony that marks the formal installation 
+                The Grand Proclamation is a time-honored ceremony that marks the formal Proclamation 
                 of the Grand Master and his officers. This ceremonial event has been conducted for centuries 
                 and represents one of the most significant occasions in Freemasonry.
               </p>
               <p className="text-slate-700 mb-4">
-                Steeped in tradition, the Grand Installation ceremony features ancient rituals, symbolism, 
+                Steeped in tradition, the Grand Proclamation ceremony features ancient rituals, symbolism, 
                 and protocols that have been preserved throughout Freemasonry's rich history. It serves as 
                 a reminder of the organization's commitment to its values and principles.
               </p>
@@ -55,11 +55,11 @@ const AboutPage: React.FC = () => {
               />
             </div>
             <div className="order-1 lg:order-2">
-              <h2 className="text-3xl font-bold mb-6 text-primary">The 2025 Grand Installation</h2>
+              <h2 className="text-3xl font-bold mb-6 text-primary">The 2025 Grand Proclamation</h2>
               <p className="text-slate-700 mb-4">
-                The 2025 Grand Installation will be a momentous occasion bringing together Freemasons 
+                The 2025 Grand Proclamation will be a momentous occasion bringing together Freemasons 
                 from across Australia and international visitors from around the world. It will include 
-                a series of events over three days, culminating in the formal installation ceremony.
+                a series of events over three days, culminating in the formal Proclamation ceremony.
               </p>
               <p className="text-slate-700 mb-4">
                 Distinguished guests will include Grand Masters and representatives from other Grand Lodges, 
@@ -67,7 +67,7 @@ const AboutPage: React.FC = () => {
                 and dignity that has characterized Freemasonry for generations.
               </p>
               <p className="text-slate-700">
-                This Grand Installation also marks an important milestone in the history of the United Grand 
+                This Grand Proclamation also marks an important milestone in the history of the United Grand 
                 Lodge of NSW & ACT, representing our continued commitment to our members and the community.
               </p>
             </div>
@@ -80,16 +80,16 @@ const AboutPage: React.FC = () => {
           <h2 className="text-3xl font-bold mb-8 text-center text-primary">Frequently Asked Questions</h2>
           <div className="max-w-3xl mx-auto">
             <div className="mb-6">
-              <h3 className="text-xl font-bold mb-2">Who can attend the Grand Installation?</h3>
+              <h3 className="text-xl font-bold mb-2">Who can attend the Grand Proclamation?</h3>
               <p className="text-slate-700">
-                The Grand Installation is open to all Freemasons in good standing. Certain events may be open 
+                The Grand Proclamation is open to all Freemasons in good standing. Certain events may be open 
                 to partners and guests. Please refer to the specific event details for information on attendance eligibility.
               </p>
             </div>
             <div className="mb-6">
               <h3 className="text-xl font-bold mb-2">What is the dress code?</h3>
               <p className="text-slate-700">
-                The main installation ceremony requires formal Masonic regalia appropriate to your rank and jurisdiction. 
+                The main Proclamation ceremony requires formal Masonic regalia appropriate to your rank and jurisdiction. 
                 Most social functions will require formal evening wear (black tie). Specific dress requirements for each 
                 event will be provided in the event details.
               </p>

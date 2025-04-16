@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { events } from '../shared/data/events';
-import { RegisterFormProvider, useRegisterForm } from '../context/RegisterFormContext';
+import { RegisterFormProvider } from '../context/RegisterFormContext';
+import { useRegisterForm } from '../hooks/useRegisterForm';
 import RegisterSteps from '../components/register/RegisterSteps';
 import RegistrationTypeSelection from '../components/register/RegistrationTypeSelection';
 import TicketSelection from '../components/register/TicketSelection';
@@ -37,7 +38,6 @@ const RegisterForm: React.FC = () => {
     addGuest,
     removeGuest,
     removeGuestByIndex,
-    toggleGuestUseContact,
     toggleGuestHasPartner,
     toggleSameLodge,
     toggleHasLadyPartner,
@@ -100,7 +100,15 @@ const RegisterForm: React.FC = () => {
   }, [formState]);
 
   // Get single event ticket if coming from event page
-  const selectedEvent = formState.selectedEventId ? events.find(e => e.id === formState.selectedEventId) : null;
+  const foundEvent = formState.selectedEventId 
+    ? events.find(e => e.id === formState.selectedEventId) 
+    : undefined;
+  
+  // Ensure the selectedEvent object matches the expected structure, providing a default price
+  const selectedEvent = foundEvent ? {
+    ...foundEvent,
+    price: foundEvent.price ?? 0 // Default price to 0 if undefined
+  } : undefined;
 
   // Define standard ticket packages
   const tickets: TicketType[] = [
@@ -111,7 +119,7 @@ const RegisterForm: React.FC = () => {
       price: 350,
       includes: [
         'Welcome Reception (Friday)',
-        'Installation Ceremony (Saturday)',
+        'Proclamation Ceremony (Saturday)',
         'Gala Dinner (Saturday)',
         'Thanksgiving Service (Sunday)',
         'Farewell Lunch (Sunday)',
@@ -121,10 +129,10 @@ const RegisterForm: React.FC = () => {
     {
       id: 'ceremony',
       name: 'Ceremony Only',
-      description: 'Access to the main installation ceremony only',
+      description: 'Access to the main Proclamation ceremony only',
       price: 150,
       includes: [
-        'Installation Ceremony (Saturday)',
+        'Proclamation Ceremony (Saturday)',
         'Commemorative Program'
       ]
     },
@@ -146,7 +154,7 @@ const RegisterForm: React.FC = () => {
     id: selectedEvent.id,
     name: selectedEvent.title,
     description: `Admission to ${selectedEvent.title}`,
-    price: selectedEvent.price || 0,
+    price: selectedEvent.price ?? 0,
     includes: [
       `Admission to ${selectedEvent.title}`,
       selectedEvent.type === 'Ceremony' ? 'Official Program' : 'Refreshments',
@@ -166,7 +174,7 @@ const RegisterForm: React.FC = () => {
     
     // If using uniform ticketing
     if (formState.useUniformTicketing) {
-      const ticketPrice = selectedTicketData?.price || 0;
+      const ticketPrice = selectedTicketData?.price ?? 0;
       const attendeeCount = formState.masons.length + 
                           formState.ladyPartners.length + 
                           formState.guests.length + 
@@ -189,7 +197,7 @@ const RegisterForm: React.FC = () => {
       }
       
       const event = events.find(e => e.id === ticketId);
-      return event?.price || 0;
+      return event?.price ?? 0;
     };
     
     // Add up all individual ticket prices
@@ -224,7 +232,6 @@ const RegisterForm: React.FC = () => {
           return (
             <RegistrationTypeSelection 
               setRegistrationType={setRegistrationType}
-              nextStep={nextStep}
             />
           );
         case 2: // Attendee Details
@@ -238,7 +245,6 @@ const RegisterForm: React.FC = () => {
               updateGuestPartnerField={updateGuestPartnerField}
               toggleSameLodge={toggleSameLodge}
               toggleHasLadyPartner={toggleHasLadyPartner}
-              toggleGuestUseContact={toggleGuestUseContact}
               toggleGuestHasPartner={toggleGuestHasPartner}
               addMason={addMason}
               removeMason={removeMason}
@@ -271,7 +277,6 @@ const RegisterForm: React.FC = () => {
           return (
             <OrderSummarySection 
               formState={formState}
-              selectedTicketData={selectedTicketData}
               nextStep={nextStep}
               prevStep={prevStep}
             />
@@ -280,7 +285,6 @@ const RegisterForm: React.FC = () => {
           return (
             <PaymentSection 
               formState={formState}
-              selectedTicketData={selectedTicketData}
               totalPrice={totalPrice}
               handleSubmit={handleSubmit}
               prevStep={prevStep}
@@ -297,7 +301,6 @@ const RegisterForm: React.FC = () => {
           return (
             <RegistrationTypeSelection 
               setRegistrationType={setRegistrationType}
-              nextStep={nextStep}
             />
           );
       }
@@ -329,7 +332,6 @@ const RegisterForm: React.FC = () => {
       return (
         <RegistrationTypeSelection 
           setRegistrationType={setRegistrationType}
-          nextStep={nextStep}
         />
       );
     }
@@ -358,15 +360,15 @@ const RegisterPage: React.FC = () => {
     <div>
       <section className="bg-primary text-white py-16">
         <div className="container-custom">
-          <h1 className="text-4xl font-bold mb-6">Register for the Grand Installation</h1>
+          <h1 className="text-4xl font-bold mb-6">Register for the Grand Proclamation</h1>
           <p className="text-xl max-w-3xl">
-            Complete your registration for the Grand Installation ceremony and associated events.
+            Complete your registration for the Grand Proclamation ceremony and associated events.
           </p>
         </div>
       </section>
 
       <section className="py-12 bg-white">
-        <div className="container-custom max-w-5xl">
+        <div id="main-content" className="container-custom max-w-5xl">
           <RegisterFormProvider initialEventId={preselectedEventId}>
             <RegisterForm />
           </RegisterFormProvider>

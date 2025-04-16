@@ -1,15 +1,28 @@
 import { EventType } from '../types/event';
 import { parseISO, compareAsc } from 'date-fns';
 
+// Define AttendeeType type alias for code clarity
+type AttendeeType = 'mason' | 'ladyPartner' | 'guest' | 'guestPartner';
+
+// Define type for attribute values
+type AttributeValue = string | boolean | number | null;
+
 // Defines eligibility criteria for attendees based on their type and attributes
 export interface EligibilityRules {
-  attendeeType: 'mason' | 'ladyPartner' | 'guest' | 'guestPartner';
+  attendeeType: AttendeeType;
   requiredAttributes?: {
-    [key: string]: any; // Can specify required values for any attribute
+    [key: string]: AttributeValue; // Can specify required values for any attribute
   };
   excludedAttributes?: {
-    [key: string]: any; // Can specify values that make an attendee ineligible
+    [key: string]: AttributeValue; // Can specify values that make an attendee ineligible
   };
+}
+
+// Interface for attendee data
+export interface AttendeeData {
+  [key: string]: unknown;
+  grandOfficer?: string;
+  // Add other common properties here as needed
 }
 
 // Map of event IDs to their eligibility rules
@@ -34,8 +47,8 @@ const eventEligibilityMap: Record<string, EligibilityRules[]> = {
     }
   ],
   
-  // Installation Ceremony - excluded for Lady & Partners and Guest Partners
-  'grand-installation-ceremony': [
+  // Proclamation Ceremony - excluded for Lady & Partners and Guest Partners
+  'grand-Proclamation-ceremony': [
     {
       attendeeType: 'mason'
     },
@@ -50,8 +63,8 @@ const eventEligibilityMap: Record<string, EligibilityRules[]> = {
 // Check if an attendee is eligible for an event
 export const isEligibleForEvent = (
   eventId: string, 
-  attendeeType: 'mason' | 'ladyPartner' | 'guest' | 'guestPartner',
-  attendeeData: any
+  attendeeType: AttendeeType,
+  attendeeData: AttendeeData
 ): boolean => {
   // If no specific eligibility rules exist, everyone is eligible
   if (!eventEligibilityMap[eventId]) {
@@ -93,8 +106,8 @@ export const isEligibleForEvent = (
 // Get eligible events for an attendee
 export const getEligibleEvents = (
   events: EventType[],
-  attendeeType: 'mason' | 'ladyPartner' | 'guest' | 'guestPartner',
-  attendeeData: any
+  attendeeType: AttendeeType,
+  attendeeData: AttendeeData
 ): EventType[] => {
   return events.filter(event => 
     isEligibleForEvent(event.id, attendeeType, attendeeData)

@@ -12,6 +12,7 @@ export interface AttendeeTicket {
 }
 
 export interface LadyPartnerData {
+  id: string;
   title: string;
   firstName: string;
   lastName: string;
@@ -27,6 +28,7 @@ export interface LadyPartnerData {
 }
 
 export interface MasonData {
+  id: string;
   title: string;
   firstName: string;
   lastName: string;
@@ -49,6 +51,7 @@ export interface MasonData {
 }
 
 export interface GuestPartnerData {
+  id: string;
   title: string;
   firstName: string;
   lastName: string;
@@ -64,12 +67,14 @@ export interface GuestPartnerData {
 }
 
 export interface GuestData {
+  id: string;
   title: string;
   firstName: string;
   lastName: string;
   phone: string;
   email: string;
   dietary: string;
+  specialNeeds: string;
   hasPartner: boolean; // Flag for partner registration
   contactPreference: string; // Primary Attendee, Directly, Provide Later
   contactConfirmed: boolean; // Confirmation that selected contact will be responsible
@@ -88,5 +93,8 @@ export interface FormState {
   agreeToTerms: boolean;
   useUniformTicketing: boolean; // If true, use same ticket for all attendees
 }
+
+// Define type alias for different attendee types and export it
+export type AttendeeData = MasonData | LadyPartnerData | GuestData | GuestPartnerData;
 
 export type RegistrationType = 'individual' | 'lodge' | 'delegation';

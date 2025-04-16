@@ -250,7 +250,7 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
         <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold mb-2">Registration Complete!</h2>
         <p className="text-slate-700">
-          Thank you for registering for the Grand Installation 2025.
+          Thank you for registering for the Grand Proclamation 2025.
         </p>
       </div>
  
@@ -304,7 +304,7 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
       {/* Print-friendly section (hidden on screen, visible when printing) */}
       <div className="hidden print:block" ref={printRef}>
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">Grand Installation 2025 Registration</h1>
+          <h1 className="text-3xl font-bold mb-2">Grand Proclamation 2025 Registration</h1>
           <p className="text-lg mb-1">Registration ID: {orderNumber}</p>
           <p className="text-lg">Date: {new Date().toLocaleDateString()}</p>
         </div>
@@ -374,13 +374,13 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
               <span>Total Paid:</span>
               <span>$350.00</span>
             </div>
-            <p className="text-center text-sm">This is your official receipt for the Grand Installation 2025.</p>
+            <p className="text-center text-sm">This is your official receipt for the Grand Proclamation 2025.</p>
           </div>
           
           <div className="text-center text-sm">
             <p className="mb-1">United Grand Lodge of NSW & ACT</p>
             <p>Sydney Masonic Centre, 66 Goulburn St, Sydney NSW 2000</p>
-            <p>+61 2 9862 0400 | info@grandinstallation.org.au</p>
+            <p>+61 2 9862 0400 | info@grandProclamation.org.au</p>
           </div>
         </div>
       </div>

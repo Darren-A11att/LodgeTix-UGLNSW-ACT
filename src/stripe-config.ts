@@ -21,10 +21,10 @@ export const products: Record<string, StripeProduct> = {
     price: 75.00,
     mode: 'payment'
   },
-  grandInstallation: {
-    priceId: 'price_mock_grand_installation',
-    name: 'Grand Installation Ceremony',
-    description: 'Main installation ceremony',
+  grandProclamation: {
+    priceId: 'price_mock_grand_Proclamation',
+    name: 'Grand Proclamation Ceremony',
+    description: 'Main Proclamation ceremony',
     price: 150.00,
     mode: 'payment'
   },

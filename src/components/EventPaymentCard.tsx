@@ -1,33 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Clock, MapPin, Users, CreditCard } from 'lucide-react';
-import { EventType } from '../types';
-import PaymentButton from './PaymentButton';
-import { products } from '../stripe-config';
+import { EventType } from '../shared/types/event';
 
 interface EventPaymentCardProps {
   event: EventType;
 }
 
 const EventPaymentCard: React.FC<EventPaymentCardProps> = ({ event }) => {
-  // Map event ID to the appropriate product ID in stripe-config
-  const getProductId = () => {
-    switch(event.id) {
-      case 'welcome-reception':
-        return 'welcomeReception';
-      case 'grand-installation-ceremony':
-        return 'grandInstallation';
-      case 'gala-dinner':
-        return 'galaDinner';
-      case 'ladies-program':
-        return 'harbourCruise';
-      default:
-        return 'eventTicket';
-    }
-  };
-
-  const productId = getProductId();
-
   return (
     <div className="bg-white rounded-lg shadow-lg border border-slate-100 p-6">
       <div className="mb-6">

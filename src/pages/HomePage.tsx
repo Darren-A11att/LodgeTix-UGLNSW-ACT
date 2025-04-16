@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, MapPin, Users, Clock } from 'lucide-react';
+import { Calendar, MapPin, Users } from 'lucide-react';
 import EventCard from '../shared/components/EventCard';
 import { events } from '../shared/data/events';
 
@@ -13,18 +13,15 @@ const HomePage: React.FC = () => {
       {/* Hero Section */}
       <section className="relative bg-primary text-white py-20">
         <div 
-          className="absolute inset-0 bg-cover bg-center opacity-20"
-          style={{
-            backgroundImage: "url('https://images.unsplash.com/photo-1449247666642-264389f5f5b1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80')"
-          }}
+          className="absolute inset-0 bg-cover bg-center opacity-20 hero-background-image"
         ></div>
         <div className="container-custom relative z-10">
           <div className="max-w-3xl">
             <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
-              Grand Installation 2025
+              Grand Proclamation 2025
             </h1>
             <p className="text-xl md:text-2xl mb-8 text-slate-100">
-              Join us for the Grand Installation ceremony of the United Grand Lodge of NSW & ACT
+              Join us for the Grand Proclamation ceremony of the United Grand Lodge of NSW & ACT
             </p>
             <div className="flex flex-wrap gap-4">
               <Link to="/register" className="btn-secondary">
@@ -72,7 +69,7 @@ const HomePage: React.FC = () => {
       {/* Countdown Timer (mock) */}
       <section className="py-12 bg-secondary/10">
         <div className="container-custom text-center">
-          <h2 className="text-3xl font-bold mb-8">Time Until The Grand Installation</h2>
+          <h2 className="text-3xl font-bold mb-8">Time Until The Grand Proclamation</h2>
           <div className="flex justify-center gap-4 md:gap-8">
             <div className="bg-white p-4 md:p-6 rounded-lg shadow-md w-20 md:w-28">
               <div className="text-3xl md:text-4xl font-bold text-primary">256</div>
@@ -100,7 +97,7 @@ const HomePage: React.FC = () => {
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">Featured Events</h2>
             <p className="text-slate-600 max-w-2xl mx-auto">
-              Experience the highlight ceremonies and events of the Grand Installation weekend
+              Experience the highlight ceremonies and events of the Grand Proclamation weekend
             </p>
           </div>
           
@@ -124,7 +121,7 @@ const HomePage: React.FC = () => {
           <h2 className="text-3xl font-bold mb-6">Be Part of This Historic Occasion</h2>
           <p className="text-xl mb-8 max-w-3xl mx-auto">
             Join fellow Freemasons from around the world for this momentous celebration. 
-            Reserve your place today for the Grand Installation ceremony.
+            Reserve your place today for the Grand Proclamation ceremony.
           </p>
           <Link to="/register" className="btn-secondary">
             Register Now

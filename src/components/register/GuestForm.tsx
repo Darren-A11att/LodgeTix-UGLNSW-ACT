@@ -131,6 +131,7 @@ const GuestForm: React.FC<GuestFormProps> = ({
           index={partnerIndex || 0}
           onChange={updatePartnerField}
           guestIndex={index}
+          guestData={guest}
           primaryMasonData={primaryMasonData}
           onRemove={handleRemovePartner}
         />

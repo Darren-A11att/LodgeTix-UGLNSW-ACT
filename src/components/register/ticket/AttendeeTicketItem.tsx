@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, Users } from 'lucide-react';
-import { MasonData, LadyPartnerData, GuestData, GuestPartnerData } from '../../../types/register';
+import { MasonData, LadyPartnerData, GuestData, GuestPartnerData } from '../../../shared/types/register';
 
 interface AttendeeType {
   type: 'mason' | 'ladyPartner' | 'guest' | 'guestPartner';
@@ -18,6 +18,7 @@ interface AttendeeTicketItemProps {
   ticketPrice: number;
   hasCustomEvents: boolean;
   onToggleExpand: () => void;
+  children?: React.ReactNode;
 }
 
 const AttendeeTicketItem: React.FC<AttendeeTicketItemProps> = ({

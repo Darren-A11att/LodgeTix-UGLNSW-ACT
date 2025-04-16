@@ -3,6 +3,13 @@ import { CreditCard, ShieldCheck, User } from 'lucide-react';
 import type { FormState } from '../../shared/types/register';
 import PhoneInputWrapper from './PhoneInputWrapper';
 import AutocompleteInput from './AutocompleteInput';
+import { loadStripe } from '@stripe/stripe-js';
+import {
+  CardElement,
+  Elements,
+  useStripe,
+  useElements
+} from '@stripe/react-stripe-js';
 
 interface PaymentSectionProps {
   formState: FormState;
@@ -11,12 +18,23 @@ interface PaymentSectionProps {
   prevStep: () => void;
 }
 
-const PaymentSection: React.FC<PaymentSectionProps> = ({
+// Load Stripe outside of component render to avoid recreation
+// Using a fixed test key for now - in production this would come from environment variables
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? '');
+
+// Comment out Stripe initialization to prevent errors in development mode
+// const stripePromise = null;
+
+// The inner payment component that uses the Stripe hooks
+const PaymentForm: React.FC<PaymentSectionProps> = ({
   formState,
   totalPrice,
   handleSubmit,
   prevStep
 }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  
   // Primary Mason's details
   const primaryMason = formState.masons[0];
 
@@ -34,6 +52,11 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
     postCode: '',
     usePrimaryMasonDetails: false
   });
+
+  // Processing state
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -72,6 +95,73 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
       phone: checked ? primaryMason.phone : ''
       // We don't pre-fill address details as they're not part of the Mason data
     }));
+  };
+
+  // Handle payment submission
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!stripe || !elements) {
+      // Stripe.js has not loaded yet. Make sure to disable form submission until Stripe.js has loaded.
+      return;
+    }
+
+    // Validate billing details
+    if (!billingDetails.firstName || !billingDetails.lastName || !billingDetails.email || 
+        !billingDetails.phone || !billingDetails.address || !billingDetails.suburb || 
+        !billingDetails.postCode) {
+      setPaymentError('Please fill in all required billing details.');
+      return;
+    }
+
+    setIsProcessing(true);
+    setPaymentError(null);
+
+    const cardElement = elements.getElement(CardElement);
+    
+    if (!cardElement) {
+      setPaymentError('Card element not found.');
+      setIsProcessing(false);
+      return;
+    }
+
+    try {
+      // In a real implementation, you would call your backend to create a payment intent
+      // and then confirm it here using the clientSecret returned from the backend.
+
+      // For now, we'll simulate a successful payment
+      // In a real app, this would be:
+      // const {error, paymentIntent} = await stripe.confirmCardPayment(clientSecret, {
+      //   payment_method: {
+      //     card: cardElement,
+      //     billing_details: {
+      //       name: `${billingDetails.firstName} ${billingDetails.lastName}`,
+      //       email: billingDetails.email,
+      //       phone: billingDetails.phone,
+      //       address: {
+      //         line1: billingDetails.address,
+      //         city: billingDetails.suburb,
+      //         state: billingDetails.state,
+      //         postal_code: billingDetails.postCode,
+      //         country: billingDetails.country
+      //       }
+      //     }
+      //   }
+      // });
+
+      // Simulate a delay for the payment processing
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setPaymentSuccess(true);
+      setIsProcessing(false);
+      
+      // Call the parent's handleSubmit to continue with form submission
+      handleSubmit(e);
+    } catch (error) {
+      setPaymentError('An unexpected error occurred.');
+      setIsProcessing(false);
+      console.error('Payment error:', error);
+    }
   };
 
   // Australian states
@@ -135,29 +225,26 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
   // Common class for form inputs to ensure consistent height
   const inputClass = "w-full h-11 px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50";
 
-  const [cardName, setCardName] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCVC, setCardCVC] = useState('');
-
-  const formatCardNumber = (value: string) => {
-    return value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim();
-  };
-
-  const formatExpiryDate = (value: string) => {
-    const cleaned = value.replace(/\D/g, '');
-    if (cleaned.length >= 3) {
-      return `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}`;
+  // Card element style
+  const cardElementStyle = {
+    base: {
+      color: '#32325d',
+      fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+      fontSmoothing: 'antialiased',
+      fontSize: '16px',
+      '::placeholder': {
+        color: '#aab7c4'
+      },
+      padding: '10px 12px',
+    },
+    invalid: {
+      color: '#fa755a',
+      iconColor: '#fa755a'
     }
-    return cleaned;
-  };
-
-  const formatCVC = (value: string) => {
-    return value.replace(/\D/g, '').slice(0, 4);
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <div className="payment-section">
       <h2 className="text-2xl font-bold mb-6">Payment Information</h2>
       
       <div className="bg-slate-50 p-6 rounded-lg mb-8">
@@ -258,16 +345,18 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
               <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="phone">
                 Mobile Number *
               </label>
-              <PhoneInputWrapper
-                value={billingDetails.phone}
-                onChange={handlePhoneChange}
-                inputProps={{
-                  id: "phone",
-                  name: "phone",
-                  className: inputClass
-                }}
-                required={true}
-              />
+              <div className="phone-input-container">
+                <PhoneInputWrapper
+                  value={billingDetails.phone}
+                  onChange={handlePhoneChange}
+                  name="phone"
+                  required={true}
+                  inputProps={{
+                    id: "phone",
+                    name: "phone"
+                  }}
+                />
+              </div>
             </div>
             
             <div>
@@ -391,73 +480,28 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
         </p>
         
         <div className="space-y-4 mb-6">
+          {/* Stripe Card Element */}
           <div>
-            <label htmlFor="cardName" className="block text-sm font-medium mb-1">Name on Card</label>
-            <div className="relative">
-              <input 
-                type="text" 
-                id="cardName"
-                name="cardName" 
-                required
-                className="form-control pl-10"
-                placeholder="John M Doe"
-                value={cardName}
-                onChange={(e) => setCardName(e.target.value)}
-              />
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <label htmlFor="card-element" className="block text-sm font-medium mb-1">
+              Credit or debit card
+            </label>
+            <div className="border border-slate-300 rounded-md p-3 bg-white">
+              <CardElement id="card-element" options={{ style: cardElementStyle }} />
             </div>
           </div>
-
-          <div>
-            <label htmlFor="cardNumber" className="block text-sm font-medium mb-1">Card Number</label>
-            <div className="relative">
-              <input 
-                type="text" 
-                id="cardNumber"
-                name="cardNumber" 
-                required
-                inputMode="numeric"
-                className="form-control pl-10"
-                placeholder="0000 0000 0000 0000"
-                value={formatCardNumber(cardNumber)}
-                onChange={(e) => setCardNumber(e.target.value)}
-                maxLength={19}
-              />
-              <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          
+          {/* Show any payment errors */}
+          {paymentError && (
+            <div className="text-red-500 text-sm mt-2">
+              {paymentError}
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="cardExpiry" className="block text-sm font-medium mb-1">Expiry Date</label>
-              <input 
-                type="text" 
-                id="cardExpiry"
-                name="cardExpiry" 
-                required
-                className="form-control"
-                placeholder="MM/YY"
-                value={formatExpiryDate(cardExpiry)}
-                onChange={(e) => setCardExpiry(e.target.value)}
-                maxLength={5}
-              />
+          )}
+          
+          {paymentSuccess && (
+            <div className="text-green-500 text-sm mt-2">
+              Payment successful!
             </div>
-            <div>
-              <label htmlFor="cardCVC" className="block text-sm font-medium mb-1">CVC</label>
-              <input 
-                type="text" 
-                id="cardCVC"
-                name="cardCVC" 
-                required
-                inputMode="numeric"
-                className="form-control"
-                placeholder="123"
-                value={formatCVC(cardCVC)}
-                onChange={(e) => setCardCVC(e.target.value)}
-                maxLength={4}
-              />
-            </div>
-          </div>
+          )}
         </div>
         
         <div className="flex items-center text-xs text-slate-500 mb-6">
@@ -471,17 +515,29 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
           type="button" 
           onClick={prevStep}
           className="btn-outline"
+          disabled={isProcessing}
         >
           Back to Review Order
         </button>
         <button 
-          type="submit"
+          type="button"
+          onClick={handlePaymentSubmit}
           className="btn-primary"
+          disabled={!stripe || isProcessing}
         >
-          Pay ${totalPrice} and Complete Registration
+          {isProcessing ? 'Processing...' : `Pay $${totalPrice} and Complete Registration`}
         </button>
       </div>
-    </form>
+    </div>
+  );
+};
+
+// Wrapper component to provide Stripe Elements
+const PaymentSection: React.FC<PaymentSectionProps> = (props) => {
+  return (
+    <Elements stripe={stripePromise}>
+      <PaymentForm {...props} />
+    </Elements>
   );
 };
 

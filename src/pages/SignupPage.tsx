@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { UserPlus, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 
 const SignupPage: React.FC = () => {
@@ -51,7 +51,7 @@ const SignupPage: React.FC = () => {
         <div className="container-custom">
           <h1 className="text-4xl font-bold mb-6">Create an Account</h1>
           <p className="text-xl max-w-3xl">
-            Sign up to register for events and manage your bookings for the Grand Installation.
+            Sign up to register for events and manage your bookings for the Grand Proclamation.
           </p>
         </div>
       </section>
@@ -82,7 +82,7 @@ const SignupPage: React.FC = () => {
               {(error || formError) && (
                 <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md flex items-start">
                   <AlertCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
-                  <p className="text-red-700 text-sm">{error || formError}</p>
+                  <p className="text-red-700 text-sm">{error ?? formError}</p>
                 </div>
               )}
 

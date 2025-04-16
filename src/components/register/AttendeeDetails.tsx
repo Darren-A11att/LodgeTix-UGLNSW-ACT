@@ -2,18 +2,17 @@ import React from 'react';
 import AttendeeCounter from './AttendeeCounter';
 import MasonForm from './MasonForm';
 import GuestForm from './GuestForm';
-import { FormState } from '../../context/RegisterFormContext';
+import { FormState } from '../../shared/types/register';
 
 interface AttendeeDetailsProps {
   formState: FormState;
-  updateFormField: (field: string, value: any) => void;
+  updateFormField: (field: string, value: unknown) => void;
   updateMasonField: (index: number, field: string, value: string | boolean) => void;
   updateGuestField: (index: number, field: string, value: string | boolean) => void;
   updateLadyPartnerField: (index: number, field: string, value: string | boolean) => void;
   updateGuestPartnerField?: (index: number, field: string, value: string | boolean) => void;
   toggleSameLodge: (index: number, checked: boolean) => void;
   toggleHasLadyPartner: (index: number, checked: boolean) => void;
-  toggleGuestUseContact?: (index: number, checked: boolean) => void;
   toggleGuestHasPartner?: (index: number, checked: boolean) => void;
   addMason: () => void;
   removeMason: () => void;
@@ -34,7 +33,6 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
   updateGuestPartnerField,
   toggleSameLodge,
   toggleHasLadyPartner,
-  toggleGuestUseContact,
   toggleGuestHasPartner,
   addMason,
   removeMason,
@@ -94,7 +92,7 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
         />
       </div>
       
-      {/* Primary Mason */}
+      {/* Mason Attendee - Primary*/}
       <MasonForm 
         mason={formState.masons[0]} 
         index={0}
@@ -107,10 +105,10 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
         primaryMasonData={primaryMasonData}
       />
       
-      {/* Additional Masons */}
+      {/* Mason Attendee - Additional */}
       {formState.masons.slice(1).map((mason, idx) => (
         <MasonForm
-          key={idx + 1}
+          key={mason.id}
           mason={mason}
           index={idx + 1}
           onChange={updateMasonField}
@@ -125,7 +123,7 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
         />
       ))}
       
-      {/* Guests */}
+      {/* Guest Attendee */}
       {formState.guests.length > 0 && (
         <div className="mt-8 mb-4">
           <h2 className="text-2xl font-bold">Guest Details</h2>
@@ -134,7 +132,7 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
       
       {formState.guests.map((guest, idx) => (
         <GuestForm
-          key={idx}
+          key={guest.id}
           guest={guest}
           index={idx}
           onChange={updateGuestField}

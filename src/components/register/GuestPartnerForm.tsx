@@ -1,6 +1,6 @@
 import React from 'react';
 import 'react-phone-input-2/lib/style.css';
-import { GuestPartnerData } from '../../shared/types/register';
+import { GuestPartnerData, GuestData } from '../../shared/types/register';
 import { HelpCircle, X } from 'lucide-react';
 import PhoneInputWrapper from './PhoneInputWrapper';
 
@@ -8,6 +8,7 @@ interface GuestPartnerFormProps {
   partner: GuestPartnerData;
   index: number;
   guestIndex: number;
+  guestData: GuestData;
   onChange: (index: number, field: string, value: string | boolean) => void;
   primaryMasonData?: any; // For accessing primary mason data in guest partner forms
   onRemove?: () => void; // New prop to handle removal
@@ -17,6 +18,7 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
   partner,
   index,
   guestIndex,
+  guestData,
   onChange,
   primaryMasonData,
   onRemove
@@ -35,22 +37,26 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
   
   // Generate dynamic confirmation message
   const getConfirmationMessage = () => {
-    if (!primaryMasonData) return "";
+    // We need both primary mason and the specific guest data for the messages
+    if (!primaryMasonData || !guestData) return ""; 
     
+    const primaryFullName = `${primaryMasonData.firstName} ${primaryMasonData.lastName}`;
+    const guestFullName = `${guestData.firstName} ${guestData.lastName}`;
+
     // For Primary Attendee option
     if (partner.contactPreference === "Primary Attendee") {
-      const primaryFullName = `${primaryMasonData.firstName} ${primaryMasonData.lastName}`;
       return `I confirm that ${primaryFullName} will be responsible for all communication with this attendee`;
     }
     
-    // For guest option - we'd need to reference the guest by index
+    // For guest option - Use the guest's actual name
     if (partner.contactPreference === "Guest") {
-      return `I confirm that Guest Attendee ${guestIndex + 1} will be responsible for all communication with this attendee`;
+      // Use guestFullName if available, otherwise fall back to generic text (shouldn't happen)
+      const nameToShow = guestFullName.trim() ? guestFullName : `Guest Attendee ${guestIndex + 1}`; 
+      return `I confirm that ${nameToShow} will be responsible for all communication with this attendee`;
     }
     
     // For Provide Later option
     if (partner.contactPreference === "Provide Later") {
-      const primaryFullName = `${primaryMasonData.firstName} ${primaryMasonData.lastName}`;
       return `I confirm that ${primaryFullName} will be responsible for all communication with this attendee until their contact details have been updated in their profile`;
     }
     

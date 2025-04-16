@@ -30,7 +30,7 @@ const ContactPage: React.FC = () => {
         <div className="container-custom">
           <h1 className="text-4xl font-bold mb-6">Contact Us</h1>
           <p className="text-xl max-w-3xl">
-            Have questions about the Grand Installation? Get in touch with our team.
+            Have questions about the Grand Proclamation? Get in touch with our team.
           </p>
         </div>
       </section>
@@ -73,8 +73,8 @@ const ContactPage: React.FC = () => {
                   <div>
                     <h3 className="font-bold mb-1">Email</h3>
                     <p className="text-slate-700">
-                      <a href="mailto:info@grandinstallation.org.au" className="hover:text-primary">
-                        info@grandinstallation.org.au
+                      <a href="mailto:info@grandProclamation.org.au" className="hover:text-primary">
+                        info@grandProclamation.org.au
                       </a>
                     </p>
                   </div>

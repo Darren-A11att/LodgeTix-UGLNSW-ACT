@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import EventCard from '../shared/components/EventCard';
 import { events } from '../shared/data/events';
-import { Calendar, Clock, Filter } from 'lucide-react';
+import { Calendar, Filter } from 'lucide-react';
 
 const EventsPage: React.FC = () => {
   const [filterDay, setFilterDay] = useState<string | null>(null);
@@ -31,7 +31,7 @@ const EventsPage: React.FC = () => {
         <div className="container-custom">
           <h1 className="text-4xl font-bold mb-6">Events Schedule</h1>
           <p className="text-xl max-w-3xl">
-            Browse the complete schedule of events for the Grand Installation weekend.
+            Browse the complete schedule of events for the Grand Proclamation weekend.
             Filter by day or event type to find the ceremonies and activities you're interested in.
           </p>
         </div>
@@ -49,9 +49,11 @@ const EventsPage: React.FC = () => {
               
               <div className="flex-grow md:flex-grow-0">
                 <select
-                  value={filterDay || ''}
-                  onChange={e => setFilterDay(e.target.value || null)}
+                  value={filterDay ?? ''}
+                  onChange={e => setFilterDay(e.target.value ? e.target.value : null)}
                   className="w-full md:w-auto px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  title="Filter events by day"
+                  aria-label="Filter events by day"
                 >
                   <option value="">All Days</option>
                   {uniqueDays.map(day => (
@@ -62,9 +64,11 @@ const EventsPage: React.FC = () => {
               
               <div className="flex-grow md:flex-grow-0">
                 <select
-                  value={filterType || ''}
-                  onChange={e => setFilterType(e.target.value || null)}
+                  value={filterType ?? ''}
+                  onChange={e => setFilterType(e.target.value ? e.target.value : null)}
                   className="w-full md:w-auto px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  title="Filter events by type"
+                  aria-label="Filter events by type"
                 >
                   <option value="">All Event Types</option>
                   {uniqueTypes.map(type => (
@@ -104,7 +108,7 @@ const EventsPage: React.FC = () => {
                   <h3 className="text-lg font-bold">Saturday, September 13</h3>
                 </div>
                 <p className="text-slate-700">
-                  Main installation ceremony and gala dinner
+                  Main Proclamation ceremony and gala dinner
                 </p>
               </div>
               

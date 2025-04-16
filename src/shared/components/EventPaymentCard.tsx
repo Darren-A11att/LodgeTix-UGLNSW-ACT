@@ -1,32 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Clock, MapPin, Users, CreditCard } from 'lucide-react';
 import { EventType } from '../types/event';
-import { products } from '../../stripe-config';
 
 interface EventPaymentCardProps {
   event: EventType;
 }
 
 const EventPaymentCard: React.FC<EventPaymentCardProps> = ({ event }) => {
-  // Map event ID to the appropriate product ID in stripe-config
-  const getProductId = () => {
-    switch(event.id) {
-      case 'welcome-reception':
-        return 'welcomeReception';
-      case 'grand-installation-ceremony':
-        return 'grandInstallation';
-      case 'gala-dinner':
-        return 'galaDinner';
-      case 'ladies-program':
-        return 'harbourCruise';
-      default:
-        return 'eventTicket';
-    }
-  };
-
-  const productId = getProductId();
-
   return (
     <div className="bg-white rounded-lg shadow-lg border border-slate-100 p-6">
       <div className="mb-6">
@@ -64,30 +44,30 @@ const EventPaymentCard: React.FC<EventPaymentCardProps> = ({ event }) => {
           {event.type === 'Ceremony' && (
             <>
               <li className="flex items-center">
-                <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
-                Official Program
+                <span className="w-2 h-2 bg-primary rounded-full mr-2" />
+                <span>Official Program</span>
               </li>
               <li className="flex items-center">
-                <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
-                Reserved Seating
+                <span className="w-2 h-2 bg-primary rounded-full mr-2" />
+                <span>Reserved Seating</span>
               </li>
             </>
           )}
           {event.type === 'Social' && (
             <>
               <li className="flex items-center">
-                <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
-                {event.id.includes('dinner') ? 'Three-Course Dinner' : 'Refreshments'}
+                <span className="w-2 h-2 bg-primary rounded-full mr-2" />
+                <span>{event.id.includes('dinner') ? 'Three-Course Dinner' : 'Refreshments'}</span>
               </li>
               <li className="flex items-center">
-                <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
-                Entertainment
+                <span className="w-2 h-2 bg-primary rounded-full mr-2" />
+                <span>Entertainment</span>
               </li>
             </>
           )}
           <li className="flex items-center">
-            <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
-            Event Access
+            <span className="w-2 h-2 bg-primary rounded-full mr-2" />
+            <span>Event Access</span>
           </li>
         </ul>
       </div>

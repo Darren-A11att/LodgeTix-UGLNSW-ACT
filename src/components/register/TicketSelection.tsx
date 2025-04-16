@@ -1,20 +1,18 @@
 import React, { useState } from 'react';
-import { AlertCircle, Info } from 'lucide-react';
-import { TicketType } from '../../shared/types/register';
-import { FormState } from '../../context/RegisterFormContext';
+import { AlertCircle } from 'lucide-react';
+import { TicketType, FormState, MasonData, LadyPartnerData, GuestData, GuestPartnerData } from '../../shared/types/register';
 import { events } from '../../shared/data/events';
-import { sortEventsByDate, getEligibleEvents, isEligibleForEvent } from '../../shared/utils/eventEligibility';
+import { sortEventsByDate, getEligibleEvents, AttendeeData as EligibilityAttendeeData } from '../../shared/utils/eventEligibility';
 import TicketingModeToggle from './ticket/TicketingModeToggle';
 import UniformTicketing from './ticket/UniformTicketing';
 import AttendeeTicketItem from './ticket/AttendeeTicketItem';
-import PackageTicketSection from './ticket/PackageTicketSection';
 import EventSelectionList from './ticket/EventSelectionList';
 import TicketingSummary from './ticket/TicketingSummary';
 
 interface TicketSelectionProps {
   formState: FormState;
   availableTickets: TicketType[];
-  selectedEvent: any;
+  selectedEvent?: { id: string; title: string; day: string; time: string; price: number };
   selectTicket: (ticketId: string) => void;
   selectMasonTicket: (masonIndex: number, ticketId: string, events?: string[]) => void;
   selectLadyPartnerTicket: (partnerIndex: number, ticketId: string, events?: string[]) => void;
@@ -47,40 +45,64 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
 
   // Get flat list of all attendees for individual ticketing
   const allAttendees = [
-    ...formState.masons.map((mason, index) => ({ 
-      type: 'mason' as const, 
-      index, 
-      name: `${mason.firstName} ${mason.lastName}`,
-      title: mason.title,
-      data: mason
-    })),
-    ...formState.ladyPartners.map((partner, index) => ({ 
-      type: 'ladyPartner' as const, 
-      index, 
-      name: `${partner.firstName} ${partner.lastName}`,
-      title: partner.title,
-      data: partner,
-      relatedTo: `Mason ${formState.masons[partner.masonIndex]?.firstName || ''} ${formState.masons[partner.masonIndex]?.lastName || ''}`
-    })),
-    ...formState.guests.map((guest, index) => ({ 
-      type: 'guest' as const, 
-      index, 
-      name: `${guest.firstName} ${guest.lastName}`,
-      title: guest.title,
-      data: guest
-    })),
-    ...formState.guestPartners.map((partner, index) => ({ 
-      type: 'guestPartner' as const, 
-      index, 
-      name: `${partner.firstName} ${partner.lastName}`,
-      title: partner.title,
-      data: partner,
-      relatedTo: `Guest ${formState.guests[partner.guestIndex]?.firstName || ''} ${formState.guests[partner.guestIndex]?.lastName || ''}`
-    }))
+    // First add all masons with their partners directly after them
+    ...formState.masons.flatMap((mason: MasonData, masonIndex: number) => {
+      // Find any partners associated with this mason
+      const relatedPartners = formState.ladyPartners.filter((partner: LadyPartnerData) => 
+        partner.masonIndex === masonIndex
+      );
+      
+      return [
+        { 
+          type: 'mason' as const, 
+          index: masonIndex, 
+          name: `${mason.firstName} ${mason.lastName}`,
+          title: mason.title,
+          data: mason
+        },
+        ...relatedPartners.map((partner: LadyPartnerData) => ({
+          type: 'ladyPartner' as const, 
+          index: formState.ladyPartners.findIndex((p: LadyPartnerData) => p === partner), 
+          name: `${partner.firstName} ${partner.lastName}`,
+          title: partner.title,
+          data: partner,
+          relatedTo: `Mason ${mason.firstName} ${mason.lastName}`
+        }))
+      ];
+    }),
+    
+    // Then add all guests with their partners directly after them
+    ...formState.guests.flatMap((guest: GuestData, guestIndex: number) => {
+      // Find any partners associated with this guest
+      const relatedPartners = formState.guestPartners.filter((partner: GuestPartnerData) => 
+        partner.guestIndex === guestIndex
+      );
+      
+      return [
+        { 
+          type: 'guest' as const, 
+          index: guestIndex, 
+          name: `${guest.firstName} ${guest.lastName}`,
+          title: guest.title,
+          data: guest
+        },
+        ...relatedPartners.map((partner: GuestPartnerData) => ({
+          type: 'guestPartner' as const, 
+          index: formState.guestPartners.findIndex((p: GuestPartnerData) => p === partner), 
+          name: `${partner.firstName} ${partner.lastName}`,
+          title: partner.title,
+          data: partner,
+          relatedTo: `Guest ${guest.firstName} ${guest.lastName}`
+        }))
+      ];
+    })
   ];
 
   // Get eligible events for an attendee
-  const getEligibleEventsForAttendee = (attendeeType: 'mason' | 'ladyPartner' | 'guest' | 'guestPartner', attendeeData: any) => {
+  const getEligibleEventsForAttendee = (
+    attendeeType: 'mason' | 'ladyPartner' | 'guest' | 'guestPartner', 
+    attendeeData: EligibilityAttendeeData
+  ) => {
     return getEligibleEvents(sortedEvents, attendeeType, attendeeData);
   };
   
@@ -88,13 +110,13 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
   const getSelectedTicketId = (attendeeType: string, index: number): string => {
     switch(attendeeType) {
       case 'mason':
-        return formState.masons[index]?.ticket?.ticketId || '';
+        return formState.masons[index]?.ticket?.ticketId ?? '';
       case 'ladyPartner':
-        return formState.ladyPartners[index]?.ticket?.ticketId || '';
+        return formState.ladyPartners[index]?.ticket?.ticketId ?? '';
       case 'guest':
-        return formState.guests[index]?.ticket?.ticketId || '';
+        return formState.guests[index]?.ticket?.ticketId ?? '';
       case 'guestPartner':
-        return formState.guestPartners[index]?.ticket?.ticketId || '';
+        return formState.guestPartners[index]?.ticket?.ticketId ?? '';
       default:
         return '';
     }
@@ -104,13 +126,13 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
   const getSelectedEvents = (attendeeType: string, index: number): string[] => {
     switch(attendeeType) {
       case 'mason':
-        return formState.masons[index]?.ticket?.events || [];
+        return formState.masons[index]?.ticket?.events ?? [];
       case 'ladyPartner':
-        return formState.ladyPartners[index]?.ticket?.events || [];
+        return formState.ladyPartners[index]?.ticket?.events ?? [];
       case 'guest':
-        return formState.guests[index]?.ticket?.events || [];
+        return formState.guests[index]?.ticket?.events ?? [];
       case 'guestPartner':
-        return formState.guestPartners[index]?.ticket?.events || [];
+        return formState.guestPartners[index]?.ticket?.events ?? [];
       default:
         return [];
     }
@@ -121,17 +143,21 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
     return ['full', 'ceremony', 'social'].includes(ticketId);
   };
 
-  // Get ticket price for an attendee
-  const getTicketPrice = (ticketId: string): number => {
-    // Check if it's a package
-    if (['full', 'ceremony', 'social'].includes(ticketId)) {
+  // Get ticket price based on selected package or summed individual events
+  const getTicketPriceForAttendee = (attendeeType: string, index: number): number => {
+    const ticketId = getSelectedTicketId(attendeeType, index);
+    const eventIds = getSelectedEvents(attendeeType, index);
+
+    if (ticketId && isPackage(ticketId)) {
       const ticket = availableTickets.find(t => t.id === ticketId);
-      return ticket?.price || 0;
+      return ticket?.price ?? 0;
+    } else if (eventIds.length > 0) {
+      return eventIds.reduce((sum, eventId) => {
+        const event = events.find(e => e.id === eventId);
+        return sum + (event?.price ?? 0);
+      }, 0);
     }
-    
-    // Check if it's an individual event
-    const event = events.find(e => e.id === ticketId);
-    return event?.price || 0;
+    return 0;
   };
 
   // Select ticket for an attendee
@@ -202,19 +228,19 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
 
   // Check if all attendees have tickets selected
   const allAttendeesHaveTickets = (): boolean => {
-    const allMasonsHaveTickets = formState.masons.every(mason => 
+    const allMasonsHaveTickets = formState.masons.every((mason: MasonData) => 
       (mason.ticket?.ticketId !== '' && mason.ticket?.ticketId !== undefined) || 
       (mason.ticket?.events && mason.ticket?.events.length > 0));
       
-    const allLadyPartnersHaveTickets = formState.ladyPartners.every(partner => 
+    const allLadyPartnersHaveTickets = formState.ladyPartners.every((partner: LadyPartnerData) => 
       (partner.ticket?.ticketId !== '' && partner.ticket?.ticketId !== undefined) || 
       (partner.ticket?.events && partner.ticket?.events.length > 0));
     
-    const allGuestsHaveTickets = formState.guests.every(guest => 
+    const allGuestsHaveTickets = formState.guests.every((guest: GuestData) => 
       (guest.ticket?.ticketId !== '' && guest.ticket?.ticketId !== undefined) || 
       (guest.ticket?.events && guest.ticket?.events.length > 0));
       
-    const allGuestPartnersHaveTickets = formState.guestPartners.every(partner => 
+    const allGuestPartnersHaveTickets = formState.guestPartners.every((partner: GuestPartnerData) => 
       (partner.ticket?.ticketId !== '' && partner.ticket?.ticketId !== undefined) || 
       (partner.ticket?.events && partner.ticket?.events.length > 0));
     
@@ -230,34 +256,34 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
     const ticketCounts: {[key: string]: number} = {};
     
     // Count Mason tickets
-    formState.masons.forEach(mason => {
-      const ticketId = mason.ticket?.ticketId || '';
+    formState.masons.forEach((mason: MasonData) => {
+      const ticketId = mason.ticket?.ticketId ?? '';
       if (ticketId) {
-        ticketCounts[ticketId] = (ticketCounts[ticketId] || 0) + 1;
+        ticketCounts[ticketId] = (ticketCounts[ticketId] ?? 0) + 1;
       }
     });
     
     // Count Lady/Partner tickets
-    formState.ladyPartners.forEach(partner => {
-      const ticketId = partner.ticket?.ticketId || '';
+    formState.ladyPartners.forEach((partner: LadyPartnerData) => {
+      const ticketId = partner.ticket?.ticketId ?? '';
       if (ticketId) {
-        ticketCounts[ticketId] = (ticketCounts[ticketId] || 0) + 1;
+        ticketCounts[ticketId] = (ticketCounts[ticketId] ?? 0) + 1;
       }
     });
     
     // Count Guest tickets
-    formState.guests.forEach(guest => {
-      const ticketId = guest.ticket?.ticketId || '';
+    formState.guests.forEach((guest: GuestData) => {
+      const ticketId = guest.ticket?.ticketId ?? '';
       if (ticketId) {
-        ticketCounts[ticketId] = (ticketCounts[ticketId] || 0) + 1;
+        ticketCounts[ticketId] = (ticketCounts[ticketId] ?? 0) + 1;
       }
     });
     
     // Count Guest Partner tickets
-    formState.guestPartners.forEach(partner => {
-      const ticketId = partner.ticket?.ticketId || '';
+    formState.guestPartners.forEach((partner: GuestPartnerData) => {
+      const ticketId = partner.ticket?.ticketId ?? '';
       if (ticketId) {
-        ticketCounts[ticketId] = (ticketCounts[ticketId] || 0) + 1;
+        ticketCounts[ticketId] = (ticketCounts[ticketId] ?? 0) + 1;
       }
     });
     
@@ -265,9 +291,9 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
     return Object.entries(ticketCounts).map(([ticketId, count]) => {
       const ticket = availableTickets.find(ticket => ticket.id === ticketId);
       return {
-        name: ticket?.name || 'Unknown Ticket',
+        name: ticket?.name ?? 'Unknown Ticket',
         count,
-        price: ticket?.price || 0
+        price: ticket?.price ?? 0
       };
     });
   };
@@ -289,7 +315,7 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
         <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 mb-6">
           <p className="text-slate-700">
             You are registering for <strong>{selectedEvent.title}</strong> on {selectedEvent.day} at {selectedEvent.time}.
-            You can also choose to register for the full Grand Installation experience below.
+            You can also choose to register for the full Grand Proclamation experience below.
           </p>
         </div>
       )}
@@ -297,7 +323,36 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
       {/* Ticketing Mode Toggle */}
       <TicketingModeToggle 
         useUniformTicketing={formState.useUniformTicketing}
-        toggleUniformTicketing={toggleUniformTicketing}
+        toggleUniformTicketing={(useUniform) => {
+          toggleUniformTicketing(useUniform);
+          
+          // When switching from uniform to individual ticketing,
+          // clear all previously selected tickets
+          if (!useUniform) {
+            // Clear main ticket selection
+            selectTicket('');
+            
+            // Clear mason tickets
+            formState.masons.forEach((_, index: number) => {
+              selectMasonTicket(index, '', []);
+            });
+            
+            // Clear lady partner tickets
+            formState.ladyPartners.forEach((_, index: number) => {
+              selectLadyPartnerTicket(index, '', []);
+            });
+            
+            // Clear guest tickets
+            formState.guests.forEach((_, index: number) => {
+              selectGuestTicket(index, '', []);
+            });
+            
+            // Clear guest partner tickets
+            formState.guestPartners.forEach((_, index: number) => {
+              selectGuestPartnerTicket(index, '', []);
+            });
+          }
+        }}
       />
       
       {/* Unified Ticketing */}
@@ -322,8 +377,8 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
               const attendeeId = `${attendee.type}-${attendee.index}`;
               const selectedTicketId = getSelectedTicketId(attendee.type, attendee.index);
               const selectedEvents = getSelectedEvents(attendee.type, attendee.index);
-              const eligibleEvents = getEligibleEventsForAttendee(attendee.type, attendee.data);
-              const hasCustomEvents = selectedEvents.length > 0;
+              const ticketPrice = getTicketPriceForAttendee(attendee.type, attendee.index);
+              const hasCustomEvents = !isPackage(selectedTicketId) && selectedEvents.length > 0;
               
               return (
                 <AttendeeTicketItem
@@ -331,63 +386,49 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
                   attendee={attendee}
                   isExpanded={expandedAttendee === attendeeId}
                   selectedTicketId={selectedTicketId}
-                  ticketPrice={getTicketPrice(selectedTicketId)}
+                  ticketPrice={ticketPrice}
                   hasCustomEvents={hasCustomEvents}
                   onToggleExpand={() => toggleExpandAttendee(attendeeId)}
                 >
                   {/* Package Selection */}
-                  <div>
-                    <h4 className="font-medium text-slate-900 mb-3">Select a Ticket Package</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                  <div className="p-4">
+                    <h4 className="font-semibold mb-3 text-slate-700">
+                      Select Package or Individual Events:
+                    </h4>
+                    <div className="space-y-3">
+                      {/* Available Packages */}
                       {availableTickets.map(ticket => (
-                        <div 
-                          key={`${attendeeId}-${ticket.id}`}
-                          className={`border rounded-md p-3 cursor-pointer ${
-                            selectedTicketId === ticket.id 
-                              ? 'border-primary bg-primary/5' 
-                              : 'border-slate-200 hover:border-primary/30'
-                          }`}
-                          onClick={() => handleSelectTicket(attendee.type, attendee.index, ticket.id)}
+                        <label 
+                          key={ticket.id} 
+                          className={`flex items-center p-4 border rounded-md cursor-pointer transition-colors ${selectedTicketId === ticket.id ? 'bg-primary/10 border-primary' : 'border-slate-200 hover:border-slate-300'}`}
                         >
-                          <div className="flex flex-col h-full">
-                            <div className="flex justify-between mb-2">
-                              <div className="font-medium">{ticket.name}</div>
-                              <div className="font-bold text-primary">${ticket.price}</div>
-                            </div>
-                            <div className="text-xs text-slate-600 mb-2 flex-grow">{ticket.description}</div>
-                            <div className={`w-5 h-5 rounded-full border ${
-                              selectedTicketId === ticket.id 
-                                ? 'bg-primary border-primary text-white flex items-center justify-center' 
-                                : 'border-slate-300'
-                            }`}>
-                              {selectedTicketId === ticket.id && (
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
-                            </div>
+                          <input 
+                            type="radio" 
+                            name={`ticket-${attendeeId}`}
+                            value={ticket.id}
+                            checked={selectedTicketId === ticket.id}
+                            onChange={() => handleSelectTicket(attendee.type, attendee.index, ticket.id)}
+                            className="mr-3 h-4 w-4 text-primary focus:ring-primary border-slate-300"
+                          />
+                          <div>
+                            <span className="font-medium text-slate-800">{ticket.name}</span>
+                            <span className="text-slate-600 ml-2">(${ticket.price})</span>
+                            <p className="text-sm text-slate-500 mt-1">{ticket.description}</p>
                           </div>
-                        </div>
+                        </label>
                       ))}
+                      
+                      {/* Individual Event Selection Title */}
+                      <p className="pt-2 text-slate-600">
+                        Or select individual events:
+                      </p>
                     </div>
-                  </div>
 
-                  <div className="border-t border-slate-200 pt-4">
-                    <h4 className="font-medium text-slate-900 mb-3">Individual Events</h4>
-                    
-                    <div className="mb-3 flex items-start p-3 bg-blue-50 rounded-md border border-blue-100 text-sm text-blue-800">
-                      <Info className="w-5 h-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />
-                      <div>
-                        Only events this attendee is eligible to attend are shown below.
-                      </div>
-                    </div>
-                    
-                    <EventSelectionList
-                      events={eligibleEvents}
+                    {/* Eligible Event Selection List */}
+                    <EventSelectionList 
+                      events={getEligibleEventsForAttendee(attendee.type, attendee.data as unknown as EligibilityAttendeeData)}
                       selectedEvents={selectedEvents}
-                      toggleEvent={(eventId) => toggleEventSelection(attendee.type, attendee.index, eventId)}
-                      showEligibilityBadges={true}
-                      attendeeType={attendee.type}
+                      toggleEvent={(eventId: string) => toggleEventSelection(attendee.type, attendee.index, eventId)}
                     />
                   </div>
                 </AttendeeTicketItem>
