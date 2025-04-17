@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CreditCard, AlertCircle } from 'lucide-react';
 import { redirectToCheckout } from '../lib/stripe';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 interface PaymentButtonProps {
   productId: string;
