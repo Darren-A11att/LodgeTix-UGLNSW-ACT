@@ -29,7 +29,7 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({ productId, className = ''
     try {
       await redirectToCheckout(productId);
     } catch (err: any) {
-      setError(err.message || 'An error occurred during checkout');
+      setError(err.message ?? 'An error occurred during checkout');
       setLoading(false);
     }
   };

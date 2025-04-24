@@ -11,9 +11,12 @@ import { events } from "../../shared/data/events";
 import { Edit2 } from "lucide-react";
 import AttendeeEditModal from "./AttendeeEditModal";
 
+// Define a type alias for the attendee type strings
+type AttendeeTypeString = "mason" | "ladyPartner" | "guest" | "guestPartner";
+
 // Interface for the structure of entries in the ordered summary
 interface OrderedAttendeeEntry {
-  type: "mason" | "ladyPartner" | "guest" | "guestPartner";
+  type: AttendeeTypeString; // Use the type alias
   attendee: AttendeeData;
   index: number;
   ticketId: string;
@@ -336,7 +339,7 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
 
   // Helper to create an attendee entry object
   const createAttendeeEntry = (
-    type: "mason" | "ladyPartner" | "guest" | "guestPartner",
+    type: AttendeeTypeString,
     attendee: AttendeeData,
     index: number,
     formStateInstance: FormState,
@@ -496,7 +499,7 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
   // Open edit modal for an attendee
   const handleEditAttendee = (
     e: React.MouseEvent,
-    type: "mason" | "ladyPartner" | "guest" | "guestPartner",
+    type: AttendeeTypeString,
     index: number,
   ) => {
     // Prevent event propagation to stop any parent click handlers from firing

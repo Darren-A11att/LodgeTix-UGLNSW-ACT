@@ -297,12 +297,6 @@ const RegisterForm: React.FC = () => {
               selectedTicketData={selectedTicketData}
             />
           );
-        default:
-          return (
-            <RegistrationTypeSelection 
-              setRegistrationType={setRegistrationType}
-            />
-          );
       }
     }
     

@@ -66,7 +66,7 @@ const PhoneInputWrapper: React.FC<PhoneInputWrapperProps> = ({
 
   // Type-safe wrapper for the onChange handler
   const handlePhoneChange = (newValue: string | undefined) => {
-    onChange(newValue || "");
+    onChange(newValue ?? "");
   };
 
   return (

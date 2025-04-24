@@ -1,9 +1,8 @@
 import React from 'react';
 import 'react-phone-input-2/lib/style.css';
-import { GuestData } from '../../shared/types/register';
+import { GuestData, GuestPartnerData, MasonData } from '../../shared/types/register';
 import GuestPartnerForm from './GuestPartnerForm';
-import { HelpCircle, X } from 'lucide-react';
-import PhoneInputWrapper from './PhoneInputWrapper';
+import { X } from 'lucide-react';
 import GuestBasicInfo from './guest/GuestBasicInfo';
 import GuestContactInfo from './guest/GuestContactInfo';
 import GuestAdditionalInfo from './guest/GuestAdditionalInfo';
@@ -14,11 +13,11 @@ interface GuestFormProps {
   index: number;
   onChange: (index: number, field: string, value: string | boolean) => void;
   onToggleHasPartner?: (index: number, checked: boolean) => void;
-  partnerData?: any;
+  partnerData?: GuestPartnerData;
   partnerIndex?: number;
   updatePartnerField?: (index: number, field: string, value: string | boolean) => void;
-  primaryMasonData?: any; // For accessing primary mason data for confirmation messages
-  onRemove?: () => void; // New prop for removing this guest
+  primaryMasonData?: MasonData;
+  onRemove?: () => void;
 }
 
 const GuestForm: React.FC<GuestFormProps> = ({
@@ -128,7 +127,7 @@ const GuestForm: React.FC<GuestFormProps> = ({
       {guest.hasPartner && partnerData && updatePartnerField && (
         <GuestPartnerForm 
           partner={partnerData}
-          index={partnerIndex || 0}
+          index={partnerIndex ?? 0}
           onChange={updatePartnerField}
           guestIndex={index}
           guestData={guest}

@@ -44,11 +44,11 @@ const EventPaymentCard: React.FC<EventPaymentCardProps> = ({ event }) => {
           {event.type === 'Ceremony' && (
             <>
               <li className="flex items-center">
-                <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
+                <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>{' '}
                 Official Program
               </li>
               <li className="flex items-center">
-                <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
+                <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>{' '}
                 Reserved Seating
               </li>
             </>
@@ -56,17 +56,17 @@ const EventPaymentCard: React.FC<EventPaymentCardProps> = ({ event }) => {
           {event.type === 'Social' && (
             <>
               <li className="flex items-center">
-                <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
+                <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>{' '}
                 {event.id.includes('dinner') ? 'Three-Course Dinner' : 'Refreshments'}
               </li>
               <li className="flex items-center">
-                <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
+                <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>{' '}
                 Entertainment
               </li>
             </>
           )}
           <li className="flex items-center">
-            <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
+            <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>{' '}
             Event Access
           </li>
         </ul>
