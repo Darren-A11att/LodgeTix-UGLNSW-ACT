@@ -197,17 +197,7 @@ function AutocompleteInput<T extends AutocompleteOption>({
           required={required}
           disabled={disabled}
           autoComplete="off"
-          list={`${id}-options`}
         />
-        
-        <datalist id={`${id}-options`}>
-          {filteredOptions.map((option) => (
-            <option 
-              key={getOptionValue(option)} 
-              value={getOptionLabel(option)}
-            />
-          ))}
-        </datalist>
       </div>
 
       {/* Custom dropdown for better UI control */}

@@ -1,8 +1,8 @@
 import React from 'react';
-import AttendeeCounter from './AttendeeCounter';
 import MasonForm from './MasonForm';
 import GuestForm from './GuestForm';
 import { FormState } from '../../shared/types/register';
+import AddRemoveControl from './AddRemoveControl';
 
 interface AttendeeDetailsProps {
   formState: FormState;
@@ -68,84 +68,94 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
 
   return (
     <div>
+      {/* Put the heading back */}
       <h2 className="text-2xl font-bold mb-6">Attendee Details</h2>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        <AttendeeCounter 
-          label="Number of Masons (+ Lady & Partners)"
-          count={formState.masons.length}
-          icon="Masons (+ Lady & Partners)"
-          onIncrement={addMason}
-          onDecrement={removeMason}
-          min={1}
-          max={10}
-        />
-        
-        <AttendeeCounter 
-          label="Number of Guests (+ Partners)"
-          count={formState.guests.length}
-          icon="Guests (+ Partners)"
-          onIncrement={addGuest}
-          onDecrement={removeGuest}
-          min={0}
-          max={10}
-        />
-      </div>
-      
-      {/* Mason Attendee - Primary*/}
-      <MasonForm 
-        mason={formState.masons[0]} 
-        index={0}
-        onChange={updateMasonField}
-        isPrimary={true}
-        onToggleHasLadyPartner={(checked) => toggleHasLadyPartner(0, checked)}
-        ladyPartnerData={findLadyPartnerForMason(0)}
-        ladyPartnerIndex={findLadyPartnerIndex(0)}
-        updateLadyPartnerField={updateLadyPartnerField}
-        primaryMasonData={primaryMasonData}
-      />
-      
-      {/* Mason Attendee - Additional */}
-      {formState.masons.slice(1).map((mason, idx) => (
-        <MasonForm
-          key={mason.id}
-          mason={mason}
-          index={idx + 1}
+      {/* Mason Attendee - Primary (Always render first) */}
+      {formState.masons.length > 0 && (
+        <MasonForm 
+          mason={formState.masons[0]} 
+          index={0}
           onChange={updateMasonField}
-          isSameLodgeAsFirst={mason.sameLodgeAsPrimary}
-          onToggleSameLodge={(checked) => toggleSameLodge(idx + 1, checked)}
-          onToggleHasLadyPartner={(checked) => toggleHasLadyPartner(idx + 1, checked)}
-          ladyPartnerData={findLadyPartnerForMason(idx + 1)}
-          ladyPartnerIndex={findLadyPartnerIndex(idx + 1)}
+          isPrimary={true}
+          onToggleHasLadyPartner={(checked) => toggleHasLadyPartner(0, checked)}
+          ladyPartnerData={findLadyPartnerForMason(0)}
+          ladyPartnerIndex={findLadyPartnerIndex(0)}
           updateLadyPartnerField={updateLadyPartnerField}
           primaryMasonData={primaryMasonData}
-          onRemove={() => removeMasonByIndex(idx + 1)}
         />
-      ))}
-      
-      {/* Guest Attendee */}
-      {formState.guests.length > 0 && (
-        <div className="mt-8 mb-4">
-          <h2 className="text-2xl font-bold">Guest Details</h2>
-        </div>
       )}
       
-      {formState.guests.map((guest, idx) => (
-        <GuestForm
-          key={guest.id}
-          guest={guest}
-          index={idx}
-          onChange={updateGuestField}
-          onToggleHasPartner={toggleGuestHasPartner}
-          partnerData={findPartnerForGuest(idx)}
-          partnerIndex={findGuestPartnerIndex(idx)}
-          updatePartnerField={updateGuestPartnerField}
-          primaryMasonData={primaryMasonData}
-          onRemove={() => removeGuestByIndex(idx)}
-        />
-      ))}
+      {/* Render Additional Masons and Guests based on attendeeAddOrder */}
+      {formState.attendeeAddOrder?.map((orderItem) => {
+        if (orderItem.type === 'mason') {
+          const masonIndex = formState.masons.findIndex(m => m.id === orderItem.id);
+          // Ensure mason exists and is not the primary (index 0)
+          if (masonIndex > 0) { 
+            const mason = formState.masons[masonIndex];
+            return (
+              <MasonForm
+                key={mason.id}
+                mason={mason}
+                index={masonIndex}
+                onChange={updateMasonField}
+                isSameLodgeAsFirst={mason.sameLodgeAsPrimary}
+                onToggleSameLodge={(checked) => toggleSameLodge(masonIndex, checked)}
+                onToggleHasLadyPartner={(checked) => toggleHasLadyPartner(masonIndex, checked)}
+                ladyPartnerData={findLadyPartnerForMason(masonIndex)}
+                ladyPartnerIndex={findLadyPartnerIndex(masonIndex)}
+                updateLadyPartnerField={updateLadyPartnerField}
+                primaryMasonData={primaryMasonData}
+                onRemove={() => removeMasonByIndex(masonIndex)}
+              />
+            );
+          }
+        } else if (orderItem.type === 'guest') {
+          const guestIndex = formState.guests.findIndex(g => g.id === orderItem.id);
+          if (guestIndex !== -1) { // Ensure guest exists
+            const guest = formState.guests[guestIndex];
+            return (
+              <GuestForm
+                key={guest.id}
+                guest={guest}
+                index={guestIndex}
+                onChange={updateGuestField}
+                onToggleHasPartner={toggleGuestHasPartner}
+                partnerData={findPartnerForGuest(guestIndex)}
+                partnerIndex={findGuestPartnerIndex(guestIndex)}
+                updatePartnerField={updateGuestPartnerField}
+                primaryMasonData={primaryMasonData}
+                onRemove={() => removeGuestByIndex(guestIndex)}
+              />
+            );
+          }
+        }
+        return null; // Should not happen if state is managed correctly
+      })}
       
-      <div className="mb-8 mt-8">
+      {/* Re-add Add/Remove, T&C, and Buttons sections */}
+      <div className="mt-8 pt-6 border-t border-slate-200 space-y-6">
+        {/* Add/Remove Controls */}
+        <div className="flex items-center gap-4">
+          <AddRemoveControl 
+            label="Mason"
+            count={formState.masons.length}
+            onAdd={addMason}
+            onRemove={removeMason}
+            min={1}
+            max={10}
+          />
+          <AddRemoveControl 
+            label="Guest"
+            count={formState.guests.length}
+            onAdd={addGuest}
+            onRemove={removeGuest}
+            min={0}
+            max={10}
+          />
+        </div>
+        
+        {/* T&C Checkbox Section */}
         <div className="flex items-start">
           <div className="flex items-center h-5">
             <input
@@ -161,29 +171,30 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
             <label htmlFor="agreeToTerms" className="font-medium text-slate-700">
               I agree to the Terms and Conditions *
             </label>
-            <p className="text-slate-500">
-              I understand that by registering for this event, I agree to the cancellation policy and privacy terms.
+            <p className="text-slate-500 text-xs mt-1">
+              I understand that by registering I agree to the cancellation policy and privacy terms.
             </p>
           </div>
         </div>
-      </div>
 
-      <div className="flex justify-between">
-        <button 
-          type="button" 
-          onClick={prevStep}
-          className="btn-outline"
-        >
-          Back to Registration Type
-        </button>
-        <button 
-          type="button" 
-          onClick={nextStep}
-          disabled={!formState.agreeToTerms}
-          className={`btn-primary ${!formState.agreeToTerms ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          Continue to Select Tickets
-        </button>
+        {/* Button Section */}
+        <div className="flex justify-between">
+          <button 
+            type="button" 
+            onClick={prevStep}
+            className="btn-outline"
+          >
+            Back to Registration Type
+          </button>
+          <button 
+            type="button" 
+            onClick={nextStep}
+            disabled={!formState.agreeToTerms}
+            className={`btn-primary ${!formState.agreeToTerms ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            Continue to Select Tickets
+          </button>
+        </div>
       </div>
     </div>
   );

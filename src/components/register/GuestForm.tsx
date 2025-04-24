@@ -115,8 +115,8 @@ const GuestForm: React.FC<GuestFormProps> = ({
         onChange={onChange}
       />
 
-      {/* Show toggle button only if no partner is registered */}
-      {!guest.hasPartner && (
+      {/* Show toggle button only if no partner is registered AND toggle function is provided */}
+      {!guest.hasPartner && onToggleHasPartner && (
         <GuestPartnerToggle
           hasPartner={guest.hasPartner}
           onToggle={handlePartnerToggle}

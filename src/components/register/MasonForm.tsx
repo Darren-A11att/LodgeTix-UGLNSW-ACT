@@ -385,8 +385,8 @@ const MasonForm: React.FC<MasonFormProps> = ({
         isPrimary={isPrimary}
       />
 
-      {/* Show toggle button only if no Lady/Partner is registered */}
-      {!mason.hasLadyPartner && (
+      {/* Show toggle button only if no Lady/Partner is registered AND toggle function is provided */}
+      {!mason.hasLadyPartner && onToggleHasLadyPartner && (
         <LadyPartnerToggle
           hasLadyPartner={mason.hasLadyPartner}
           onToggle={handleLadyPartnerToggle}

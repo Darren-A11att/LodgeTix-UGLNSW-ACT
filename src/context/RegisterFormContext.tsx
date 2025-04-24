@@ -33,10 +33,10 @@ interface RegisterFormContextType {
 
 const defaultMasonData: MasonData = {
   id: 'primary-mason',
-  title: 'Bro',
+  title: '',
   firstName: '',
   lastName: '',
-  rank: 'MM',
+  rank: '',
   phone: '',
   email: '',
   lodge: '',
@@ -103,14 +103,15 @@ const defaultGuestPartnerData: GuestPartnerData = {
 const initialFormState: FormState = {
   registrationType: '',
   step: 1, // Start at step 1 (Registration Type)
-  selectedTicket: 'full',
+  selectedTicket: '',
   selectedEventId: null,
   masons: [{ ...defaultMasonData }],
   guests: [],
   ladyPartners: [],
   guestPartners: [],
   agreeToTerms: false,
-  useUniformTicketing: true // Default to using the same ticket for all attendees
+  useUniformTicketing: true, // Default to using the same ticket for all attendees
+  attendeeAddOrder: [] // Initialize new state field
 };
 
 const RegisterFormContext = createContext<RegisterFormContextType | undefined>(undefined);
@@ -335,21 +336,25 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
   const addMason = () => {
     setFormState(prev => {
       if (prev.masons.length >= 10) return prev; // Max limit check
+      const newMasonId = crypto.randomUUID(); // Generate unique ID first
       const newMason: MasonData = {
         ...defaultMasonData,
-        id: crypto.randomUUID(), // Generate unique ID
+        id: newMasonId, 
         sameLodgeAsPrimary: true, // Default to same lodge
         hasLadyPartner: false, // Reset partner status
       };
+      // Add to order tracking
+      const newAttendeeOrder = { type: 'mason' as const, id: newMasonId };
       return {
         ...prev,
-        masons: [...prev.masons, newMason]
+        masons: [...prev.masons, newMason],
+        attendeeAddOrder: [...prev.attendeeAddOrder, newAttendeeOrder]
       };
     });
   };
 
   const removeMason = useCallback(() => {
-    if (formState.masons.length <= 1) return;
+    if (formState.masons.length <= 1) return; // Don't remove primary
     
     setFormState(prev => {
       // If removed mason had a lady partner, we need to remove that too
@@ -359,11 +364,16 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
       const updatedLadyPartners = prev.ladyPartners.filter(
         lp => lp.masonIndex !== removedMasonIndex
       );
+      
+      // Remove last mason and corresponding order entry
+      const updatedMasons = prev.masons.slice(0, -1);
+      const updatedOrder = prev.attendeeAddOrder.filter(item => item.id !== prev.masons[removedMasonIndex].id);
 
       return {
         ...prev,
-        masons: prev.masons.slice(0, -1),
-        ladyPartners: updatedLadyPartners
+        masons: updatedMasons,
+        ladyPartners: updatedLadyPartners,
+        attendeeAddOrder: updatedOrder
       };
     });
   }, [formState.masons.length]);
@@ -371,9 +381,10 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
   // New function to remove a specific mason by index
   const removeMasonByIndex = useCallback((index: number) => {
     // Don't allow removing the primary mason (index 0)
-    if (index === 0 || formState.masons.length <= 1) return;
+    if (index === 0 || index >= formState.masons.length) return;
     
     setFormState(prev => {
+      const masonToRemove = prev.masons[index];
       // Remove the mason
       const updatedMasons = [...prev.masons];
       updatedMasons.splice(index, 1);
@@ -390,11 +401,15 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
         }
         return lp;
       });
+
+      // Remove from order tracking by ID
+      const updatedOrder = prev.attendeeAddOrder.filter(item => item.id !== masonToRemove.id);
       
       return {
         ...prev,
         masons: updatedMasons,
-        ladyPartners: updatedLadyPartners
+        ladyPartners: updatedLadyPartners,
+        attendeeAddOrder: updatedOrder
       };
     });
   }, [formState.masons.length]);
@@ -461,14 +476,18 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
   const addGuest = () => {
     setFormState(prev => {
       if (prev.guests.length >= 10) return prev; // Max limit check
+      const newGuestId = crypto.randomUUID(); // Generate unique ID first
       const newGuest: GuestData = {
         ...defaultGuestData,
-        id: crypto.randomUUID(), // Generate unique ID
+        id: newGuestId, 
         hasPartner: false // Reset partner status
       };
+      // Add to order tracking
+      const newAttendeeOrder = { type: 'guest' as const, id: newGuestId };
       return {
         ...prev,
-        guests: [...prev.guests, newGuest]
+        guests: [...prev.guests, newGuest],
+        attendeeAddOrder: [...prev.attendeeAddOrder, newAttendeeOrder]
       };
     });
   };
@@ -485,10 +504,15 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
         gp => gp.guestIndex !== removedGuestIndex
       );
       
+      // Remove last guest and corresponding order entry
+      const updatedGuests = prev.guests.slice(0, -1);
+      const updatedOrder = prev.attendeeAddOrder.filter(item => item.id !== prev.guests[removedGuestIndex].id);
+      
       return {
         ...prev,
-        guests: prev.guests.slice(0, -1),
-        guestPartners: updatedGuestPartners
+        guests: updatedGuests,
+        guestPartners: updatedGuestPartners,
+        attendeeAddOrder: updatedOrder
       };
     });
   }, [formState.guests.length]);
@@ -498,6 +522,7 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
     if (index < 0 || index >= formState.guests.length) return;
     
     setFormState(prev => {
+      const guestToRemove = prev.guests[index];
       // Remove the guest
       const updatedGuests = [...prev.guests];
       updatedGuests.splice(index, 1);
@@ -515,10 +540,14 @@ export const RegisterFormProvider: React.FC<{ children: ReactNode, initialEventI
         return gp;
       });
       
+      // Remove from order tracking by ID
+      const updatedOrder = prev.attendeeAddOrder.filter(item => item.id !== guestToRemove.id);
+
       return {
         ...prev,
         guests: updatedGuests,
-        guestPartners: updatedGuestPartners
+        guestPartners: updatedGuestPartners,
+        attendeeAddOrder: updatedOrder
       };
     });
   }, [formState.guests.length]);

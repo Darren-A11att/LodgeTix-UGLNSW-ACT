@@ -10,6 +10,8 @@ import AttendeeDetails from '../components/register/AttendeeDetails';
 import OrderSummarySection from '../components/register/OrderSummarySection';
 import PaymentSection from '../components/register/PaymentSection';
 import ConfirmationSection from '../components/register/ConfirmationSection';
+import AttendeeSummary from '../components/register/AttendeeSummary';
+import TicketingSummary from '../components/register/ticket/TicketingSummary';
 import { TicketType } from '../shared/types/register';
 
 // Component that contains the form logic
@@ -212,6 +214,61 @@ const RegisterForm: React.FC = () => {
 
   const totalPrice = calculateTotalPrice();
 
+  // Get flat list of all attendees (copied from TicketSelection for use in TicketingSummary)
+  const allAttendees = [
+    // First add all masons with their partners directly after them
+    ...formState.masons.flatMap((mason, masonIndex) => {
+      // Find any partners associated with this mason
+      const relatedPartners = formState.ladyPartners.filter(partner => 
+        partner.masonIndex === masonIndex
+      );
+      
+      return [
+        { 
+          type: 'mason' as const, 
+          index: masonIndex, 
+          name: `${mason.firstName} ${mason.lastName}`,
+          title: mason.title,
+          data: mason
+        },
+        ...relatedPartners.map(partner => ({
+          type: 'ladyPartner' as const, 
+          index: formState.ladyPartners.findIndex(p => p === partner), 
+          name: `${partner.firstName} ${partner.lastName}`,
+          title: partner.title,
+          data: partner,
+          relatedTo: `Mason ${mason.firstName} ${mason.lastName}`
+        }))
+      ];
+    }),
+    
+    // Then add all guests with their partners directly after them
+    ...formState.guests.flatMap((guest, guestIndex) => {
+      // Find any partners associated with this guest
+      const relatedPartners = formState.guestPartners.filter(partner => 
+        partner.guestIndex === guestIndex
+      );
+      
+      return [
+        { 
+          type: 'guest' as const, 
+          index: guestIndex, 
+          name: `${guest.firstName} ${guest.lastName}`,
+          title: guest.title,
+          data: guest
+        },
+        ...relatedPartners.map(partner => ({
+          type: 'guestPartner' as const, 
+          index: formState.guestPartners.findIndex(p => p === partner), 
+          name: `${partner.firstName} ${partner.lastName}`,
+          title: partner.title,
+          data: partner,
+          relatedTo: `Guest ${guest.firstName} ${guest.lastName}`
+        }))
+      ];
+    })
+  ];
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     nextStep();
@@ -253,7 +310,7 @@ const RegisterForm: React.FC = () => {
               removeGuest={removeGuest}
               removeGuestByIndex={removeGuestByIndex}
               nextStep={nextStep}
-              prevStep={backToRegistrationType}
+              prevStep={prevStep}
             />
           );
         case 3: // Select Tickets
@@ -279,6 +336,13 @@ const RegisterForm: React.FC = () => {
               formState={formState}
               nextStep={nextStep}
               prevStep={prevStep}
+              updateMasonField={updateMasonField}
+              updateGuestField={updateGuestField}
+              updateLadyPartnerField={updateLadyPartnerField}
+              updateGuestPartnerField={updateGuestPartnerField}
+              toggleSameLodge={toggleSameLodge}
+              toggleHasLadyPartner={toggleHasLadyPartner}
+              toggleGuestHasPartner={toggleGuestHasPartner}
             />
           );
         case 5: // Payment
@@ -340,7 +404,41 @@ const RegisterForm: React.FC = () => {
         completedSteps={completedSteps}
       />
 
-      {renderStepContent()}
+      {/* Add two-column layout only after registration type is selected and before confirmation */}
+      {formState.registrationType && formState.step > 1 && formState.step < 6 ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Left Column: Step Content */}
+          <div className="md:col-span-2">
+            {renderStepContent()}
+          </div>
+          
+          {/* Right Column: Attendee Summary ONLY */}
+          <div className="md:col-span-1 space-y-6">
+            {/* Show TicketingSummary (renamed Order Summary) on Step 3, else show AttendeeSummary */}
+            {formState.step === 3 ? (
+              <TicketingSummary
+                formState={formState}
+                allAttendees={allAttendees}
+                availableTickets={availableTickets}
+              />
+            ) : (
+              <AttendeeSummary 
+                masons={formState.masons}
+                guests={formState.guests}
+                ladyPartners={formState.ladyPartners}
+                guestPartners={formState.guestPartners}
+                removeMasonByIndex={removeMasonByIndex}
+                removeGuestByIndex={removeGuestByIndex}
+                toggleHasLadyPartner={toggleHasLadyPartner}
+                toggleGuestHasPartner={toggleGuestHasPartner}
+              />
+            )}
+          </div>
+        </div>
+      ) : (
+        // Render step content directly for step 1 (Type Selection) and step 6 (Confirmation)
+        renderStepContent()
+      )}
     </form>
   );
 };
@@ -355,14 +453,14 @@ const RegisterPage: React.FC = () => {
       <section className="bg-primary text-white py-16">
         <div className="container-custom">
           <h1 className="text-4xl font-bold mb-6">Register for the Grand Proclamation</h1>
-          <p className="text-xl max-w-3xl">
+          <p className="text-xl max-w-xl">
             Complete your registration for the Grand Proclamation ceremony and associated events.
           </p>
         </div>
       </section>
 
       <section className="py-12 bg-white">
-        <div id="main-content" className="container-custom max-w-5xl">
+        <div id="main-content" className="container-custom max-w-7xl">
           <RegisterFormProvider initialEventId={preselectedEventId}>
             <RegisterForm />
           </RegisterFormProvider>

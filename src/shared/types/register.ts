@@ -92,6 +92,7 @@ export interface FormState {
   guestPartners: GuestPartnerData[];
   agreeToTerms: boolean;
   useUniformTicketing: boolean; // If true, use same ticket for all attendees
+  attendeeAddOrder: { type: 'mason' | 'guest'; id: string }[];
 }
 
 // Define type alias for different attendee types and export it

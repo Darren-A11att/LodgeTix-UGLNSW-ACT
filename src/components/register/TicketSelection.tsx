@@ -7,7 +7,6 @@ import TicketingModeToggle from './ticket/TicketingModeToggle';
 import UniformTicketing from './ticket/UniformTicketing';
 import AttendeeTicketItem from './ticket/AttendeeTicketItem';
 import EventSelectionList from './ticket/EventSelectionList';
-import TicketingSummary from './ticket/TicketingSummary';
 
 interface TicketSelectionProps {
   formState: FormState;
@@ -250,58 +249,6 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
            allGuestPartnersHaveTickets;
   };
 
-  // Helper function to get attendee ticket selection summary
-  const getAttendeeTicketSummary = () => {
-    // Count tickets by type
-    const ticketCounts: {[key: string]: number} = {};
-    
-    // Count Mason tickets
-    formState.masons.forEach((mason: MasonData) => {
-      const ticketId = mason.ticket?.ticketId ?? '';
-      if (ticketId) {
-        ticketCounts[ticketId] = (ticketCounts[ticketId] ?? 0) + 1;
-      }
-    });
-    
-    // Count Lady/Partner tickets
-    formState.ladyPartners.forEach((partner: LadyPartnerData) => {
-      const ticketId = partner.ticket?.ticketId ?? '';
-      if (ticketId) {
-        ticketCounts[ticketId] = (ticketCounts[ticketId] ?? 0) + 1;
-      }
-    });
-    
-    // Count Guest tickets
-    formState.guests.forEach((guest: GuestData) => {
-      const ticketId = guest.ticket?.ticketId ?? '';
-      if (ticketId) {
-        ticketCounts[ticketId] = (ticketCounts[ticketId] ?? 0) + 1;
-      }
-    });
-    
-    // Count Guest Partner tickets
-    formState.guestPartners.forEach((partner: GuestPartnerData) => {
-      const ticketId = partner.ticket?.ticketId ?? '';
-      if (ticketId) {
-        ticketCounts[ticketId] = (ticketCounts[ticketId] ?? 0) + 1;
-      }
-    });
-    
-    // Return an array of ticket types and counts
-    return Object.entries(ticketCounts).map(([ticketId, count]) => {
-      const ticket = availableTickets.find(ticket => ticket.id === ticketId);
-      return {
-        name: ticket?.name ?? 'Unknown Ticket',
-        count,
-        price: ticket?.price ?? 0
-      };
-    });
-  };
-
-  // Get the summary of selected tickets
-  const ticketSummary = getAttendeeTicketSummary();
-  const totalTicketPrice = ticketSummary.reduce((total, item) => total + (item.price * item.count), 0);
-
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6">
@@ -360,7 +307,7 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
         <UniformTicketing
           selectedTicketId={formState.selectedTicket}
           availableTickets={availableTickets}
-          attendeeCount={allAttendees.length}
+          allAttendees={allAttendees}
           onSelectTicket={(ticketId) => {
             selectTicket(ticketId);
             applyTicketToAllAttendees(ticketId);
@@ -436,12 +383,6 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
             })}
           </div>
           
-          {/* Summary of tickets and total cost */}
-          <TicketingSummary
-            ticketSummary={ticketSummary}
-            totalPrice={totalTicketPrice}
-          />
-          
           {/* Warning if not all attendees have tickets */}
           {!allAttendeesHaveTickets() && (
             <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 mb-6 flex items-start">
@@ -468,8 +409,19 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
         <button 
           type="button" 
           onClick={nextStep}
-          disabled={!formState.useUniformTicketing && !allAttendeesHaveTickets()}
-          className={`btn-primary ${!formState.useUniformTicketing && !allAttendeesHaveTickets() ? 'opacity-50 cursor-not-allowed' : ''}`}
+          // Disable if:
+          // 1. Uniform ticketing is ON and no ticket is selected OR
+          // 2. Uniform ticketing is OFF and not all attendees have tickets
+          disabled={
+            (formState.useUniformTicketing && !formState.selectedTicket) || 
+            (!formState.useUniformTicketing && !allAttendeesHaveTickets())
+          }
+          className={`btn-primary ${
+            ((formState.useUniformTicketing && !formState.selectedTicket) || 
+            (!formState.useUniformTicketing && !allAttendeesHaveTickets())) 
+            ? 'opacity-50 cursor-not-allowed' 
+            : ''
+          }`}
         >
           Continue to Payment
         </button>

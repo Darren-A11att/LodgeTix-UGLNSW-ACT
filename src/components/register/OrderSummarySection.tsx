@@ -27,10 +27,21 @@ interface OrderedAttendeeEntry {
   } | null;
 }
 
+// Define shared type for field values (copied from AttendeeEditModal)
+type FieldValue = string | boolean | number | undefined;
+
 interface OrderSummarySectionProps {
   formState: FormState;
   nextStep: () => void;
   prevStep: () => void;
+  // Add context functions passed down from RegisterPage
+  updateMasonField: (index: number, field: string, value: FieldValue) => void;
+  updateGuestField: (index: number, field: string, value: FieldValue) => void;
+  updateLadyPartnerField: (index: number, field: string, value: FieldValue) => void;
+  updateGuestPartnerField: (index: number, field: string, value: FieldValue) => void;
+  toggleSameLodge: (index: number, checked: boolean) => void;
+  toggleHasLadyPartner: (index: number, checked: boolean) => void;
+  toggleGuestHasPartner: (index: number, checked: boolean) => void;
 }
 
 // Helper Utilities
@@ -319,10 +330,18 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
   formState,
   nextStep,
   prevStep,
+  // Destructure context functions
+  updateMasonField,
+  updateGuestField,
+  updateLadyPartnerField,
+  updateGuestPartnerField,
+  toggleSameLodge,
+  toggleHasLadyPartner,
+  toggleGuestHasPartner,
 }) => {
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [currentEditAttendee, setCurrentEditAttendee] = useState<{
-    type: "mason" | "ladyPartner" | "guest" | "guestPartner";
+    type: AttendeeTypeString; // Use the type alias here
     index: number;
   } | null>(null);
 
@@ -499,7 +518,7 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
   // Open edit modal for an attendee
   const handleEditAttendee = (
     e: React.MouseEvent,
-    type: AttendeeTypeString,
+    type: AttendeeTypeString, // Use type alias here
     index: number,
   ) => {
     // Prevent event propagation to stop any parent click handlers from firing
@@ -523,7 +542,7 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Order Summary</h2>
+      <h2 className="text-2xl font-bold mb-6">Review Your Order</h2>
 
       {/* Order Summary Content */}
       <div className="space-y-8 mb-8">
@@ -545,11 +564,76 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
 
           if (entry.type === "mason") {
             const mason = entry.attendee as MasonData;
+
             attendeeHeading = `${mason.title} ${mason.firstName} ${mason.lastName} ${
-              mason.rank === "GL" ? mason.grandRank : mason.rank
+              mason.rank === "GL" && mason.grandRank
+                ? mason.grandRank
+                : mason.rank && mason.rank !== "GL"
+                  ? mason.rank
+                  : ""
             }`;
-            secondRow = attendeeUtils.getMasonLodgeInfo(mason);
-            thirdRow = attendeeUtils.getContactInfo(mason, entry.type);
+
+            // Reconstruct secondRow for Lodge Info
+            if (entry.index === 0) {
+              secondRow = `${mason.lodge || 'Lodge details missing'}${mason.grandLodge ? `, ${mason.grandLodge}` : ''}`;
+            } else {
+              secondRow = mason.sameLodgeAsPrimary
+                ? `${primaryMason.lodge || 'Lodge details missing'}${primaryMason.grandLodge ? `, ${primaryMason.grandLodge}` : ''}`
+                : `${mason.lodge || 'Lodge details missing'}${mason.grandLodge ? `, ${mason.grandLodge}` : ''}`;
+            }
+
+            // Construct thirdRow with Contact and Needs
+            const phoneStr = mason.phone || 'No mobile';
+            const emailStr = mason.email || 'No email';
+            const dietaryStr = mason.dietary || 'No dietary needs';
+            const needsStr = mason.specialNeeds || 'No special needs';
+            thirdRow = `${phoneStr} | ${emailStr} | ${dietaryStr} | ${needsStr}`;
+
+            const headerProps = {
+              type: entry.type,
+              heading: attendeeHeading,
+              secondRow: secondRow, // Pass reconstructed lodge info
+              thirdRow: thirdRow, // Pass combined contact/needs
+              onEdit: (e: React.MouseEvent) => handleEditAttendee(e, entry.type, entry.index)
+            };
+
+            return (
+              <div
+                key={attendeeId}
+                className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm order-summary-table"
+              >
+                {/* Attendee Header */}
+                <AttendeeHeader {...headerProps} />
+                
+                {/* Package or Event Table (like other types) */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="text-left p-4 font-medium text-slate-700">Item Details</th>
+                        <th className="text-left p-4 font-medium text-slate-700">Date</th>
+                        <th className="text-left p-4 font-medium text-slate-700">Time</th>
+                        <th className="text-left p-4 font-medium text-slate-700">Location</th>
+                        <th className="text-right p-4 font-medium text-slate-700">Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {entry.ticketId && ["full", "ceremony", "social"].includes(entry.ticketId) ? (
+                        <PackageEventsTable ticketId={entry.ticketId} ticketName={ticketName} />
+                      ) : (
+                        <IndividualEventsTable events={entry.attendee.ticket?.events || []} />
+                      )}
+                      {(entry.ticketId || (entry.attendee.ticket?.events && entry.attendee.ticket.events.length > 0)) && (
+                        <tr className="bg-slate-50 font-medium">
+                          <td colSpan={4} className="p-4 text-right border-t border-slate-200">Attendee Total:</td>
+                          <td className="p-4 text-right border-t border-slate-200">${attendeeTotal.toFixed(2)}</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
           } else if (entry.type === "guest") {
             const guest = entry.attendee as GuestData;
             attendeeHeading = `${guest.title} ${guest.firstName} ${guest.lastName}`;
@@ -583,56 +667,28 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
                 onEdit={(e) => handleEditAttendee(e, entry.type, entry.index)}
               />
 
-              {/* Package or Event Table - always shown (not collapsible) */}
+              {/* Package or Event Table (like other types) */}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50">
                     <tr>
-                      <th className="text-left p-4 font-medium text-slate-700">
-                        Item Details
-                      </th>
-                      <th className="text-left p-4 font-medium text-slate-700">
-                        Date
-                      </th>
-                      <th className="text-left p-4 font-medium text-slate-700">
-                        Time
-                      </th>
-                      <th className="text-left p-4 font-medium text-slate-700">
-                        Location
-                      </th>
-                      <th className="text-right p-4 font-medium text-slate-700">
-                        Price
-                      </th>
+                      <th className="text-left p-4 font-medium text-slate-700">Item Details</th>
+                      <th className="text-left p-4 font-medium text-slate-700">Date</th>
+                      <th className="text-left p-4 font-medium text-slate-700">Time</th>
+                      <th className="text-left p-4 font-medium text-slate-700">Location</th>
+                      <th className="text-right p-4 font-medium text-slate-700">Price</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {/* If it's a package ticket, display package info */}
-                    {entry.ticketId &&
-                    ["full", "ceremony", "social"].includes(entry.ticketId) ? (
-                      <PackageEventsTable
-                        ticketId={entry.ticketId}
-                        ticketName={ticketName}
-                      />
+                    {entry.ticketId && ["full", "ceremony", "social"].includes(entry.ticketId) ? (
+                      <PackageEventsTable ticketId={entry.ticketId} ticketName={ticketName} />
                     ) : (
-                      <IndividualEventsTable
-                        events={entry.attendee.ticket?.events || []}
-                      />
+                      <IndividualEventsTable events={entry.attendee.ticket?.events || []} />
                     )}
-
-                    {/* Attendee Total - Only show if there's a ticket or events */}
-                    {(entry.ticketId ||
-                      (entry.attendee.ticket?.events &&
-                        entry.attendee.ticket.events.length > 0)) && (
+                    {(entry.ticketId || (entry.attendee.ticket?.events && entry.attendee.ticket.events.length > 0)) && (
                       <tr className="bg-slate-50 font-medium">
-                        <td
-                          colSpan={4}
-                          className="p-4 text-right border-t border-slate-200"
-                        >
-                          Attendee Total:
-                        </td>
-                        <td className="p-4 text-right border-t border-slate-200">
-                          ${attendeeTotal}
-                        </td>
+                        <td colSpan={4} className="p-4 text-right border-t border-slate-200">Attendee Total:</td>
+                        <td className="p-4 text-right border-t border-slate-200">${attendeeTotal.toFixed(2)}</td>
                       </tr>
                     )}
                   </tbody>
@@ -669,6 +725,14 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
           attendeeIndex={currentEditAttendee.index}
           formState={formState}
           onClose={handleCloseModal}
+          // Pass the context functions down
+          updateMasonField={updateMasonField}
+          updateGuestField={updateGuestField}
+          updateLadyPartnerField={updateLadyPartnerField}
+          updateGuestPartnerField={updateGuestPartnerField}
+          toggleSameLodge={toggleSameLodge}
+          toggleHasLadyPartner={toggleHasLadyPartner}
+          toggleGuestHasPartner={toggleGuestHasPartner}
         />
       )}
     </div>
