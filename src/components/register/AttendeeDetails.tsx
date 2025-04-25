@@ -1,9 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import MasonForm from './MasonForm';
 import GuestForm from './GuestForm';
 import { FormState } from '../../shared/types/register';
 import AddRemoveControl from './AddRemoveControl';
-import ValidationErrorSummary from './ValidationErrorSummary';
 
 interface AttendeeDetailsProps {
   formState: FormState;
@@ -23,8 +22,6 @@ interface AttendeeDetailsProps {
   removeGuestByIndex: (index: number) => void;
   nextStep: () => void;
   prevStep: () => void;
-  isStep2Complete: boolean;
-  validationErrors: string[];
 }
 
 const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
@@ -44,10 +41,10 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
   removeGuest,
   removeGuestByIndex,
   nextStep,
-  prevStep,
-  isStep2Complete,
-  validationErrors
+  prevStep
 }) => {
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
   // Find lady partner data for each mason
   const findLadyPartnerForMason = (masonIndex: number) => {
     return formState.ladyPartners.find(lp => lp.masonIndex === masonIndex);
@@ -70,6 +67,160 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
 
   // Access primary mason data for use in confirmation messages
   const primaryMasonData = formState.masons[0];
+
+  // Validation function for Step 2
+  const validateStep2 = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    const { masons, guests, agreeToTerms } = formState;
+
+    // Validate Primary Mason (always exists)
+    const primaryMason = masons[0];
+    if (!primaryMason.title) errors['mason-0-title'] = `Masonic Title is required for ${primaryMason.firstName || 'Primary Mason'} ${primaryMason.lastName || ''}`.trim();
+    if (!primaryMason.firstName) errors['mason-0-firstName'] = `First Name is required for Primary Mason`;
+    if (!primaryMason.lastName) errors['mason-0-lastName'] = `Last Name is required for Primary Mason`;
+    if (!primaryMason.rank) errors['mason-0-rank'] = `Rank is required for ${primaryMason.firstName || 'Primary Mason'} ${primaryMason.lastName || ''}`.trim();
+    if (!primaryMason.phone) errors['mason-0-phone'] = `Mobile Number is required for ${primaryMason.firstName || 'Primary Mason'} ${primaryMason.lastName || ''}`.trim();
+    if (!primaryMason.email) errors['mason-0-email'] = `Email Address is required for ${primaryMason.firstName || 'Primary Mason'} ${primaryMason.lastName || ''}`.trim();
+    if (!primaryMason.grandLodge) errors['mason-0-grandLodge'] = `Grand Lodge is required for ${primaryMason.firstName || 'Primary Mason'} ${primaryMason.lastName || ''}`.trim();
+    if (!primaryMason.lodge) errors['mason-0-lodge'] = `Lodge Name & Number is required for ${primaryMason.firstName || 'Primary Mason'} ${primaryMason.lastName || ''}`.trim();
+
+    // Validate GL fields only if rank is GL
+    if (primaryMason.rank === 'GL') {
+      if (!primaryMason.grandRank) errors['mason-0-grandRank'] = `Grand Rank is required for ${primaryMason.firstName || 'Primary Mason'} ${primaryMason.lastName || ''}`.trim();
+      if (!primaryMason.grandOfficer) errors['mason-0-grandOfficer'] = `Grand Officer status is required for ${primaryMason.firstName || 'Primary Mason'} ${primaryMason.lastName || ''}`.trim();
+
+      // Validate Grand Office *only* if Grand Officer is 'Current'
+      if (primaryMason.grandOfficer === 'Current') {
+        if (!primaryMason.grandOffice || primaryMason.grandOffice === 'Please Select') {
+          errors['mason-0-grandOffice'] = `Grand Office is required for ${primaryMason.firstName || 'Primary Mason'} ${primaryMason.lastName || ''}`.trim();
+        }
+        // Validate Other Grand Office if 'Other' is selected
+        if (primaryMason.grandOffice === 'Other' && !primaryMason.grandOfficeOther) {
+          errors['mason-0-grandOfficeOther'] = `Other Grand Office is required for ${primaryMason.firstName || 'Primary Mason'} ${primaryMason.lastName || ''}`.trim();
+        }
+      }
+    }
+
+    // Validate Additional Masons (if any)
+    masons.slice(1).forEach((mason, relativeIndex) => {
+      const index = relativeIndex + 1;
+      const name = `${mason.firstName || `Additional Mason ${index + 1}`} ${mason.lastName || ''}`.trim();
+      if (!mason.title) errors[`mason-${index}-title`] = `Masonic Title is required for ${name}`;
+      if (!mason.firstName) errors[`mason-${index}-firstName`] = `First Name is required for Additional Mason ${index + 1}`;
+      if (!mason.lastName) errors[`mason-${index}-lastName`] = `Last Name is required for Additional Mason ${index + 1}`;
+      if (!mason.rank) errors[`mason-${index}-rank`] = `Rank is required for ${name}`;
+
+      const hideContact = mason.contactPreference === 'Primary Attendee' || mason.contactPreference === 'Provide Later';
+      if (!hideContact && !mason.phone) errors[`mason-${index}-phone`] = `Mobile Number is required for ${name}`;
+      if (!hideContact && !mason.email) errors[`mason-${index}-email`] = `Email Address is required for ${name}`;
+
+      if (!mason.sameLodgeAsPrimary) {
+        if (!mason.grandLodge) errors[`mason-${index}-grandLodge`] = `Grand Lodge is required for ${name}`;
+        if (!mason.lodge) errors[`mason-${index}-lodge`] = `Lodge Name & Number is required for ${name}`;
+      }
+
+      // Validate GL fields only if rank is GL
+      if (mason.rank === 'GL') {
+        if (!mason.grandRank) errors[`mason-${index}-grandRank`] = `Grand Rank is required for ${name}`;
+        if (!mason.grandOfficer) errors[`mason-${index}-grandOfficer`] = `Grand Officer status is required for ${name}`;
+
+        // Validate Grand Office *only* if Grand Officer is 'Current'
+        if (mason.grandOfficer === 'Current') {
+          if (!mason.grandOffice || mason.grandOffice === 'Please Select') {
+            errors[`mason-${index}-grandOffice`] = `Grand Office is required for ${name}`;
+          }
+          // Validate Other Grand Office if 'Other' is selected
+          if (mason.grandOffice === 'Other' && !mason.grandOfficeOther) {
+            errors[`mason-${index}-grandOfficeOther`] = `Other Grand Office is required for ${name}`;
+          }
+        }
+      }
+
+      // Validate contact confirmation if applicable
+      if (mason.contactPreference === 'Primary Attendee' || mason.contactPreference === 'Provide Later') {
+        if (!mason.contactConfirmed) errors[`mason-${index}-contactConfirmed`] = `Contact confirmation is required for ${name}`;
+      } else if (!mason.contactPreference || mason.contactPreference === 'Please Select') {
+        errors[`mason-${index}-contactPreference`] = `Contact preference is required for ${name}`;
+      }
+    });
+
+    // Validate Guests (if any)
+    guests.forEach((guest, index) => {
+      const name = `${guest.firstName || `Guest ${index + 1}`} ${guest.lastName || ''}`.trim();
+      if (!guest.title) errors[`guest-${index}-title`] = `Title is required for ${name}`;
+      if (!guest.firstName) errors[`guest-${index}-firstName`] = `First Name is required for Guest ${index + 1}`;
+      if (!guest.lastName) errors[`guest-${index}-lastName`] = `Last Name is required for Guest ${index + 1}`;
+      if (!guest.phone) errors[`guest-${index}-phone`] = `Mobile Number is required for ${name}`;
+      if (!guest.email) errors[`guest-${index}-email`] = `Email Address is required for ${name}`;
+    });
+
+    // *** ADDED VALIDATION FOR PARTNERS ***
+    // Validate Lady Partners (if any)
+    formState.ladyPartners.forEach((partner, index) => {
+      const relatedMason = formState.masons[partner.masonIndex];
+      const relatedMasonName = relatedMason ? `${relatedMason.firstName} ${relatedMason.lastName}`.trim() : `Mason ${partner.masonIndex + 1}`;
+      const partnerName = `${partner.firstName || `Partner of ${relatedMasonName}`} ${partner.lastName || ''}`.trim();
+
+      if (!partner.title) errors[`ladyPartner-${index}-title`] = `Title is required for ${partnerName}`;
+      if (!partner.firstName) errors[`ladyPartner-${index}-firstName`] = `First Name is required for Partner of ${relatedMasonName}`;
+      if (!partner.lastName) errors[`ladyPartner-${index}-lastName`] = `Last Name is required for Partner of ${relatedMasonName}`;
+      if (!partner.relationship || partner.relationship === 'Please Select') errors[`ladyPartner-${index}-relationship`] = `Relationship is required for ${partnerName}`;
+
+      const hideContact = partner.contactPreference === 'Mason' || partner.contactPreference === 'Primary Attendee' || partner.contactPreference === 'Provide Later';
+      if (!hideContact && !partner.phone) errors[`ladyPartner-${index}-phone`] = `Mobile Number is required for ${partnerName}`;
+      if (!hideContact && !partner.email) errors[`ladyPartner-${index}-email`] = `Email Address is required for ${partnerName}`;
+
+      // Validate contact confirmation if applicable
+      if (partner.contactPreference === 'Mason' || partner.contactPreference === 'Primary Attendee' || partner.contactPreference === 'Provide Later') {
+        if (!partner.contactConfirmed) errors[`ladyPartner-${index}-contactConfirmed`] = `Contact confirmation is required for ${partnerName}`;
+      } else if (!partner.contactPreference || partner.contactPreference === 'Please Select') {
+        errors[`ladyPartner-${index}-contactPreference`] = `Contact preference is required for ${partnerName}`;
+      }
+    });
+
+    // Validate Guest Partners (if any)
+    formState.guestPartners?.forEach((partner, index) => {
+      const relatedGuest = formState.guests[partner.guestIndex];
+      const relatedGuestName = relatedGuest ? `${relatedGuest.firstName} ${relatedGuest.lastName}`.trim() : `Guest ${partner.guestIndex + 1}`;
+      const partnerName = `${partner.firstName || `Partner of ${relatedGuestName}`} ${partner.lastName || ''}`.trim();
+
+      if (!partner.title) errors[`guestPartner-${index}-title`] = `Title is required for ${partnerName}`;
+      if (!partner.firstName) errors[`guestPartner-${index}-firstName`] = `First Name is required for Partner of ${relatedGuestName}`;
+      if (!partner.lastName) errors[`guestPartner-${index}-lastName`] = `Last Name is required for Partner of ${relatedGuestName}`;
+      if (!partner.relationship || partner.relationship === 'Please Select') errors[`guestPartner-${index}-relationship`] = `Relationship is required for ${partnerName}`;
+
+      const hideContact = partner.contactPreference === 'Primary Attendee' || partner.contactPreference === 'Provide Later'; // Guests can't select 'Mason'
+      if (!hideContact && !partner.phone) errors[`guestPartner-${index}-phone`] = `Mobile Number is required for ${partnerName}`;
+      if (!hideContact && !partner.email) errors[`guestPartner-${index}-email`] = `Email Address is required for ${partnerName}`;
+
+      // Validate contact confirmation if applicable
+      if (partner.contactPreference === 'Primary Attendee' || partner.contactPreference === 'Provide Later') {
+        if (!partner.contactConfirmed) errors[`guestPartner-${index}-contactConfirmed`] = `Contact confirmation is required for ${partnerName}`;
+      } else if (!partner.contactPreference || partner.contactPreference === 'Please Select') {
+        errors[`guestPartner-${index}-contactPreference`] = `Contact preference is required for ${partnerName}`;
+      }
+    });
+    // *** END ADDED VALIDATION ***
+
+    // Validate T&C
+    if (!agreeToTerms) errors['terms'] = 'You must agree to the Terms and Conditions';
+
+    return errors;
+  };
+
+  // Handle moving to the next step
+  const handleNext = () => {
+    const errors = validateStep2();
+    setValidationErrors(errors);
+
+    if (Object.keys(errors).length === 0) {
+      nextStep(); // Call the original nextStep function from props
+    } else {
+      // Scroll to the error messages if there are any
+      const errorElement = document.getElementById('validation-errors');
+      errorElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   return (
     <div>
@@ -182,9 +333,16 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
           </div>
         </div>
 
-        {/* Conditionally render the validation summary */}
-        {!isStep2Complete && formState.agreeToTerms && validationErrors.length > 0 && (
-          <ValidationErrorSummary errors={validationErrors} />
+        {/* Validation Error Display */}
+        {Object.keys(validationErrors).length > 0 && (
+          <div id="validation-errors" className="p-4 bg-red-50 border border-red-200 rounded-md text-red-800">
+            <h4 className="font-bold mb-2">There {Object.keys(validationErrors).length === 1 ? 'was 1 error' : `were ${Object.keys(validationErrors).length} errors`} with your submission:</h4>
+            <ul className="list-disc list-inside text-sm space-y-1">
+              {Object.values(validationErrors).map((error, index) => (
+                <li key={index}>{error}</li>
+              ))}
+            </ul>
+          </div>
         )}
 
         {/* Button Section */}
@@ -198,9 +356,9 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
           </button>
           <button
             type="button"
-            onClick={nextStep}
-            disabled={!isStep2Complete}
-            className={`btn-primary ${!isStep2Complete ? 'opacity-50 cursor-not-allowed' : ''}`}
+            onClick={handleNext}
+            disabled={!formState.agreeToTerms}
+            className={`btn-primary ${!formState.agreeToTerms ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Continue to Select Tickets
           </button>
