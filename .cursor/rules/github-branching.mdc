@@ -1,8 +1,3 @@
----
-description: 
-globs: 
-alwaysApply: true
----
 # Workflow Rule: Feature Branch Management & Completion
 
 **Objective:** To establish a consistent Git branching and commit workflow when collaborating with the AI assistant.
@@ -43,3 +38,8 @@ alwaysApply: true
 *   If the implemented changes require a server build/restart (e.g., web server, API):
     *   After any necessary build process is complete, propose the command to **stop** the currently running server (specify the exact command if known, otherwise ask the user).
     *   Subsequently, propose the command to **restart** the server.
+
+# Your rule content
+
+- You can @ files here
+- You can use markdown but dont have to
