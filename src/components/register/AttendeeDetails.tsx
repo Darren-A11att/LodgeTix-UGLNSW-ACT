@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import MasonForm from './MasonForm';
 import GuestForm from './GuestForm';
 import { FormState } from '../../shared/types/register';
@@ -136,8 +136,11 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
         }
       }
 
-      // Validate contact confirmation if applicable
-      if (mason.contactPreference === 'Primary Attendee' || mason.contactPreference === 'Provide Later') {
+      // Validate contact fields based on preference
+      if (mason.contactPreference === 'Directly') {
+        if (!mason.phone) errors[`mason-${index}-phone`] = `Mobile Number is required for ${name} when contact is 'Directly'`;
+        if (!mason.email) errors[`mason-${index}-email`] = `Email Address is required for ${name} when contact is 'Directly'`;
+      } else if (mason.contactPreference === 'Primary Attendee' || mason.contactPreference === 'Provide Later') {
         if (!mason.contactConfirmed) errors[`mason-${index}-contactConfirmed`] = `Contact confirmation is required for ${name}`;
       } else if (!mason.contactPreference || mason.contactPreference === 'Please Select') {
         errors[`mason-${index}-contactPreference`] = `Contact preference is required for ${name}`;
@@ -166,12 +169,11 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
       if (!partner.lastName) errors[`ladyPartner-${index}-lastName`] = `Last Name is required for Partner of ${relatedMasonName}`;
       if (!partner.relationship || partner.relationship === 'Please Select') errors[`ladyPartner-${index}-relationship`] = `Relationship is required for ${partnerName}`;
 
-      const hideContact = partner.contactPreference === 'Mason' || partner.contactPreference === 'Primary Attendee' || partner.contactPreference === 'Provide Later';
-      if (!hideContact && !partner.phone) errors[`ladyPartner-${index}-phone`] = `Mobile Number is required for ${partnerName}`;
-      if (!hideContact && !partner.email) errors[`ladyPartner-${index}-email`] = `Email Address is required for ${partnerName}`;
-
-      // Validate contact confirmation if applicable
-      if (partner.contactPreference === 'Mason' || partner.contactPreference === 'Primary Attendee' || partner.contactPreference === 'Provide Later') {
+      // Validate contact fields based on preference
+      if (partner.contactPreference === 'Directly') {
+        if (!partner.phone) errors[`ladyPartner-${index}-phone`] = `Mobile Number is required for ${partnerName} when contact is 'Directly'`;
+        if (!partner.email) errors[`ladyPartner-${index}-email`] = `Email Address is required for ${partnerName} when contact is 'Directly'`;
+      } else if (partner.contactPreference === 'Mason' || partner.contactPreference === 'Primary Attendee' || partner.contactPreference === 'Provide Later') {
         if (!partner.contactConfirmed) errors[`ladyPartner-${index}-contactConfirmed`] = `Contact confirmation is required for ${partnerName}`;
       } else if (!partner.contactPreference || partner.contactPreference === 'Please Select') {
         errors[`ladyPartner-${index}-contactPreference`] = `Contact preference is required for ${partnerName}`;
@@ -189,12 +191,11 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
       if (!partner.lastName) errors[`guestPartner-${index}-lastName`] = `Last Name is required for Partner of ${relatedGuestName}`;
       if (!partner.relationship || partner.relationship === 'Please Select') errors[`guestPartner-${index}-relationship`] = `Relationship is required for ${partnerName}`;
 
-      const hideContact = partner.contactPreference === 'Primary Attendee' || partner.contactPreference === 'Provide Later'; // Guests can't select 'Mason'
-      if (!hideContact && !partner.phone) errors[`guestPartner-${index}-phone`] = `Mobile Number is required for ${partnerName}`;
-      if (!hideContact && !partner.email) errors[`guestPartner-${index}-email`] = `Email Address is required for ${partnerName}`;
-
-      // Validate contact confirmation if applicable
-      if (partner.contactPreference === 'Primary Attendee' || partner.contactPreference === 'Provide Later') {
+      // Validate contact fields based on preference
+      if (partner.contactPreference === 'Directly') {
+        if (!partner.phone) errors[`guestPartner-${index}-phone`] = `Mobile Number is required for ${partnerName} when contact is 'Directly'`;
+        if (!partner.email) errors[`guestPartner-${index}-email`] = `Email Address is required for ${partnerName} when contact is 'Directly'`;
+      } else if (partner.contactPreference === 'Primary Attendee' || partner.contactPreference === 'Provide Later') {
         if (!partner.contactConfirmed) errors[`guestPartner-${index}-contactConfirmed`] = `Contact confirmation is required for ${partnerName}`;
       } else if (!partner.contactPreference || partner.contactPreference === 'Please Select') {
         errors[`guestPartner-${index}-contactPreference`] = `Contact preference is required for ${partnerName}`;
@@ -208,18 +209,27 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
     return errors;
   };
 
-  // Handle moving to the next step
-  const handleNext = () => {
-    const errors = validateStep2();
-    setValidationErrors(errors);
-
-    if (Object.keys(errors).length === 0) {
-      nextStep(); // Call the original nextStep function from props
+  // *** ADDED: Proactive validation with useEffect ***
+  useEffect(() => {
+    // Run validation whenever formState changes to keep errors up-to-date
+    // We only run validation if T&C is agreed to, to avoid showing errors prematurely
+    if (formState.agreeToTerms) {
+        const errors = validateStep2();
+        setValidationErrors(errors);
     } else {
-      // Scroll to the error messages if there are any
-      const errorElement = document.getElementById('validation-errors');
-      errorElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Clear errors if T&C is unchecked
+        setValidationErrors({});
     }
+    // Depend on the entire formState for simplicity, 
+    // could be optimized later if performance becomes an issue.
+  }, [formState]); 
+  // *** END ADDED ***
+
+  // Handle moving to the next step (simplified)
+  const handleNext = () => {
+    // Validation is now handled by useEffect and the button's disabled state.
+    // If this function is called, it means the form is valid.
+    nextStep(); 
   };
 
   return (
@@ -357,8 +367,8 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
           <button
             type="button"
             onClick={handleNext}
-            disabled={!formState.agreeToTerms}
-            className={`btn-primary ${!formState.agreeToTerms ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={!formState.agreeToTerms || Object.keys(validationErrors).length > 0}
+            className={`btn-primary ${!formState.agreeToTerms || Object.keys(validationErrors).length > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Continue to Select Tickets
           </button>
