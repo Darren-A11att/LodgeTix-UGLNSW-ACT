@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import 'react-phone-input-2/lib/style.css';
-import { MasonData } from '../../types/register';
+import { MasonData, LadyPartnerData } from '../../shared/types/register';
 import LadyPartnerForm from './LadyPartnerForm';
-import { HelpCircle, X } from 'lucide-react';
-import PhoneInputWrapper from './PhoneInputWrapper';
-import AutocompleteInput from './AutocompleteInput';
+import { X } from 'lucide-react';
 import { grandLodges, GrandLodgeType } from '../../shared/data/grandLodges';
-import { lodges, LodgeType, getLodgesByGrandLodge } from '../../shared/data/lodges';
+import { LodgeType, getLodgesByGrandLodge } from '../../shared/data/lodges';
 import MasonBasicInfo from './mason/MasonBasicInfo';
 import MasonGrandLodgeFields from './mason/MasonGrandLodgeFields';
 import MasonLodgeInfo from './mason/MasonLodgeInfo';
@@ -24,7 +22,7 @@ interface MasonFormProps {
   onToggleHasLadyPartner?: (checked: boolean) => void;
   ladyPartnerIndex?: number;
   updateLadyPartnerField?: (index: number, field: string, value: string | boolean) => void;
-  ladyPartnerData?: any;
+  ladyPartnerData?: LadyPartnerData;
   primaryMasonData?: MasonData; // For accessing primary mason data in additional mason forms
   onRemove?: () => void; // New prop for removing this mason
 }
@@ -153,7 +151,12 @@ const MasonForm: React.FC<MasonFormProps> = ({
     // If selecting a Grand title, automatically set rank to GL
     if (isGrandTitle(newTitle)) {
       onChange(index, 'rank', 'GL');
+    } 
+    // *** ADDED: If selecting W Bro, set rank to IM ***
+    else if (newTitle === 'W Bro') {
+      onChange(index, 'rank', 'IM');
     }
+    // *** END ADDED ***
   };
 
   // Handle Grand Lodge selection
@@ -217,6 +220,7 @@ const MasonForm: React.FC<MasonFormProps> = ({
 
   // Finalize the lodge creation
   const finalizeLodgeCreation = () => {
+    if (!selectedGrandLodge) return;
     // Create the lodge display name format: "Lodge Name No Number"
     const lodgeDisplayName = `${newLodgeName} No ${newLodgeNumber}`;
     onChange(index, 'lodge', lodgeDisplayName);
@@ -382,7 +386,6 @@ const MasonForm: React.FC<MasonFormProps> = ({
         mason={mason}
         index={index}
         onChange={onChange}
-        isPrimary={isPrimary}
       />
 
       {/* Show toggle button only if no Lady/Partner is registered AND toggle function is provided */}
