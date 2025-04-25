@@ -3,6 +3,7 @@ import MasonForm from './MasonForm';
 import GuestForm from './GuestForm';
 import { FormState } from '../../shared/types/register';
 import AddRemoveControl from './AddRemoveControl';
+import ValidationErrorSummary from './ValidationErrorSummary';
 
 interface AttendeeDetailsProps {
   formState: FormState;
@@ -22,6 +23,8 @@ interface AttendeeDetailsProps {
   removeGuestByIndex: (index: number) => void;
   nextStep: () => void;
   prevStep: () => void;
+  isStep2Complete: boolean;
+  validationErrors: string[];
 }
 
 const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
@@ -41,7 +44,9 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
   removeGuest,
   removeGuestByIndex,
   nextStep,
-  prevStep
+  prevStep,
+  isStep2Complete,
+  validationErrors
 }) => {
   // Find lady partner data for each mason
   const findLadyPartnerForMason = (masonIndex: number) => {
@@ -70,11 +75,11 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
     <div>
       {/* Put the heading back */}
       <h2 className="text-2xl font-bold mb-6">Attendee Details</h2>
-      
+
       {/* Mason Attendee - Primary (Always render first) */}
       {formState.masons.length > 0 && (
-        <MasonForm 
-          mason={formState.masons[0]} 
+        <MasonForm
+          mason={formState.masons[0]}
           index={0}
           onChange={updateMasonField}
           isPrimary={true}
@@ -85,13 +90,13 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
           primaryMasonData={primaryMasonData}
         />
       )}
-      
+
       {/* Render Additional Masons and Guests based on attendeeAddOrder */}
       {formState.attendeeAddOrder?.map((orderItem) => {
         if (orderItem.type === 'mason') {
           const masonIndex = formState.masons.findIndex(m => m.id === orderItem.id);
           // Ensure mason exists and is not the primary (index 0)
-          if (masonIndex > 0) { 
+          if (masonIndex > 0) {
             const mason = formState.masons[masonIndex];
             return (
               <MasonForm
@@ -132,12 +137,12 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
         }
         return null; // Should not happen if state is managed correctly
       })}
-      
+
       {/* Re-add Add/Remove, T&C, and Buttons sections */}
       <div className="mt-8 pt-6 border-t border-slate-200 space-y-6">
         {/* Add/Remove Controls */}
         <div className="flex items-center gap-4">
-          <AddRemoveControl 
+          <AddRemoveControl
             label="Mason"
             count={formState.masons.length}
             onAdd={addMason}
@@ -145,7 +150,7 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
             min={1}
             max={10}
           />
-          <AddRemoveControl 
+          <AddRemoveControl
             label="Guest"
             count={formState.guests.length}
             onAdd={addGuest}
@@ -154,7 +159,7 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
             max={10}
           />
         </div>
-        
+
         {/* T&C Checkbox Section */}
         <div className="flex items-start">
           <div className="flex items-center h-5">
@@ -177,20 +182,25 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
           </div>
         </div>
 
+        {/* Conditionally render the validation summary */}
+        {!isStep2Complete && formState.agreeToTerms && validationErrors.length > 0 && (
+          <ValidationErrorSummary errors={validationErrors} />
+        )}
+
         {/* Button Section */}
         <div className="flex justify-between">
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={prevStep}
             className="btn-outline"
           >
             Back to Registration Type
           </button>
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={nextStep}
-            disabled={!formState.agreeToTerms}
-            className={`btn-primary ${!formState.agreeToTerms ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={!isStep2Complete}
+            className={`btn-primary ${!isStep2Complete ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Continue to Select Tickets
           </button>

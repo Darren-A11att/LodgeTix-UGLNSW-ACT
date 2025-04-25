@@ -37,26 +37,17 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
   ];
   const relationships = ["Wife", "Partner", "Fiancée", "Husband", "Fiancé"];
 
-  // Determine available contact options based on associated mason's contact preference
-  let contactOptions = ["Please Select", "Directly", "Provide Later"];
+  // Determine available contact options
+  const contactOptions = ["Please Select", "Directly", "Provide Later"];
 
-  // For primary mason's lady partner or when mason has direct contact
-  if (
-    isPrimaryMason ||
-    (masonData && masonData.contactPreference === "Directly")
-  ) {
-    // Include mason option
-    contactOptions = ["Please Select", "Mason", "Directly", "Provide Later"];
+  // Add "Mason" option if linked to any mason
+  if (masonData) {
+    contactOptions.splice(1, 0, "Mason"); // Insert "Mason" after "Please Select"
   }
 
-  // For additional mason's lady partner, include primary attendee option
+  // Add "Primary Attendee" option if linked to an additional mason
   if (!isPrimaryMason) {
-    // Add Primary Attendee to the options
-    contactOptions = [
-      "Please Select",
-      "Primary Attendee",
-      ...contactOptions.slice(1),
-    ];
+    contactOptions.splice(1, 0, "Primary Attendee"); // Insert "Primary Attendee" after "Please Select"
   }
 
   const handlePhoneChange = (value: string) => {

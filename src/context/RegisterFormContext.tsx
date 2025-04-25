@@ -33,10 +33,10 @@ interface RegisterFormContextType {
 
 const defaultMasonData: MasonData = {
   id: 'primary-mason',
-  title: '',
+  title: 'Bro',
   firstName: '',
   lastName: '',
-  rank: '',
+  rank: 'EAF',
   phone: '',
   email: '',
   lodge: '',
@@ -48,7 +48,7 @@ const defaultMasonData: MasonData = {
   grandRank: '',
   grandOfficer: 'Past',
   grandOffice: '',
-  contactPreference: 'Please Select',
+  contactPreference: 'Directly',
   contactConfirmed: false,
   ticket: { ticketId: '', events: [] }
 };
