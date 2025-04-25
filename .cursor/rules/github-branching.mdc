@@ -1,0 +1,45 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Workflow Rule: Feature Branch Management & Completion
+
+**Objective:** To establish a consistent Git branching and commit workflow when collaborating with the AI assistant.
+
+## 1. Request Analysis
+
+*   Upon receiving a user prompt detailing a task, the assistant MUST analyze whether it constitutes a **new** feature/bugfix or an **update** to the currently active feature branch.
+
+## 2. New Feature Branch Creation
+
+*   If the task is identified as **new**:
+    *   **Determine Branch Name:** Generate a descriptive branch name based on the task description, following the pattern `feature/<short-task-description>` or `fix/<short-bug-description>`. Use hyphens `-` to separate words.
+    *   **Confirm Name:** Present the proposed branch name to the user for confirmation before proceeding.
+    *   **Execute Branching Commands:** After confirmation, propose the following sequence of terminal commands:
+        *   `git checkout development` (Switch to development branch)
+        *   `git pull origin development` (Update development branch)
+        *   `git checkout -b <confirmed-branch-name>` (Create and switch to the new feature branch)
+*   If the task is an **update** to the current feature, continue working on the existing feature branch.
+
+## 3. Code Implementation & Formatting
+
+*   Implement the requested code changes within the active feature branch.
+*   **Format Document:** After applying code edits to any file using the `edit_file` tool, the assistant MUST immediately remind the user: "Please format the document `[target_file]` using the Command Palette (`Cmd+Shift+P` or `Ctrl+Shift+P`) and select 'Format Document'."
+
+## 4. Feature Completion
+
+*   Once the user indicates that the work on the current feature branch is complete:
+    *   **Stage Changes:** Propose the command: `git add .`
+    *   **Create Commit:**
+        *   Generate a commit message following the Conventional Commits specification (e.g., `feat: Implement user login`, `fix: Correct validation error on signup`). The scope is optional.
+        *   Present the proposed commit message to the user for confirmation.
+        *   After confirmation, propose the command: `git commit -m "<confirmed-commit-message>"`
+    *   **Push Branch:** Propose the command: `git push -u origin <current-branch-name>`
+    *   **Switch Back to Development:** After the push is confirmed successful (either by user confirmation or successful tool execution), propose the command: `git checkout development`
+
+## 5. Server Management (If Applicable)
+
+*   If the implemented changes require a server build/restart (e.g., web server, API):
+    *   After any necessary build process is complete, propose the command to **stop** the currently running server (specify the exact command if known, otherwise ask the user).
+    *   Subsequently, propose the command to **restart** the server.
