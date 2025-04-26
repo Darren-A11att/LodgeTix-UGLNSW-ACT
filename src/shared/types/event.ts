@@ -10,5 +10,5 @@ export interface EventType {
   price?: number;
   maxAttendees?: number;
   featured: boolean;
-  imageSrc?: string;
+  imageUrl?: string;
 }
