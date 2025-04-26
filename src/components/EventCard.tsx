@@ -1,7 +1,7 @@
 import React from 'react';
 import { Calendar, Clock, MapPin, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { EventType } from '../types';
+import { EventType } from '../shared/types/event';
 
 interface EventCardProps {
   event: EventType;
@@ -10,10 +10,10 @@ interface EventCardProps {
 const EventCard: React.FC<EventCardProps> = ({ event }) => {
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden border border-slate-100 hover:shadow-lg transition-shadow">
-      {event.imageSrc && (
+      {event.imageUrl && (
         <div className="h-48 overflow-hidden">
           <img 
-            src={event.imageSrc} 
+            src={event.imageUrl} 
             alt={event.title} 
             className="w-full h-full object-cover"
           />
