@@ -17,6 +17,7 @@ import MockCheckoutPage from './pages/MockCheckoutPage';
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
+
   return (
     <AuthProvider>
       <div className="flex flex-col min-h-screen">
@@ -25,7 +26,7 @@ function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/events" element={<EventsPage />} />
-            <Route path="/events/:id" element={<EventDetailsPage />} />
+            <Route path="/events/:slug" element={<EventDetailsPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/contact" element={<ContactPage />} />
