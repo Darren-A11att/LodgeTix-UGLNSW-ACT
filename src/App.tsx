@@ -20,7 +20,7 @@ import { useLocationStore } from './store/locationStore';
 function App() {
   const fetchIpData = useLocationStore((state) => state.fetchIpData);
   const isLoadingIpData = useLocationStore((state) => state.isLoading);
-  const fetchAndStoreGrandLodges = useLocationStore((state) => state.fetchAndStoreGrandLodges);
+  const fetchInitialGrandLodges = useLocationStore((state) => state.fetchInitialGrandLodges);
   const prevIsLoadingIpDataRef = React.useRef<boolean>(isLoadingIpData);
 
   useEffect(() => {
@@ -31,10 +31,10 @@ function App() {
     const prevIsLoading = prevIsLoadingIpDataRef.current;
     if (prevIsLoading && !isLoadingIpData) {
       console.log("IP data fetch complete, fetching initial Grand Lodges...");
-      fetchAndStoreGrandLodges();
+      fetchInitialGrandLodges();
     }
     prevIsLoadingIpDataRef.current = isLoadingIpData;
-  }, [isLoadingIpData, fetchAndStoreGrandLodges]);
+  }, [isLoadingIpData, fetchInitialGrandLodges]);
 
   return (
     <AuthProvider>

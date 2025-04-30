@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useDebouncedCallback } from 'use-debounce';
 import 'react-phone-input-2/lib/style.css';
 import { MasonData, LadyPartnerData, AttendeeTicket } from '../../shared/types/register';
 import LadyPartnerForm from './LadyPartnerForm';
@@ -64,8 +65,7 @@ const MasonForm: React.FC<MasonFormProps> = ({
   const grandLodges = useLocationStore((state) => state.grandLodges);
   const isLoadingGrandLodges = useLocationStore((state) => state.isLoadingGrandLodges);
   const grandLodgeError = useLocationStore((state) => state.grandLodgeError);
-  const hasLoadedAllGrandLodges = useLocationStore((state) => state.hasLoadedAllGrandLodges);
-  const fetchAllGrandLodges = useLocationStore((state) => state.fetchAllGrandLodges);
+  const searchGrandLodges = useLocationStore((state) => state.searchGrandLodges);
   
   // --- Component Constants ---
   const titles = ["Bro", "W Bro", "VW Bro", "RW Bro", "MW Bro"];
@@ -78,22 +78,21 @@ const MasonForm: React.FC<MasonFormProps> = ({
   ];
 
   // --- LOCAL State Variables --- 
-  // Keep all local state for lodge, selection, and creation
   const [lodgeOptions, setLodgeOptions] = useState<LodgeRow[]>([]); 
   const [isLoadingLodges, setIsLoadingLodges] = useState(false);
   const [lodgeError, setLodgeError] = useState<string | null>(null);
-  const [isCreatingLodgeApi, setIsCreatingLodgeApi] = useState(false);
-  const [createLodgeError, setCreateLodgeError] = useState<string | null>(null);
   const [selectedGrandLodge, setSelectedGrandLodge] = useState<GrandLodgeRow | null>(null); 
   const [selectedLodge, setSelectedLodge] = useState<LodgeRow | null>(null); 
-  const [similarLodges, setSimilarLodges] = useState<LodgeRow[]>([]);
+  const [showLodgeNumberInput, setShowLodgeNumberInput] = useState(false);
+  const initialGrandLodgeRef = useRef(mason.grandLodge);
+  const initialLodgeRef = useRef(mason.lodge);
+  const [grandLodgeInputValue, setGrandLodgeInputValue] = useState('');
+  const [lodgeInputValue, setLodgeInputValue] = useState('');
+  
+  // Restore state for lodge creation UI
   const [isCreatingLodgeUI, setIsCreatingLodgeUI] = useState(false); 
   const [newLodgeName, setNewLodgeName] = useState('');
   const [newLodgeNumber, setNewLodgeNumber] = useState('');
-  const [showLodgeNumberInput, setShowLodgeNumberInput] = useState(false);
-  const [showSimilarLodgesWarning, setShowSimilarLodgesWarning] = useState(false);
-  const initialGrandLodgeRef = useRef(mason.grandLodge); // Store initial value
-  const initialLodgeRef = useRef(mason.lodge); // Store initial value
 
   // Check if the title is one that should automatically select GL rank
   const isGrandTitle = (title: string) => {
@@ -133,93 +132,120 @@ const MasonForm: React.FC<MasonFormProps> = ({
     }
   }, [isLoadingGrandLodges, grandLodges, selectedGrandLodge]); // REMOVED mason.grandLodge dependency
 
-  // Effect for fetching Lodges (and pre-selecting Lodge using initial value)
-  const hasAttemptedLodgePreselection = useRef(false);
+  // Effect for fetching/searching Lodges - Now ONLY runs when Grand Lodge changes
   useEffect(() => {
-    const initialLodge = initialLodgeRef.current; // Use initial value
     if (selectedGrandLodge?.id) {
-      hasAttemptedLodgePreselection.current = false; 
-      const fetchLodges = async () => {
-        setIsLoadingLodges(true);
-        setLodgeError(null);
-        setLodgeOptions([]); 
-        try {
-          console.log(`Fetching lodges for GL: ${selectedGrandLodge.name}`);
-          const data = await getLodgesByGrandLodgeId(selectedGrandLodge.id); 
-          const convertedData = data.map(convertToLodgeRow);
-          console.log(`Fetched ${convertedData.length} lodges:`, convertedData); // Log fetched data
-          setLodgeOptions(convertedData);
-          
-          // Pre-select Lodge using initial value
-          if (initialLodge && convertedData.length > 0 && !selectedLodge && !hasAttemptedLodgePreselection.current) {
-             hasAttemptedLodgePreselection.current = true; 
-             const foundLodge = convertedData.find(lodge => 
-               lodge.display_name?.toLowerCase() === initialLodge.toLowerCase() ||
-               `${lodge.name} No. ${lodge.number}`.toLowerCase() === initialLodge.toLowerCase()
-             );
-             if (foundLodge) {
-                console.log("Pre-selecting Lodge:", foundLodge.display_name);
-                setSelectedLodge(foundLodge);
-             } else {
-                console.warn(`Pre-selection: Initial Lodge string '${initialLodge}' not found for GL ${selectedGrandLodge.name}.`);
-             }
-          }
-        } catch (error) {
-          console.error(`Error fetching lodges for GL ${selectedGrandLodge.id}:`, error);
-          setLodgeError("Failed to load Lodges.");
-        } finally {
-          setIsLoadingLodges(false);
-        }
-      };
-      fetchLodges();
+      setLodgeInputValue('');
+      setSelectedLodge(null);
+      debouncedLodgeSearch(''); 
     } else {
       setLodgeOptions([]);
       setSelectedLodge(null); 
+      setLodgeInputValue('');
       setIsLoadingLodges(false);
       setLodgeError(null);
     }
-  }, [selectedGrandLodge?.id]); // REMOVED mason.lodge dependency
+  }, [selectedGrandLodge?.id]);
+
+  // Effect to initialize lodgeInputValue based on mason data (including pending)
+  // This runs separately and later, potentially after initial load
+  useEffect(() => {
+    if (mason.isPendingNewLodge && mason.lodge?.endsWith('##PENDING')) {
+      const parts = mason.lodge.split('##');
+      if (parts.length >= 3) {
+        setLodgeInputValue(`${parts[0]} No. ${parts[1]}`); // Initialize without (Pending)
+      }
+    } else if (mason.lodge) {
+      // If not pending, try to find selected lodge in options or use mason.lodge string
+      const foundLodge = lodgeOptions.find(l => (l.display_name || `${l.name} No. ${l.number || 'N/A'}`) === mason.lodge);
+      if (foundLodge) {
+        setSelectedLodge(foundLodge);
+        setLodgeInputValue(mason.lodge);
+      } else {
+        setLodgeInputValue(mason.lodge); // Use raw string if not found (might happen on initial load)
+      }
+    } else {
+      setLodgeInputValue(''); // Clear if no lodge or pending lodge
+    }
+  }, [mason.lodge, mason.isPendingNewLodge, lodgeOptions]);
 
   // --- Handlers --- 
-  const checkAndFetchAllGrandLodges = useCallback(() => {
-      if (!hasLoadedAllGrandLodges && !isLoadingGrandLodges) {
-          fetchAllGrandLodges(); 
-      }
-  }, [hasLoadedAllGrandLodges, isLoadingGrandLodges, fetchAllGrandLodges]);
-
-  // Restore Lodge Creation UI reset function
+  // Reset Lodge Creation UI 
   const resetLodgeCreationUI = useCallback(() => {
     setIsCreatingLodgeUI(false);
     setNewLodgeName('');
     setNewLodgeNumber('');
     setShowLodgeNumberInput(false);
-    setSimilarLodges([]);
-    setShowSimilarLodgesWarning(false);
-    setCreateLodgeError(null);
   }, []);
 
-  // Grand Lodge selection handler
+  // Grand Lodge selection handler (defined BEFORE handleGrandLodgeInputChange)
   const handleGrandLodgeSelect = useCallback((grandLodge: GrandLodgeRow | null) => { 
     if (selectedGrandLodge?.id !== grandLodge?.id) {
       setSelectedGrandLodge(grandLodge);
-      onChange(index, 'grandLodge' as keyof MasonData, grandLodge ? grandLodge.name : '');
+      const glName = grandLodge ? grandLodge.name : ''; // Use only .name
+      setGrandLodgeInputValue(glName); // Sync input value on selection
+      onChange(index, 'grandLodge' as keyof MasonData, glName);
       onChange(index, 'lodge' as keyof MasonData, '');
       setSelectedLodge(null);
-      resetLodgeCreationUI(); // Use the restored function
+      resetLodgeCreationUI();
     }
   }, [selectedGrandLodge, onChange, index, resetLodgeCreationUI]);
+
+  // Debounced search function
+  const debouncedSearch = useDebouncedCallback((term: string) => {
+    searchGrandLodges(term);
+  }, 300); // Debounce for 300ms
+
+  // Handler for Grand Lodge input changes (defined AFTER handleGrandLodgeSelect)
+  const handleGrandLodgeInputChange = useCallback((value: string) => {
+    setGrandLodgeInputValue(value); // Update local input state
+    // Deselect GL if input changes after selection
+    if (selectedGrandLodge && value !== selectedGrandLodge.name) { // Use only .name
+      handleGrandLodgeSelect(null); // Safe to call now
+    }
+    debouncedSearch(value); // Trigger debounced search
+  }, [debouncedSearch, selectedGrandLodge, handleGrandLodgeSelect]);
+
+  const checkAndFetchAllGrandLodges = useCallback(() => {
+      if (!isLoadingGrandLodges) {
+          searchGrandLodges(''); 
+      }
+  }, [isLoadingGrandLodges, searchGrandLodges]);
+
+  // Debounced Lodge Search Function
+  const debouncedLodgeSearch = useDebouncedCallback(async (term: string) => {
+    if (!selectedGrandLodge?.id) {
+      setLodgeOptions([]);
+      return; // Don't search without a GL
+    }
+    setIsLoadingLodges(true);
+    setLodgeError(null);
+    try {
+      // API call now handles numeric vs text search internally
+      const data = await getLodgesByGrandLodgeId(selectedGrandLodge.id, term);
+      const convertedData = data.map(convertToLodgeRow);
+      setLodgeOptions(convertedData);
+    } catch (error) {
+      console.error(`Error searching lodges for GL ${selectedGrandLodge.id}:`, error);
+      setLodgeError("Failed to search Lodges.");
+      setLodgeOptions([]);
+    } finally {
+      setIsLoadingLodges(false);
+    }
+  }, 300); // Debounce for 300ms
 
   // Lodge selection handler
   const handleLodgeSelect = useCallback((lodge: LodgeRow | null) => { 
     if (selectedLodge?.id !== lodge?.id) {
         setSelectedLodge(lodge);
         const displayValue = lodge ? (lodge.display_name || `${lodge.name} No. ${lodge.number || 'N/A'}`) : '';
+        setLodgeInputValue(displayValue);
         onChange(index, 'lodge' as keyof MasonData, displayValue);
-        resetLodgeCreationUI(); // Use the restored function
+        onChange(index, 'isPendingNewLodge', false);
+        resetLodgeCreationUI();
     }
   }, [selectedLodge, onChange, index, resetLodgeCreationUI]);
   
-  // Restore other handlers (Lodge Creation, Phone, Checkbox, Partner, Title, etc.)
   // Start the UI part of lodge creation
   const handleInitiateLodgeCreation = useCallback((initialLodgeName: string) => {
     if (!selectedGrandLodge) return; 
@@ -227,26 +253,16 @@ const MasonForm: React.FC<MasonFormProps> = ({
     setNewLodgeName(initialLodgeName);
     setNewLodgeNumber('');
     setShowLodgeNumberInput(true);
-    setSimilarLodges([]);
-    setShowSimilarLodgesWarning(false);
-    setCreateLodgeError(null); 
+    setLodgeInputValue(''); // Clear existing input
+    setIsLoadingLodges(false);
+    setLodgeError(null);
   }, [selectedGrandLodge]);
-
-  // Check for similar lodges by number
-  const checkSimilarLodgesByNumber = useCallback((lodgeNumber: string) => {
-    if (!selectedGrandLodge || !lodgeNumber || lodgeOptions.length === 0) return [];
-    const similar = lodgeOptions.filter(lodge => lodge.number === lodgeNumber);
-    setSimilarLodges(similar);
-    setShowSimilarLodgesWarning(similar.length > 0);
-    return similar;
-  }, [selectedGrandLodge, lodgeOptions]);
 
   // Handle Lodge Number input change
   const handleLodgeNumberChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const number = e.target.value;
-    setNewLodgeNumber(number);
-    checkSimilarLodgesByNumber(number);
-  }, [checkSimilarLodgesByNumber]);
+    setNewLodgeNumber(e.target.value);
+    // No need to check similar lodges here anymore
+  }, []);
 
   // Handle selecting a similar lodge
   const handleSelectSimilarLodge = useCallback((lodge: LodgeRow) => { 
@@ -258,33 +274,26 @@ const MasonForm: React.FC<MasonFormProps> = ({
     resetLodgeCreationUI();
   }, [resetLodgeCreationUI]);
 
-  // Handle creating the lodge via API call
-  const handleCreateLodge = useCallback(async () => {
-    if (!selectedGrandLodge || !newLodgeName) {
-      setCreateLodgeError("Missing required information."); return;
-    }
-    setIsCreatingLodgeApi(true);
-    setCreateLodgeError(null);
-    try {
-      const createdLodge = await createLodge({ 
-        name: newLodgeName,
-        number: newLodgeNumber, grand_lodge_id: selectedGrandLodge.id
-      });
-      if (createdLodge) {
-        const convertedLodge = convertToLodgeRow(createdLodge);
-        setLodgeOptions(prev => [...prev, convertedLodge]); 
-        handleLodgeSelect(convertedLodge); // Select the newly created lodge
-      } else {
-        setCreateLodgeError("Failed to create lodge. It might already exist.");
-      }
-    } catch (error) {
-      console.error("Lodge creation API error:", error);
-      setCreateLodgeError("An error occurred creating the lodge.");
-    } finally {
-      setIsCreatingLodgeApi(false);
-    }
-  }, [selectedGrandLodge, newLodgeName, newLodgeNumber, handleLodgeSelect]);
-  
+  // Confirm New Lodge Details Handler
+  const handleConfirmNewLodge = useCallback((details: { name: string; number: string }) => {
+    if (!selectedGrandLodge?.id) return;
+
+    const pendingDetails = { 
+        name: details.name, 
+        number: details.number, 
+        grandLodgeId: selectedGrandLodge.id 
+    };
+    
+    onChange(index, 'isPendingNewLodge', true);
+    onChange(index, 'lodge', `${details.name}##${details.number}##${selectedGrandLodge.id}##PENDING`); 
+
+    setSelectedLodge(null);
+    resetLodgeCreationUI();
+
+    setLodgeInputValue(`${details.name} No. ${details.number}`); 
+
+  }, [index, onChange, resetLodgeCreationUI, selectedGrandLodge?.id]);
+
   // Phone change handler
   const handlePhoneChange = useCallback((value: string) => {
     onChange(index, 'phone' as keyof MasonData, value);
@@ -350,7 +359,40 @@ const MasonForm: React.FC<MasonFormProps> = ({
     onChange(index, field, value);
   }, [index, onChange]);
 
+  // Lodge Input Change Handler
+  const handleLodgeInputChange = useCallback((value: string) => {
+    setLodgeInputValue(value);
+    if (selectedLodge || mason.isPendingNewLodge) {
+       // Reconstruct expected display value if pending
+       const currentDisplay = selectedLodge 
+        ? (selectedLodge.display_name || `${selectedLodge.name} No. ${selectedLodge.number || 'N/A'}`) 
+        : mason.isPendingNewLodge && mason.lodge?.endsWith('##PENDING')
+          ? `${mason.lodge.split('##')[0]} No. ${mason.lodge.split('##')[1]}` // Reconstruct without (Pending)
+          : ''; // Or maybe compare against raw mason.lodge? Check this logic.
+
+      // Clear state if input value no longer matches the selected/pending display value
+      if (value !== currentDisplay && currentDisplay !== '') { // Added check for empty currentDisplay
+          setSelectedLodge(null);
+          onChange(index, 'isPendingNewLodge', false); 
+          if (mason.lodge?.endsWith('##PENDING')) {
+             onChange(index, 'lodge', ''); // Clear special string
+          }
+      }
+    }
+    
+    // Trigger search via debounce
+    if (selectedGrandLodge?.id) {
+      debouncedLodgeSearch(value);
+    } else {
+      // Clear options if GL is not selected and user types
+      setLodgeOptions([]); 
+    }
+  }, [debouncedLodgeSearch, selectedLodge, selectedGrandLodge?.id, mason.isPendingNewLodge, mason.lodge, onChange, index]);
+
   // --- Render Logic --- 
+  // Remove the helper function, as the logic is integrated into useEffect and handlers
+  // const getLodgeDisplayValue = () => { ... };
+
   return (
     <div className="bg-slate-50 p-6 rounded-lg mb-8 relative">
        {/* Restore Header & Remove Button */}
@@ -403,41 +445,44 @@ const MasonForm: React.FC<MasonFormProps> = ({
           </div>
        )}
 
-       {/* Pass updated props to MasonLodgeInfo */} 
-       {(!isPrimary && !isSameLodgeAsFirst) || isPrimary ? (
-         <MasonLodgeInfo 
-            mason={mason}
-            index={index}
-            onChange={simpleOnChange} 
-            isPrimary={isPrimary}
-            grandLodgeOptions={grandLodges} 
-            isLoadingGrandLodges={isLoadingGrandLodges} 
-            grandLodgeError={grandLodgeError} 
-            selectedGrandLodge={selectedGrandLodge} 
-            handleGrandLodgeSelect={handleGrandLodgeSelect} 
-            onGrandLodgeFocus={checkAndFetchAllGrandLodges} // Trigger check on focus
-            onGrandLodgeThresholdReached={checkAndFetchAllGrandLodges} // Trigger check on length
-            lodgeOptions={lodgeOptions}
-            isLoadingLodges={isLoadingLodges}
-            lodgeError={lodgeError}
-            selectedLodge={selectedLodge}
-            handleLodgeSelect={handleLodgeSelect}
-            isCreatingLodgeUI={isCreatingLodgeUI}
-            showLodgeNumberInput={showLodgeNumberInput}
-            handleInitiateLodgeCreation={handleInitiateLodgeCreation}
-            newLodgeName={newLodgeName}
-            setNewLodgeName={setNewLodgeName}
-            newLodgeNumber={newLodgeNumber}
-            handleLodgeNumberChange={handleLodgeNumberChange}
-            showSimilarLodgesWarning={showSimilarLodgesWarning}
-            similarLodges={similarLodges}
-            handleSelectSimilarLodge={handleSelectSimilarLodge}
-            handleCreateLodge={handleCreateLodge}
-            handleCancelLodgeCreation={handleCancelLodgeCreation}
-            isCreatingLodgeApi={isCreatingLodgeApi}
-            createLodgeError={createLodgeError}
-         />
-       ) : null}
+       {/* Lodge Info Section - Pass new props */} 
+       {(!isSameLodgeAsFirst || isPrimary) && (
+          <MasonLodgeInfo 
+              mason={mason}
+              index={index}
+              onChange={simpleOnChange} 
+              isPrimary={isPrimary}
+              
+              // Grand Lodge Props
+              grandLodgeOptions={grandLodges} 
+              isLoadingGrandLodges={isLoadingGrandLodges}
+              grandLodgeError={grandLodgeError}
+              selectedGrandLodge={selectedGrandLodge}
+              handleGrandLodgeSelect={handleGrandLodgeSelect}
+              grandLodgeInputValue={grandLodgeInputValue}
+              onGrandLodgeInputChange={handleGrandLodgeInputChange}
+
+              // Lodge Props
+              lodgeOptions={lodgeOptions}
+              isLoadingLodges={isLoadingLodges}
+              lodgeError={lodgeError}
+              selectedLodge={selectedLodge}
+              handleLodgeSelect={handleLodgeSelect}
+              lodgeInputValue={lodgeInputValue}
+              onLodgeInputChange={handleLodgeInputChange}
+
+              // Lodge Creation UI Props
+              isCreatingLodgeUI={isCreatingLodgeUI}
+              showLodgeNumberInput={showLodgeNumberInput}
+              handleInitiateLodgeCreation={handleInitiateLodgeCreation}
+              newLodgeName={newLodgeName}
+              setNewLodgeName={setNewLodgeName}
+              newLodgeNumber={newLodgeNumber}
+              handleLodgeNumberChange={handleLodgeNumberChange}
+              handleCancelLodgeCreation={handleCancelLodgeCreation}
+              onConfirmNewLodge={handleConfirmNewLodge}
+          />
+       )}
 
        {/* Restore Contact Info */} 
        <MasonContactInfo 

@@ -74,9 +74,8 @@ export interface LocationState {
   grandLodges: GrandLodgeRow[];
   isLoadingGrandLodges: boolean;
   grandLodgeError: string | null;
-  hasLoadedAllGrandLodges: boolean; // Flag to track if full list is loaded
-  fetchAndStoreGrandLodges: () => Promise<void>; // Action for initial load
-  fetchAllGrandLodges: () => Promise<void>; // Action for full load
+  fetchInitialGrandLodges: () => Promise<void>; // Renamed for clarity
+  searchGrandLodges: (searchTerm: string) => Promise<void>; // New action for searching
 }
 
 // Define the state creator type
@@ -91,7 +90,6 @@ export const useLocationStore = create<LocationState>(((set, get) => ({
   grandLodges: [],
   isLoadingGrandLodges: false,
   grandLodgeError: null,
-  hasLoadedAllGrandLodges: false,
 
   // Action to fetch IP data
   fetchIpData: async () => {
@@ -129,26 +127,30 @@ export const useLocationStore = create<LocationState>(((set, get) => ({
   },
 
   // Action to fetch initial Grand Lodges based on current IP data (fetched or default)
-  fetchAndStoreGrandLodges: async () => {
+  fetchInitialGrandLodges: async () => { // Renamed from fetchAndStoreGrandLodges
+    // Prevent re-fetching if already loading
+    if (get().isLoadingGrandLodges) return;
+
     const { ipData } = get(); // Get current state
     const countryCode = ipData.country_code_iso3; // Use ISO3 from current ipData
 
     set({
       isLoadingGrandLodges: true,
       grandLodgeError: null,
-      hasLoadedAllGrandLodges: false, // Reset flag on initial load
       grandLodges: [], // Clear previous list while loading
     });
 
     try {
-      console.log(`Fetching initial GLs for country: ${countryCode}`);
-      const data = await getAllGrandLodges({ countryCode: countryCode });
+      console.log(`Fetching initial GLs (no specific filter yet)`); // Updated log message
+      // Fetch initial batch without specific filters for now, or potentially common ones?
+      // For now, let's fetch all initially, maybe limit later if needed.
+      const data = await getAllGrandLodges(); // Fetch all initially
       set({
         grandLodges: data,
         isLoadingGrandLodges: false,
       });
     } catch (error) {
-      console.error(`Error fetching initial grand lodges for ${countryCode}:`, error);
+      console.error(`Error fetching initial grand lodges:`, error);
       set({
         grandLodgeError: "Failed to load Grand Lodges.",
         isLoadingGrandLodges: false,
@@ -157,33 +159,40 @@ export const useLocationStore = create<LocationState>(((set, get) => ({
     }
   },
 
-  // Action to fetch ALL Grand Lodges
-  fetchAllGrandLodges: async () => {
-    // Prevent re-fetching if already loaded all or currently loading
-    if (get().hasLoadedAllGrandLodges || get().isLoadingGrandLodges) {
+  // Action to search Grand Lodges based on searchTerm
+  searchGrandLodges: async (searchTerm: string) => {
+    // Prevent searching if currently loading
+    if (get().isLoadingGrandLodges) {
+        console.log("Skipping search, already loading...");
         return;
     }
 
+    // If search term is empty, potentially fetch initial set or clear?
+    // Let's fetch the initial set again if search term is cleared.
+    if (!searchTerm || searchTerm.trim() === '') {
+        console.log("Search term empty, fetching initial GLs...");
+        await get().fetchInitialGrandLodges();
+        return;
+    }
+    
     set({
       isLoadingGrandLodges: true,
       grandLodgeError: null, // Clear previous error
     });
 
     try {
-      console.log("Fetching ALL Grand Lodges...");
-      const data = await getAllGrandLodges(); // No filter
+      console.log(`Searching Grand Lodges for: '${searchTerm}'`);
+      const data = await getAllGrandLodges({ searchTerm }); // Pass the searchTerm
       set({
-        grandLodges: data,
+        grandLodges: data, // Update the list with search results
         isLoadingGrandLodges: false,
-        hasLoadedAllGrandLodges: true, // Set flag indicating full list is loaded
       });
     } catch (error) {
-      console.error("Error fetching all grand lodges:", error);
+      console.error("Error searching grand lodges:", error);
       set({
-        grandLodgeError: "Failed to load full Grand Lodge list.",
+        grandLodgeError: "Failed to search Grand Lodges.",
         isLoadingGrandLodges: false,
-        // Don't clear existing lodges on error when fetching all?
-        // Or maybe set to empty? Let's keep existing for now.
+        grandLodges: [], // Clear results on error
       });
     }
   },

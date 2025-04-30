@@ -1,6 +1,6 @@
 import React from 'react';
 import AutocompleteInput, { BaseOption } from '../AutocompleteInput';
-import { GrandLodgeType } from '../../../shared/data/grandLodges';
+import { GrandLodgeRow } from '../../../lib/api/grandLodges';
 import { LodgeRow } from '../../../lib/api/lodges';
 import { MasonData } from '../../../shared/types/register';
 
@@ -10,19 +10,21 @@ interface MasonLodgeInfoProps {
   onChange: (index: number, field: string, value: string | boolean) => void;
   isPrimary: boolean;
   
-  grandLodgeOptions: GrandLodgeType[];
+  grandLodgeOptions: GrandLodgeRow[];
   isLoadingGrandLodges: boolean;
   grandLodgeError: string | null;
-  selectedGrandLodge: GrandLodgeType | null;
-  handleGrandLodgeSelect: (grandLodge: GrandLodgeType | null) => void;
-  onGrandLodgeFocus?: () => void;
-  onGrandLodgeThresholdReached?: () => void;
+  selectedGrandLodge: GrandLodgeRow | null;
+  handleGrandLodgeSelect: (grandLodge: GrandLodgeRow | null) => void;
+  grandLodgeInputValue: string;
+  onGrandLodgeInputChange: (value: string) => void;
 
   lodgeOptions: LodgeRow[];
   isLoadingLodges: boolean;
   lodgeError: string | null;
   selectedLodge: LodgeRow | null;
   handleLodgeSelect: (lodge: LodgeRow | null) => void;
+  lodgeInputValue: string;
+  onLodgeInputChange: (value: string) => void;
 
   isCreatingLodgeUI: boolean;
   showLodgeNumberInput: boolean;
@@ -31,13 +33,8 @@ interface MasonLodgeInfoProps {
   setNewLodgeName: (name: string) => void;
   newLodgeNumber: string;
   handleLodgeNumberChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  showSimilarLodgesWarning: boolean;
-  similarLodges: LodgeRow[];
-  handleSelectSimilarLodge: (lodge: LodgeRow) => void;
-  handleCreateLodge: () => void;
   handleCancelLodgeCreation: () => void;
-  isCreatingLodgeApi: boolean;
-  createLodgeError: string | null;
+  onConfirmNewLodge: (details: { name: string; number: string }) => void;
 }
 
 const MasonLodgeInfo: React.FC<MasonLodgeInfoProps> = ({
@@ -50,13 +47,15 @@ const MasonLodgeInfo: React.FC<MasonLodgeInfoProps> = ({
   grandLodgeError,
   selectedGrandLodge,
   handleGrandLodgeSelect,
-  onGrandLodgeFocus,
-  onGrandLodgeThresholdReached,
+  grandLodgeInputValue,
+  onGrandLodgeInputChange,
   lodgeOptions,
   isLoadingLodges,
   lodgeError,
   selectedLodge,
   handleLodgeSelect,
+  lodgeInputValue,
+  onLodgeInputChange,
   isCreatingLodgeUI,
   showLodgeNumberInput,
   handleInitiateLodgeCreation,
@@ -64,22 +63,17 @@ const MasonLodgeInfo: React.FC<MasonLodgeInfoProps> = ({
   setNewLodgeName,
   newLodgeNumber,
   handleLodgeNumberChange,
-  showSimilarLodgesWarning,
-  similarLodges,
-  handleSelectSimilarLodge,
-  handleCreateLodge,
   handleCancelLodgeCreation,
-  isCreatingLodgeApi,
-  createLodgeError
+  onConfirmNewLodge
 }) => {
-  const handleGrandLodgeSelectInternal = (option: GrandLodgeType | null) => {
+  const handleGrandLodgeSelectInternal = (option: GrandLodgeRow | null) => {
     handleGrandLodgeSelect(option);
   };
 
-  const getGrandLodgeLabel = (option: GrandLodgeType): string => option.name;
-  const getGrandLodgeValue = (option: GrandLodgeType): string => option.id;
+  const getGrandLodgeLabel = (option: GrandLodgeRow): string => option.name;
+  const getGrandLodgeValue = (option: GrandLodgeRow): string => option.id;
 
-  const renderGrandLodgeOption = (option: GrandLodgeType): React.ReactNode => (
+  const renderGrandLodgeOption = (option: GrandLodgeRow): React.ReactNode => (
     <div>
       <div className="font-medium">{option.name}</div>
       <div className="text-xs text-slate-500 flex justify-between">
@@ -113,6 +107,12 @@ const MasonLodgeInfo: React.FC<MasonLodgeInfoProps> = ({
       return `Lodge Name & Number ${isPrimary ? "*" : ""}`;
   }
 
+  const handleConfirmClick = () => {
+    if (newLodgeName && newLodgeNumber) {
+        onConfirmNewLodge({ name: newLodgeName, number: newLodgeNumber });
+    }
+  };
+
   return (
     <div className="mb-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -120,27 +120,18 @@ const MasonLodgeInfo: React.FC<MasonLodgeInfoProps> = ({
           <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandLodge-${index}`}>
             Grand Lodge {isPrimary && "*"}
           </label>
-          <AutocompleteInput<GrandLodgeType>
+          <AutocompleteInput<GrandLodgeRow>
             id={`grandLodge-${index}`}
             name={`grandLodge-${index}`}
-            value={selectedGrandLodge ? getGrandLodgeLabel(selectedGrandLodge) : ''}
-            onChange={(value) => {
-              onChange(index, 'grandLodge', value);
-              if (selectedGrandLodge && value !== getGrandLodgeLabel(selectedGrandLodge)) {
-                handleGrandLodgeSelectInternal(null);
-              }
-              if (value.length >= 10 && onGrandLodgeThresholdReached) {
-                onGrandLodgeThresholdReached();
-              }
-            }}
+            value={grandLodgeInputValue || ''}
+            onChange={onGrandLodgeInputChange}
             onSelect={handleGrandLodgeSelectInternal}
             options={grandLodgeOptions}
             getOptionLabel={getGrandLodgeLabel}
             getOptionValue={getGrandLodgeValue}
-            placeholder="Start typing to search Grand Lodges..."
+            placeholder="Search Grand Lodge by name, country..."
             required={isPrimary}
             renderOption={renderGrandLodgeOption}
-            onFocus={onGrandLodgeFocus}
             isLoading={isLoadingGrandLodges}
             error={grandLodgeError}
           />
@@ -154,20 +145,15 @@ const MasonLodgeInfo: React.FC<MasonLodgeInfoProps> = ({
              <AutocompleteInput<LodgeRow>
                id={`lodge-${index}`}
                name={`lodge-${index}`}
-               value={selectedLodge ? getLodgeLabelForOption(selectedLodge) : ''}
-               onChange={(value) => {
-                 onChange(index, 'lodge', value);
-                 if (selectedLodge && value !== getLodgeLabelForOption(selectedLodge)) {
-                   handleLodgeSelectInternal(null);
-                 }
-               }}
+               value={lodgeInputValue || ''}
+               onChange={onLodgeInputChange}
                onSelect={handleLodgeSelectInternal}
                onCreateNew={handleInitiateLodgeCreation}
                options={lodgeOptions}
                getOptionLabel={getLodgeLabelForOption}
                getOptionValue={getLodgeValue}
-               placeholder={selectedGrandLodge ? "Search or Create Lodge..." : "Select Grand Lodge first"}
-               required={isPrimary}
+               placeholder={selectedGrandLodge ? "Search Lodge name, number, town..." : "Select Grand Lodge first"}
+               required={isPrimary && !isCreatingLodgeUI}
                renderOption={renderLodgeOption}
                allowCreate={true}
                createNewText="Create new Lodge..."
@@ -197,44 +183,19 @@ const MasonLodgeInfo: React.FC<MasonLodgeInfoProps> = ({
                
                <div className="mb-4">
                  <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`newLodgeNumber-${index}`}>
-                   Lodge Number 
+                   Lodge Number *
                  </label>
                  <input
-                   type="text"
+                   type="number"
                    id={`newLodgeNumber-${index}`}
                    name={`newLodgeNumber-${index}`}
                    value={newLodgeNumber}
                    onChange={handleLodgeNumberChange}
+                   required
                    className="w-full px-3 py-1.5 border border-green-200 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                   placeholder="Enter lodge number (optional)"
+                   placeholder="Enter lodge number"
                  />
                </div>
-               
-               {showSimilarLodgesWarning && similarLodges.length > 0 && (
-                 <div className="bg-yellow-50 p-3 rounded-md border border-yellow-200 mb-4 text-sm">
-                   <h5 className="font-medium text-yellow-800 mb-2">Similar Lodge Found:</h5>
-                   <p className="text-yellow-700 mb-3">
-                     A lodge with number {newLodgeNumber} already exists in {selectedGrandLodge.name}.
-                   </p>
-                   <ul className="mb-4 space-y-2">
-                     {similarLodges.map(lodge => (
-                       <li key={lodge.id} className="flex items-center justify-between bg-white p-2 rounded border border-yellow-100">
-                         <span className="font-medium">{lodge.display_name ?? `${lodge.name} No. ${lodge.number}`}</span>
-                         <button
-                           type="button"
-                           onClick={() => handleSelectSimilarLodge(lodge)}
-                           className="text-xs text-blue-600 hover:text-blue-800 underline font-medium"
-                         >
-                           Select This One
-                         </button>
-                       </li>
-                     ))}
-                   </ul>
-                    <p className="text-yellow-700">If this isn't correct, proceed to create the new lodge.</p>
-                 </div>
-               )}
-               
-               {createLodgeError && <div className="text-sm text-red-500 mb-2">{createLodgeError}</div>}
                
                <div className="flex justify-end space-x-2">
                  <button
@@ -246,13 +207,13 @@ const MasonLodgeInfo: React.FC<MasonLodgeInfoProps> = ({
                  </button>
                  <button
                    type="button"
-                   onClick={handleCreateLodge}
-                   disabled={!newLodgeName || isCreatingLodgeApi}
+                   onClick={handleConfirmClick}
+                   disabled={!newLodgeName || !newLodgeNumber}
                    className={`px-3 py-1 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 ${
-                     !newLodgeName || isCreatingLodgeApi ? 'opacity-50 cursor-not-allowed' : ''
+                     (!newLodgeName || !newLodgeNumber) ? 'opacity-50 cursor-not-allowed' : ''
                    }`}
                  >
-                   {isCreatingLodgeApi ? 'Creating...' : 'Create Lodge'}
+                   Confirm New Lodge
                  </button>
                </div>
              </div>

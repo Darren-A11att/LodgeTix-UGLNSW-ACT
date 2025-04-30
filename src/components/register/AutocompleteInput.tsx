@@ -36,7 +36,7 @@ function AutocompleteInput<T extends BaseOption>({
   id,
   name,
   value,
-  onChange,
+  onChange = (val: string) => { console.warn(`AutocompleteInput (${id}/${name}): Missing onChange handler`, val); },
   onSelect,
   onCreateNew,
   options,
@@ -73,35 +73,33 @@ function AutocompleteInput<T extends BaseOption>({
 
   // Filter options based on input, handle loading state
   useEffect(() => {
-    if (isLoading || inputValue.trim() === "") {
+    // If loading is finished, use the provided options directly.
+    // If loading is ongoing OR input is empty, clear options.
+    if (!isLoading && inputValue.trim() !== "") {
+      // Directly use the options passed from the parent 
+      // as they should already be filtered by the backend search
+      setFilteredOptions(options.slice(0, 10)); // Apply limit
+      
+      // Still need to determine if create option should show based on exact match
+      const exactMatch = options.some(
+        (option) =>
+          getOptionLabel(option).toLowerCase() === inputValue.toLowerCase(),
+      );
+      setShowCreateOption(
+        allowCreate && !exactMatch && inputValue.trim().length > 0,
+      );
+
+    } else { // Covers isLoading or empty inputValue
       setFilteredOptions([]);
       setShowCreateOption(false);
-      if (isLoading) setShowDropdown(false);
-      return;
+      // Optionally hide dropdown immediately if loading starts
+      // if (isLoading) setShowDropdown(false); 
     }
 
-    let filtered;
-    if (filterOptions) {
-      filtered = filterOptions(options, inputValue);
-    } else {
-      filtered = options.filter((option) =>
-        getOptionLabel(option).toLowerCase().includes(inputValue.toLowerCase())
-      );
-    }
+    setHighlightedIndex(-1); // Reset highlight on options change
 
-    // Check if we should show create option
-    const exactMatch = filtered.some(
-      (option) =>
-        getOptionLabel(option).toLowerCase() === inputValue.toLowerCase(),
-    );
-
-    setShowCreateOption(
-      allowCreate && !exactMatch && inputValue.trim().length > 0,
-    );
-
-    setFilteredOptions(filtered.slice(0, 10)); // Limit to 10 options for performance
-    setHighlightedIndex(-1);
-  }, [inputValue, options, filterOptions, getOptionLabel, allowCreate, isLoading]);
+  // Depend on options and isLoading coming from parent, and local inputValue
+  }, [inputValue, options, getOptionLabel, allowCreate, isLoading]);
 
   // Handle outside click to close dropdown (Refined)
   useEffect(() => {
@@ -121,7 +119,10 @@ function AutocompleteInput<T extends BaseOption>({
     if (isLoading) return;
     const newValue = e.target.value;
     setInputValue(newValue);
+    
+    // Call onChange directly (it's guaranteed to be a function now)
     onChange(newValue); 
+    
     // Explicitly ensure dropdown is shown after input change
     if (!showDropdown) {
         setShowDropdown(true); 
@@ -129,7 +130,7 @@ function AutocompleteInput<T extends BaseOption>({
     
     // If the text value becomes empty or doesn't match any option label, trigger onSelect with null
     if (newValue.trim() === '' || !options.some(opt => getOptionLabel(opt) === newValue)) {
-       if (onSelect) {
+       if (onSelect && typeof onSelect === 'function') {
           onSelect(null); 
        }
     }
@@ -246,6 +247,10 @@ function AutocompleteInput<T extends BaseOption>({
 
       {(() => { // IIFE for logging
           const shouldShow = showDropdown && !isLoading && (filteredOptions.length > 0 || showCreateOption);
+          // Remove detailed logging for dropdown visibility check
+          // if (showDropdown) { 
+          //   console.log(`[AutocompleteInput ${id}] Dropdown Check: ...`);
+          // }
           return shouldShow && (
               <div
                 ref={dropdownRef}

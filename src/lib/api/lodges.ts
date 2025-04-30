@@ -8,29 +8,83 @@ export type LodgeInsert = Database['public']['Tables']['lodges']['Insert'];
 export type LodgeUpdate = Database['public']['Tables']['lodges']['Update'];
 
 /**
- * Fetches lodges filtered by a specific Grand Lodge ID.
- * @param grandLodgeId The UUID of the Grand Lodge to filter by.
- * @returns Promise resolving to array of LodgeRow objects.
+ * Fetches lodges filtered by Grand Lodge ID and optionally a search term.
+ * Prioritizes exact number match if searchTerm is purely numeric.
+ * @param grandLodgeId The UUID of the Grand Lodge.
+ * @param searchTerm Optional string for searching.
+ * @returns Promise resolving to array of LodgeType objects.
  */
-export async function getLodgesByGrandLodgeId(grandLodgeId: string): Promise<LodgeType[]> {
+export async function getLodgesByGrandLodgeId(
+  grandLodgeId: string,
+  searchTerm?: string
+): Promise<LodgeType[]> {
   if (!grandLodgeId) {
     console.warn('getLodgesByGrandLodgeId called with no grandLodgeId.');
     return [];
   }
-  try {
-    const { data, error } = await supabase
-      .from('lodges')
-      .select('*')
-      .eq('grand_lodge_id', grandLodgeId)
-      .order('display_name', { ascending: true })
-      .order('name', { ascending: true });
 
-    if (error) {
-      console.error('Error fetching lodges:', error);
-      return [];
+  try {
+    let query;
+    let performTextSearch = true; // Flag to control fallback
+
+    // 1. Check for purely numeric search term for exact number match
+    if (searchTerm && searchTerm.trim().match(/^\d+$/)) {
+      const searchNumber = searchTerm.trim();
+      query = supabase
+        .from('lodges')
+        .select('*')
+        .eq('grand_lodge_id', grandLodgeId)
+        .eq('number', searchNumber);
+        
+      const { data: numberMatchData, error: numberMatchError } = await query;
+
+      if (numberMatchError) {
+        console.error('[getLodgesByGrandLodgeId] Error during exact number match:', numberMatchError);
+      } else if (numberMatchData && numberMatchData.length > 0) {
+        performTextSearch = false;
+        const orderedData = numberMatchData.sort((a, b) => 
+            (a.display_name || a.name).localeCompare(b.display_name || b.name)
+        );
+        return orderedData as LodgeType[]; 
+      } else {
+      }
     }
-    // Cast the data to LodgeType[] to align with the shared type
-    return (data || []) as LodgeType[]; 
+
+    // 2. Perform text search if applicable (not numeric, or numeric yielded no results)
+    if (performTextSearch) {
+        query = supabase
+          .from('lodges')
+          .select('*')
+          .eq('grand_lodge_id', grandLodgeId);
+
+        if (searchTerm && searchTerm.trim()) {
+            const term = `%${searchTerm.trim()}%`;
+            query = query.or(
+              `name.ilike.${term},` +
+              `display_name.ilike.${term},` +
+              `district.ilike.${term},` +
+              `meeting_place.ilike.${term}`
+            );
+        } else {
+        }
+        
+        // Apply ordering
+        query = query
+          .order('display_name', { ascending: true, nullsFirst: false })
+          .order('name', { ascending: true });
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error('[getLodgesByGrandLodgeId] Error during text search:', error);
+          return [];
+        }
+        return (data || []) as LodgeType[]; 
+    }
+    
+    // Should not be reached if logic is correct, but return empty array as fallback
+    return [];
+
   } catch (err) {
     console.error('Unexpected error fetching lodges:', err);
     return [];

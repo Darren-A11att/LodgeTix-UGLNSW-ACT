@@ -6,12 +6,13 @@ export type GrandLodgeRow = Database['public']['Tables']['grand_lodges']['Row'];
 
 // Define filter type
 interface GrandLodgeFilter {
-  countryCode?: string;
+  searchTerm?: string;
 }
 
 /**
- * Fetches grand lodges from the database, optionally filtering by country.
- * @param filter Optional filter object (e.g., { countryCode: 'AU' }).
+ * Fetches grand lodges from the database, optionally filtering by a search term
+ * across multiple relevant fields.
+ * @param filter Optional filter object containing searchTerm.
  * @returns Promise resolving to array of GrandLodgeRow objects.
  */
 export async function getAllGrandLodges(filter?: GrandLodgeFilter): Promise<GrandLodgeRow[]> {
@@ -20,9 +21,17 @@ export async function getAllGrandLodges(filter?: GrandLodgeFilter): Promise<Gran
       .from('grand_lodges')
       .select('*');
 
-    // Apply country filter if provided
-    if (filter?.countryCode) {
-      query = query.eq('country_code_iso3', filter.countryCode);
+    // Apply search term filter if provided
+    if (filter?.searchTerm && filter.searchTerm.trim()) {
+      const searchTerm = filter.searchTerm.trim();
+      // Use 'or' condition with 'ilike' for case-insensitive partial matching
+      // Search only available columns based on GrandLodgeRow type
+      query = query.or(
+        `name.ilike.%${searchTerm}%,` +
+        `abbreviation.ilike.%${searchTerm}%,` +
+        `country.ilike.%${searchTerm}%` // Use country based on type
+        // Removed region/region_code as they are not in the inferred type
+      );
     }
 
     // Always order by name
@@ -31,13 +40,13 @@ export async function getAllGrandLodges(filter?: GrandLodgeFilter): Promise<Gran
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching grand lodges:', error);
+      console.error('[getAllGrandLodges] Error fetching grand lodges:', error);
       return [];
     }
-    // console.log(`Fetched ${data?.length || 0} grand lodges`);
+    
     return data || [];
   } catch (err) {
-    console.error('Unexpected error fetching grand lodges:', err);
+    console.error('[getAllGrandLodges] Unexpected error:', err);
     return [];
   }
 } 
