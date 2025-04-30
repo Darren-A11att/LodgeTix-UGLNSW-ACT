@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -15,8 +15,26 @@ import CheckoutSuccessPage from './pages/CheckoutSuccessPage';
 import CheckoutCanceledPage from './pages/CheckoutCanceledPage';
 import MockCheckoutPage from './pages/MockCheckoutPage';
 import { AuthProvider } from './context/AuthContext';
+import { useLocationStore } from './store/locationStore';
 
 function App() {
+  const fetchIpData = useLocationStore((state) => state.fetchIpData);
+  const isLoadingIpData = useLocationStore((state) => state.isLoading);
+  const fetchAndStoreGrandLodges = useLocationStore((state) => state.fetchAndStoreGrandLodges);
+  const prevIsLoadingIpDataRef = React.useRef<boolean>(isLoadingIpData);
+
+  useEffect(() => {
+    fetchIpData();
+  }, [fetchIpData]);
+
+  useEffect(() => {
+    const prevIsLoading = prevIsLoadingIpDataRef.current;
+    if (prevIsLoading && !isLoadingIpData) {
+      console.log("IP data fetch complete, fetching initial Grand Lodges...");
+      fetchAndStoreGrandLodges();
+    }
+    prevIsLoadingIpDataRef.current = isLoadingIpData;
+  }, [isLoadingIpData, fetchAndStoreGrandLodges]);
 
   return (
     <AuthProvider>

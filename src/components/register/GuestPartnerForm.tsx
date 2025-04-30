@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import 'react-phone-input-2/lib/style.css';
 import { GuestPartnerData, GuestData } from '../../shared/types/register';
 import { HelpCircle, X } from 'lucide-react';
@@ -27,6 +27,15 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
   const titles = ["Mr", "Mrs", "Ms", "Miss", "Dr", "Rev", "Prof", "Rabbi", "Hon", "Sir", "Madam", "Lady", "Dame"];
   const relationships = ["Wife", "Partner", "Fiancée", "Husband", "Fiancé"];
   const contactOptions = ["Please Select", "Primary Attendee", "Guest", "Directly", "Provide Later"];
+
+  // Interaction states
+  const [relationshipInteracted, setRelationshipInteracted] = useState(false);
+  const [titleInteracted, setTitleInteracted] = useState(false);
+  const [firstNameInteracted, setFirstNameInteracted] = useState(false);
+  const [lastNameInteracted, setLastNameInteracted] = useState(false);
+  const [contactPreferenceInteracted, setContactPreferenceInteracted] = useState(false);
+  const [phoneInteracted, setPhoneInteracted] = useState(false);
+  const [emailInteracted, setEmailInteracted] = useState(false);
 
   const handlePhoneChange = (value: string) => {
     onChange(index, 'phone', value);
@@ -96,9 +105,13 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
             name={`partnerRelationship-${index}`}
             value={partner.relationship}
             onChange={(e) => onChange(index, 'relationship', e.target.value)}
+            onBlur={() => setRelationshipInteracted(true)}
             required
-            className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                       ${relationshipInteracted ? 'interacted' : ''} 
+                       [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
           >
+            <option value="">Please Select</option>
             {relationships.map(rel => (
               <option key={rel} value={rel}>{rel}</option>
             ))}
@@ -115,9 +128,13 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
             name={`partnerTitle-${index}`}
             value={partner.title}
             onChange={(e) => onChange(index, 'title', e.target.value)}
+            onBlur={() => setTitleInteracted(true)}
             required
-            className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                       ${titleInteracted ? 'interacted' : ''} 
+                       [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
           >
+            <option value="">Please Select</option>
             {titles.map(title => (
               <option key={title} value={title}>{title}</option>
             ))}
@@ -135,8 +152,12 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
             name={`partnerFirstName-${index}`}
             value={partner.firstName}
             onChange={(e) => onChange(index, 'firstName', e.target.value)}
+            onBlur={() => setFirstNameInteracted(true)}
             required
-            className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                       ${firstNameInteracted ? 'interacted' : ''} 
+                       [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
+                       focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
           />
         </div>
         
@@ -151,8 +172,12 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
             name={`partnerLastName-${index}`}
             value={partner.lastName}
             onChange={(e) => onChange(index, 'lastName', e.target.value)}
+            onBlur={() => setLastNameInteracted(true)}
             required
-            className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                       ${lastNameInteracted ? 'interacted' : ''} 
+                       [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
+                       focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
           />
         </div>
       </div>
@@ -179,11 +204,14 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
               name={`partnerContactPreference-${index}`}
               value={partner.contactPreference}
               onChange={(e) => onChange(index, 'contactPreference', e.target.value)}
+              onBlur={() => setContactPreferenceInteracted(true)}
               required
-              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                         ${contactPreferenceInteracted ? 'interacted' : ''} 
+                         [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
             >
               {contactOptions.map(option => (
-                <option key={option} value={option}>{option}</option>
+                <option key={option} value={option === 'Please Select' ? '' : option}>{option}</option>
               ))}
             </select>
           </div>
@@ -212,29 +240,49 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
             <>
               {/* Phone input */}
               <div className="col-span-4">
-                <PhoneInputWrapper
-                  value={partner.phone}
-                  onChange={handlePhoneChange}
-                  inputProps={{
-                    id: `partnerPhone-${index}`,
-                    name: `partnerPhone-${index}`,
-                    placeholder: "Mobile Number"
-                  }}
-                  required={showContactFields}
-                />
+                <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerPhone-${index}`}>Mobile Number *</label>
+                <div 
+                    className={`${phoneInteracted ? 'interacted' : ''} 
+                               [&.interacted:invalid]:[&>.custom-phone-input>input]:border-red-500 
+                               focus-within:[&.interacted:invalid]:[&>.custom-phone-input>input]:border-red-500 
+                               focus-within:[&.interacted:invalid]:[&>.custom-phone-input>input]:ring-red-500 
+                               focus-within:[&.interacted:invalid]:[&>.custom-phone-input>input]:ring-2 
+                               focus-within:[&.interacted:invalid]:[&>.custom-phone-input>input]:ring-offset-0`}
+                    onBlur={(e) => {
+                      // Set interacted only if focus moves outside the wrapper
+                      if (!e.currentTarget.contains(e.relatedTarget)) {
+                        setPhoneInteracted(true);
+                      }
+                    }}
+                 >
+                  <PhoneInputWrapper
+                    value={partner.phone}
+                    onChange={handlePhoneChange}
+                    name={`partnerPhone-${index}`}
+                    inputProps={{ id: `partnerPhone-${index}`, name: `partnerPhone-${index}` }}
+                    required={showContactFields}
+                  />
+                </div>
               </div>
               
               {/* Email input */}
               <div className="col-span-5">
+                <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerEmail-${index}`}>Email Address *</label>
                 <input
                   type="email"
                   id={`partnerEmail-${index}`}
                   name={`partnerEmail-${index}`}
                   value={partner.email}
                   onChange={(e) => onChange(index, 'email', e.target.value)}
+                  onBlur={() => setEmailInteracted(true)}
                   required={showContactFields}
                   placeholder="Email Address"
-                  className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                             ${emailInteracted ? 'interacted' : ''} 
+                             [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
+                             focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
+                  pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.{a-zA-Z]{2,}$"
+                  title="Please enter a valid email address (e.g., user@example.com)"
                 />
               </div>
             </>

@@ -1,5 +1,5 @@
-import React from 'react';
-import { MasonData } from '../../../types/register';
+import React, { useState } from 'react';
+import { MasonData } from '../../../shared/types/register';
 
 interface MasonBasicInfoProps {
   mason: MasonData;
@@ -7,6 +7,8 @@ interface MasonBasicInfoProps {
   onChange: (index: number, field: string, value: string | boolean) => void;
   isPrimary?: boolean;
   handleTitleChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  titles: string[];
+  ranks: { value: string; label: string; }[];
 }
 
 const MasonBasicInfo: React.FC<MasonBasicInfoProps> = ({
@@ -14,11 +16,15 @@ const MasonBasicInfo: React.FC<MasonBasicInfoProps> = ({
   index,
   onChange,
   isPrimary = false,
-  handleTitleChange
+  handleTitleChange,
+  titles,
+  ranks,
 }) => {
-  // Updated with restricted options per requirements
-  const titles = ["Bro", "W Bro", "VW Bro", "RW Bro", "MW Bro"];
-  const ranks = ["EAF", "FCF", "MM", "IM", "GL"];
+  // Interaction states
+  const [titleInteracted, setTitleInteracted] = useState(false);
+  const [firstNameInteracted, setFirstNameInteracted] = useState(false);
+  const [lastNameInteracted, setLastNameInteracted] = useState(false);
+  const [rankInteracted, setRankInteracted] = useState(false);
 
   return (
     <div className="grid grid-cols-12 gap-4 mb-4">
@@ -32,9 +38,13 @@ const MasonBasicInfo: React.FC<MasonBasicInfoProps> = ({
           name={`title-${index}`}
           value={mason.title}
           onChange={handleTitleChange}
+          onBlur={() => setTitleInteracted(true)}
           required={isPrimary}
-          className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                     ${titleInteracted ? 'interacted' : ''} 
+                     [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
         >
+          <option value="">Please Select</option>
           {titles.map(title => (
             <option key={title} value={title}>{title}</option>
           ))}
@@ -52,8 +62,12 @@ const MasonBasicInfo: React.FC<MasonBasicInfoProps> = ({
           name={`firstName-${index}`}
           value={mason.firstName}
           onChange={(e) => onChange(index, 'firstName', e.target.value)}
+          onBlur={() => setFirstNameInteracted(true)}
           required={isPrimary}
-          className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                     ${firstNameInteracted ? 'interacted' : ''} 
+                     [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
+                     focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
         />
       </div>
       
@@ -68,8 +82,12 @@ const MasonBasicInfo: React.FC<MasonBasicInfoProps> = ({
           name={`lastName-${index}`}
           value={mason.lastName}
           onChange={(e) => onChange(index, 'lastName', e.target.value)}
+          onBlur={() => setLastNameInteracted(true)}
           required={isPrimary}
-          className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                     ${lastNameInteracted ? 'interacted' : ''} 
+                     [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
+                     focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
         />
       </div>
       
@@ -83,11 +101,15 @@ const MasonBasicInfo: React.FC<MasonBasicInfoProps> = ({
           name={`rank-${index}`}
           value={mason.rank}
           onChange={(e) => onChange(index, 'rank', e.target.value)}
+          onBlur={() => setRankInteracted(true)}
           required={isPrimary}
-          className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                     ${rankInteracted ? 'interacted' : ''} 
+                     [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
         >
+          <option value="">Please Select</option>
           {ranks.map(rank => (
-            <option key={rank} value={rank}>{rank}</option>
+            <option key={rank.value} value={rank.value}>{rank.label}</option>
           ))}
         </select>
       </div>

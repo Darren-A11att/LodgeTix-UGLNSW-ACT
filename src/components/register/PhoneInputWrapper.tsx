@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import PhoneInput from "react-phone-number-input";
 import type { Country } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import "./PhoneInputWrapper.css"; // Import external CSS file
+import { useLocationStore } from "../../store/locationStore"; // Import store
 
 interface PhoneInputWrapperProps {
   value: string;
@@ -26,43 +27,14 @@ const PhoneInputWrapper: React.FC<PhoneInputWrapperProps> = ({
   required = false,
   inputProps = {},
 }) => {
-  const [userCountry, setUserCountry] = useState<Country>("AU"); // Default to Australia
+  // Get country code from global store
+  const detectedCountryCode = useLocationStore(
+    (state) => state.ipData?.country_code
+  );
 
-  // Detect user's country based on IP address
-  useEffect(() => {
-    const fetchUserCountry = async () => {
-      try {
-        // Set a timeout for the fetch operation
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 seconds timeout
-
-        const response = await fetch("https://ipapi.co/json/", {
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.country_code) {
-            setUserCountry(data.country_code.toUpperCase() as Country);
-          }
-        }
-      } catch (error) {
-        // Silently handle the error - just use the default country
-        console.warn(
-          "Country detection failed, using default country (AU):",
-          error,
-        );
-      }
-    };
-
-    fetchUserCountry().catch((error) => {
-      console.warn(
-        "Additional error handling: Using default country (AU)",
-        error,
-      );
-    });
-  }, []);
+  // Determine the country to use: detected or default 'AU'
+  // Ensure it's cast to the Country type expected by PhoneInput
+  const country = (detectedCountryCode?.toUpperCase() as Country) || "AU";
 
   // Type-safe wrapper for the onChange handler
   const handlePhoneChange = (newValue: string | undefined) => {
@@ -74,7 +46,7 @@ const PhoneInputWrapper: React.FC<PhoneInputWrapperProps> = ({
       {/* Apply specific props directly instead of spreading */}
       <PhoneInput
         international={isInternational}
-        defaultCountry={userCountry}
+        defaultCountry={country} // Use country from store or default
         value={value}
         onChange={(value) => handlePhoneChange(value ?? '')}
         className="custom-phone-input"
