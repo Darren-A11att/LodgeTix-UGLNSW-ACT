@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout:*)",
+      "Bash(git checkout:*)",
+      "Bash(claude mcp add supabase npx:*)",
+      "Bash(claude mcp add supabase npx:*)",
+      "Bash(claude mcp:*)",
+      "Bash(claude mcp:*)",
+      "Bash(cat:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(grep:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run dev:*)",
+      "Bash(kill:*)",
+      "Bash(kill:*)",
+      "Bash(lsof:*)",
+      "Bash(lsof:*)",
+      "Bash(ls:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(supabase:*)",
+      "Bash(-type f)",
+      "Bash(find:*)",
+      "Bash(supabase:*)",
+      "Bash(-type f)"
+    ],
+    "deny": []
+  }
+}
