@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
+import { useLocationStore } from '../../store/locationStore'; // Corrected path
+import type { LocationState } from '../../store/locationStore'; // Import state type
 
 interface PhoneInputWrapperProps {
   value: string;
@@ -20,75 +22,61 @@ const PhoneInputWrapper: React.FC<PhoneInputWrapperProps> = ({
 }) => {
   const [isValid, setIsValid] = useState(true);
   const [helperText, setHelperText] = useState('');
-  const [userCountry, setUserCountry] = useState('au'); // Default to Australia
-  const inputRef = useRef<any>(null);
-  
-  // Detect user's country based on IP address
-  useEffect(() => {
-    const fetchUserCountry = async () => {
-      try {
-        // Set a timeout for the fetch operation
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 seconds timeout
-        
-        const response = await fetch('https://ipapi.co/json/', { 
-          signal: controller.signal 
-        });
-        clearTimeout(timeoutId);
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.country_code) {
-            setUserCountry(data.country_code.toLowerCase());
-          }
-        }
-      } catch (error) {
-        // Silently handle the error - just use the default country
-        console.warn('Country detection failed, using default country (au):', error);
-        // No need to set userCountry again since we already defaulted it to 'au'
-      }
-    };
+  const [displayValue, setDisplayValue] = useState('');
 
-    fetchUserCountry().catch(() => {
-      // Fallback error handler - just to be safe
-      // Default is already set to 'au' so this is just for logging
-      console.warn('Additional error handling: Using default country (au)');
-    });
-  }, []);
+  // Get country code from global store
+  const detectedCountryCode = useLocationStore(
+    (state: LocationState) => state.ipData?.country_code // Added type for state
+  );
+
+  // Determine the country to use: detected or default 'au' (lowercase for react-phone-input-2)
+  const country = detectedCountryCode?.toLowerCase() || 'au';
   
+  // Initialize display value and validation on mount/external value change
+  useEffect(() => {
+    const storageValue = formatForStorage(value); // Use the prop value
+    const valid = validateAustralianMobile(storageValue);
+    setIsValid(valid);
+    setHelperText(formatInternational(storageValue));
+
+    // Set initial display value
+    if (storageValue.startsWith('61') && storageValue.length > 2 && storageValue.charAt(2) === '4') {
+      setDisplayValue(formatAustralianMobileForDisplay(storageValue));
+    } else {
+      // For non-Australian or incomplete numbers, display the raw input for better UX
+      // Or use the storageValue if value prop might be formatted differently
+      setDisplayValue(value); // Or potentially formatForStorage(value) depending on expected `value` prop format
+    }
+
+  }, [value, required]); // Rerun when external value changes
+
   // Format Australian mobile for display (04XX XXX XXX)
-  const formatAustralianMobileForDisplay = (value: string): string => {
-    // If it's already in national format (starting with 0)
-    if (value.startsWith('0') && value.length > 1) {
-      const digitsOnly = value.replace(/\D/g, '');
-      
+  const formatAustralianMobileForDisplay = (numberValue: string): string => {
+    // Expects international format (61...) input
+    if (numberValue.startsWith('61') && numberValue.length > 2 && numberValue.charAt(2) === '4') {
+      const nationalPart = numberValue.substring(2);
+      const digitsOnly = nationalPart.replace(/\D/g, '');
+
       // Format as 04XX XXX XXX
-      if (digitsOnly.length >= 4) {
-        let formatted = digitsOnly.substring(0, 4);
-        if (digitsOnly.length >= 7) {
-          formatted += ' ' + digitsOnly.substring(4, 7);
-          if (digitsOnly.length >= 10) {
-            formatted += ' ' + digitsOnly.substring(7, 10);
+      if (digitsOnly.length >= 2) { // Start with 04
+        let formatted = '0' + digitsOnly.substring(0, 2);
+        if (digitsOnly.length >= 5) {
+          formatted += ' ' + digitsOnly.substring(2, 5);
+          if (digitsOnly.length >= 8) {
+            formatted += ' ' + digitsOnly.substring(5, 8);
           } else {
-            formatted += ' ' + digitsOnly.substring(7);
+            formatted += ' ' + digitsOnly.substring(5);
           }
         } else {
-          formatted += ' ' + digitsOnly.substring(4);
+          formatted += ' ' + digitsOnly.substring(2);
         }
         return formatted;
       }
-      return digitsOnly;
+      return '0' + digitsOnly; // Fallback if less than 2 digits after 61
     }
-    
-    // If it's in international format (61...)
-    if (value.startsWith('61') && value.length > 2 && value.charAt(2) === '4') {
-      // Convert to national format with leading 0
-      return formatAustralianMobileForDisplay(`0${value.substring(2)}`);
-    }
-    
-    return value;
+    return numberValue; // Return as is if not Australian mobile
   };
-  
+
   // Format to international format for storage
   const formatForStorage = (value: string): string => {
     // If empty, return empty
@@ -158,66 +146,28 @@ const PhoneInputWrapper: React.FC<PhoneInputWrapperProps> = ({
   };
 
   // Handle input change
-  const handleChange = (inputValue: string, country: any) => {
-    // Skip empty values
-    if (!inputValue) {
-      onChange('');
-      setIsValid(true);
-      setHelperText('');
-      return;
-    }
-    
-    // Store in international format
-    const storageValue = formatForStorage(inputValue);
-    
+  const handleChange = (rawInputValue: string, countryData: any, event: React.ChangeEvent<HTMLInputElement>) => {
+    const currentInputVal = event.target.value; // Use the direct input value for display state
+    setDisplayValue(currentInputVal);
+
+    // Determine the value to store (international format)
+    // react-phone-input-2 usually provides the full number including dial code in rawInputValue
+    const storageValue = formatForStorage(rawInputValue); 
+
     // Validate the number
     const valid = validateAustralianMobile(storageValue);
     setIsValid(valid);
-    
-    // Set the storage value
-    onChange(storageValue);
-    
-    // Update display format for Australian mobiles
-    if (storageValue.startsWith('61') && storageValue.length > 2 && storageValue.charAt(2) === '4') {
-      const displayValue = formatAustralianMobileForDisplay(storageValue);
-      
-      // Use setTimeout to let the component update first
-      setTimeout(() => {
-        if (inputRef.current?.numberInputElement) {
-          inputRef.current.numberInputElement.value = displayValue;
-        }
-      }, 0);
-      
-      // Set helper text
-      setHelperText(formatInternational(storageValue));
-    } else {
-      // For non-Australian numbers
-      setHelperText(formatInternational(storageValue));
-    }
-  };
+    setHelperText(formatInternational(storageValue));
 
-  // Update helper text and validation when value changes externally
-  useEffect(() => {
-    if (value) {
-      setIsValid(validateAustralianMobile(value));
-      setHelperText(formatInternational(value));
-      
-      // Update display for Australian mobiles
-      if (value.startsWith('61') && value.length > 2 && value.charAt(2) === '4' && inputRef.current?.numberInputElement) {
-        const displayValue = formatAustralianMobileForDisplay(value);
-        inputRef.current.numberInputElement.value = displayValue;
-      }
-    } else {
-      setIsValid(!required);
-      setHelperText('');
-    }
-  }, [value, required]);
+    // Call the parent onChange with the standardized international format
+    onChange(storageValue);
+  };
 
   return (
     <div className="relative">
       <PhoneInput
-        country={userCountry}
-        value={value}
+        country={country}
+        value={displayValue}
         onChange={handleChange}
         inputClass="form-control"
         containerClass={`w-full ${className}`}
@@ -230,7 +180,6 @@ const PhoneInputWrapper: React.FC<PhoneInputWrapperProps> = ({
         autoFormat={false}
         disableSearchIcon={true}
         countryCodeEditable={false}
-        ref={inputRef}
         buttonStyle={{ 
           border: '1px solid rgb(203 213 225)', 
           borderRight: 'none',

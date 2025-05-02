@@ -1,50 +1,17 @@
-import { mockAuth } from '../mock/auth';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Mock the Supabase client with our in-memory implementation
-export const supabase = {
-  auth: mockAuth,
-  from: (table: string) => ({
-    select: (columns: string = '*') => ({
-      eq: (column: string, value: any) => ({
-        is: (column: string, value: any) => ({
-          maybeSingle: async () => {
-            return { data: null, error: null };
-          }
-        }),
-        maybeSingle: async () => {
-          return { data: null, error: null };
-        },
-        order: (column: string, { ascending = true }) => ({
-          async then() {
-            return { data: [], error: null };
-          }
-        })
-      }),
-      order: (column: string, { ascending = true }) => ({
-        async then() {
-          return { data: [], error: null };
-        }
-      }),
-      async maybeSingle() {
-        return { data: null, error: null };
-      }
-    }),
-    insert: (data: any) => ({
-      async then() {
-        return { data: null, error: null };
-      }
-    }),
-    upsert: (data: any, options: any) => ({
-      async then() {
-        return { data: null, error: null };
-      }
-    }),
-    delete: () => ({
-      eq: (column: string, value: any) => ({
-        async then() {
-          return { data: null, error: null };
-        }
-      })
-    })
-  })
-};
+// Use environment variables for configuration
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Verify that environment variables are correctly loaded
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables. Check your .env file.');
+  // Consider throwing an error or handling this case more robustly
+  // depending on your application's needs.
+}
+
+// Create and export the Supabase client
+// Add a type assertion or check to satisfy TypeScript if needed, 
+// especially if strict null checks are enabled.
+export const supabase: SupabaseClient = createClient(supabaseUrl!, supabaseAnonKey!);

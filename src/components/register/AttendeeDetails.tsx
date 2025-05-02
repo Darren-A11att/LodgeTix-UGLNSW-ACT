@@ -171,8 +171,17 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
     if (!guest.title) errors[`guest-${index}-title`] = `Title is required for ${name}`;
     if (!guest.firstName) errors[`guest-${index}-firstName`] = `First Name is required for ${guestLabel}`;
     if (!guest.lastName) errors[`guest-${index}-lastName`] = `Last Name is required for ${guestLabel}`;
-    if (!guest.phone) errors[`guest-${index}-phone`] = `Mobile Number is required for ${name}`;
-    if (!guest.email) errors[`guest-${index}-email`] = `Email Address is required for ${name}`;
+    
+    // Only require phone and email when contact preference is 'Directly'
+    if (guest.contactPreference === 'Directly') {
+      if (!guest.phone) errors[`guest-${index}-phone`] = `Mobile Number is required for ${name} when contact is 'Directly'`;
+      if (!guest.email) errors[`guest-${index}-email`] = `Email Address is required for ${name} when contact is 'Directly'`;
+    } else if (guest.contactPreference === 'Primary Attendee' || guest.contactPreference === 'Provide Later') {
+      if (!guest.contactConfirmed) errors[`guest-${index}-contactConfirmed`] = `Contact confirmation is required for ${name}`;
+    } else if (!guest.contactPreference || guest.contactPreference === 'Please Select') {
+      errors[`guest-${index}-contactPreference`] = `Contact preference is required for ${name}`;
+    }
+    
     return errors;
   }, []); // No dependencies needed
 
