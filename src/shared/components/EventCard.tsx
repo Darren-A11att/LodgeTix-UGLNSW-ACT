@@ -14,7 +14,7 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
         <div className="h-48 overflow-hidden">
           <img 
             src={event.imageSrc} 
-            alt={event.title} 
+            alt={event.title ?? 'Event Image'}
             className="w-full h-full object-cover"
           />
         </div>
@@ -32,12 +32,12 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
         <div className="space-y-2 mb-4">
           <div className="flex items-center text-sm text-slate-600">
             <Calendar className="w-4 h-4 mr-2 text-primary" />
-            {event.day}
+            {event.day || 'Date TBC'}
           </div>
           
           <div className="flex items-center text-sm text-slate-600">
             <Clock className="w-4 h-4 mr-2 text-primary" />
-            {event.time}
+            {event.time || 'Time TBC'} {event.until ? ` - ${event.until}` : ''}
           </div>
           
           <div className="flex items-center text-sm text-slate-600">
@@ -54,9 +54,9 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
         </div>
         
         <p className="text-slate-700 mb-4">
-          {event.description.length > 100 
-            ? `${event.description.substring(0, 100)}...` 
-            : event.description}
+          {(event.description ?? '').length > 100 
+            ? `${(event.description ?? '').substring(0, 100)}...` 
+            : (event.description ?? 'No description.')}
         </p>
         
         <div className="flex justify-between items-center">
@@ -66,7 +66,7 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
             <div className="text-green-600 font-medium">Free</div>
           )}
           
-          <Link to={`/events/${event.id}`} className="btn-outline py-2">
+          <Link to={`/events/${event.slug}`} className="btn-outline py-2">
             View Details
           </Link>
         </div>

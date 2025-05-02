@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GuestData } from '../../../shared/types/register';
 import { HelpCircle } from 'lucide-react';
 import PhoneInputWrapper from '../PhoneInputWrapper';
@@ -24,6 +24,10 @@ const GuestContactInfo: React.FC<GuestContactInfoProps> = ({
   showConfirmation,
   getConfirmationMessage
 }) => {
+  const [emailInteracted, setEmailInteracted] = useState(false);
+  const [contactPreferenceInteracted, setContactPreferenceInteracted] = useState(false);
+  const [phoneInteracted, setPhoneInteracted] = useState(false);
+
   return (
     <div className="mb-4">
       <div className="grid grid-cols-12 gap-4">
@@ -45,11 +49,14 @@ const GuestContactInfo: React.FC<GuestContactInfoProps> = ({
             name={`contactPreference-${index}`}
             value={guest.contactPreference}
             onChange={(e) => onChange(index, 'contactPreference', e.target.value)}
+            onBlur={() => setContactPreferenceInteracted(true)}
             required
-            className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                       ${contactPreferenceInteracted ? 'interacted' : ''} 
+                       [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
           >
             {contactOptions.map(option => (
-              <option key={option} value={option}>{option}</option>
+              <option key={option} value={option === 'Please Select' ? '' : option}>{option}</option>
             ))}
           </select>
         </div>
@@ -79,15 +86,27 @@ const GuestContactInfo: React.FC<GuestContactInfoProps> = ({
                 <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`guestPhone-${index}`}>
                   Mobile Number *
                 </label>
-                <PhoneInputWrapper
-                  value={guest.phone}
-                  onChange={handlePhoneChange}
-                  inputProps={{
-                    id: `guestPhone-${index}`,
-                    name: `guestPhone-${index}`
-                  }}
-                  required={true}
-                />
+                <div 
+                    className={`${phoneInteracted ? 'interacted' : ''} 
+                               [&.interacted:invalid]:[&>.custom-phone-input>input]:border-red-500 
+                               focus-within:[&.interacted:invalid]:[&>.custom-phone-input>input]:border-red-500 
+                               focus-within:[&.interacted:invalid]:[&>.custom-phone-input>input]:ring-red-500 
+                               focus-within:[&.interacted:invalid]:[&>.custom-phone-input>input]:ring-2 
+                               focus-within:[&.interacted:invalid]:[&>.custom-phone-input>input]:ring-offset-0`}
+                    onBlur={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget)) {
+                        setPhoneInteracted(true);
+                      }
+                    }}
+                 >
+                  <PhoneInputWrapper
+                    value={guest.phone}
+                    onChange={handlePhoneChange}
+                    name={`guestPhone-${index}`}
+                    inputProps={{ id: `guestPhone-${index}`, name: `guestPhone-${index}` }}
+                    required={true}
+                  />
+                </div>
               </div>
               
               {/* Email input */}
@@ -101,8 +120,14 @@ const GuestContactInfo: React.FC<GuestContactInfoProps> = ({
                   name={`guestEmail-${index}`}
                   value={guest.email}
                   onChange={(e) => onChange(index, 'email', e.target.value)}
+                  onBlur={() => setEmailInteracted(true)}
                   required={true}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                             ${emailInteracted ? 'interacted' : ''} 
+                             [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
+                             focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
+                  pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.{a-zA-Z]{2,}$"
+                  title="Please enter a valid email address (e.g., user@example.com)"
                 />
               </div>
             </>

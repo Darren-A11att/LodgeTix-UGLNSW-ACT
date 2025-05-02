@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from 'react';
 import "react-phone-input-2/lib/style.css";
 import { LadyPartnerData, MasonData } from "../../shared/types/register";
 import { HelpCircle, X } from "lucide-react";
@@ -49,6 +49,15 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
   if (!isPrimaryMason) {
     contactOptions.splice(1, 0, "Primary Attendee"); // Insert "Primary Attendee" after "Please Select"
   }
+
+  // Interaction states
+  const [relationshipInteracted, setRelationshipInteracted] = useState(false);
+  const [titleInteracted, setTitleInteracted] = useState(false);
+  const [firstNameInteracted, setFirstNameInteracted] = useState(false);
+  const [lastNameInteracted, setLastNameInteracted] = useState(false);
+  const [contactPreferenceInteracted, setContactPreferenceInteracted] = useState(false);
+  const [phoneInteracted, setPhoneInteracted] = useState(false);
+  const [emailInteracted, setEmailInteracted] = useState(false);
 
   const handlePhoneChange = (value: string) => {
     onChange(index, "phone", value);
@@ -136,9 +145,13 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
             name={`relationship-${index}`}
             value={ladyPartner.relationship}
             onChange={(e) => onChange(index, "relationship", e.target.value)}
+            onBlur={() => setRelationshipInteracted(true)}
             required
-            className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                       ${relationshipInteracted ? 'interacted' : ''} 
+                       [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
           >
+            <option value="">Please Select</option>
             {relationships.map((rel) => (
               <option key={rel} value={rel}>
                 {rel}
@@ -160,9 +173,13 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
             name={`ladyTitle-${index}`}
             value={ladyPartner.title}
             onChange={(e) => onChange(index, "title", e.target.value)}
+            onBlur={() => setTitleInteracted(true)}
             required
-            className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                       ${titleInteracted ? 'interacted' : ''} 
+                       [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
           >
+            <option value="">Please Select</option>
             {titles.map((title) => (
               <option key={title} value={title}>
                 {title}
@@ -185,8 +202,12 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
             name={`ladyFirstName-${index}`}
             value={ladyPartner.firstName}
             onChange={(e) => onChange(index, "firstName", e.target.value)}
+            onBlur={() => setFirstNameInteracted(true)}
             required
-            className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                       ${firstNameInteracted ? 'interacted' : ''} 
+                       [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
+                       focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
           />
         </div>
 
@@ -204,8 +225,12 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
             name={`ladyLastName-${index}`}
             value={ladyPartner.lastName}
             onChange={(e) => onChange(index, "lastName", e.target.value)}
+            onBlur={() => setLastNameInteracted(true)}
             required
-            className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                       ${lastNameInteracted ? 'interacted' : ''} 
+                       [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
+                       focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
           />
         </div>
       </div>
@@ -237,11 +262,14 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
               onChange={(e) =>
                 onChange(index, "contactPreference", e.target.value)
               }
+              onBlur={() => setContactPreferenceInteracted(true)}
               required
-              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                         ${contactPreferenceInteracted ? 'interacted' : ''} 
+                         [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
             >
               {contactOptions.map((option) => (
-                <option key={option} value={option}>
+                <option key={option} value={option === 'Please Select' ? '' : option}>
                   {option}
                 </option>
               ))}
@@ -281,16 +309,30 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
                   >
                     Mobile Number *
                   </label>
-                  <PhoneInputWrapper
-                    value={ladyPartner.phone}
-                    onChange={handlePhoneChange}
-                    name={`ladyPhone-${index}`}
-                    inputProps={{
-                      id: `ladyPhone-${index}`,
-                      name: `ladyPhone-${index}`,
-                    }}
-                    required={true}
-                  />
+                  <div 
+                     className={`${phoneInteracted ? 'interacted' : ''} 
+                                [&.interacted:invalid]:[&>.custom-phone-input>input]:border-red-500 
+                                focus-within:[&.interacted:invalid]:[&>.custom-phone-input>input]:border-red-500 
+                                focus-within:[&.interacted:invalid]:[&>.custom-phone-input>input]:ring-red-500 
+                                focus-within:[&.interacted:invalid]:[&>.custom-phone-input>input]:ring-2 
+                                focus-within:[&.interacted:invalid]:[&>.custom-phone-input>input]:ring-offset-0`}
+                     onBlur={(e) => {
+                       if (!e.currentTarget.contains(e.relatedTarget)) {
+                         setPhoneInteracted(true);
+                       }
+                     }}
+                   >
+                    <PhoneInputWrapper
+                      value={ladyPartner.phone}
+                      onChange={handlePhoneChange}
+                      name={`ladyPhone-${index}`}
+                      inputProps={{
+                        id: `ladyPhone-${index}`,
+                        name: `ladyPhone-${index}`,
+                      }}
+                      required={true}
+                    />
+                   </div>
                 </div>
 
                 {/* Email input */}
@@ -306,9 +348,17 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
                     id={`ladyEmail-${index}`}
                     name={`ladyEmail-${index}`}
                     value={ladyPartner.email}
-                    onChange={(e) => onChange(index, "email", e.target.value)}
-                    required={true}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    onChange={(e) =>
+                      onChange(index, "email", e.target.value)
+                    }
+                    onBlur={() => setEmailInteracted(true)}
+                    required
+                    className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                               ${emailInteracted ? 'interacted' : ''} 
+                               [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
+                               focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
+                    pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.{a-zA-Z]{2,}$"
+                    title="Please enter a valid email address (e.g., user@example.com)"
                   />
                 </div>
               </>

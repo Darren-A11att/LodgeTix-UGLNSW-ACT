@@ -1,19 +1,22 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Search, X, Plus } from "lucide-react";
+import { Search, X, Plus, Loader2 } from "lucide-react";
 
-// Define a type for option objects
-export type AutocompleteOption = Record<string, unknown>;
+// Define a more flexible base type - essentially any object
+// This avoids implying an index signature needed by Record<string, unknown>
+export type BaseOption = object; 
 
-interface AutocompleteInputProps<T extends AutocompleteOption> {
+// Update the generic constraint to use BaseOption
+interface AutocompleteInputProps<T extends BaseOption> { 
   id: string;
   name: string;
   value: string;
   onChange: (value: string) => void;
-  onSelect?: (value: T) => void;
+  onSelect?: (value: T | null) => void; // Allow selecting null if input cleared/no match
   onCreateNew?: (value: string) => void;
   options: T[];
-  getOptionLabel: (option: T) => string;
-  getOptionValue?: (option: T) => string;
+  // Make these mandatory for proper generic handling
+  getOptionLabel: (option: T) => string; 
+  getOptionValue: (option: T) => string | number; // Value can be string or number
   placeholder?: string;
   className?: string;
   required?: boolean;
@@ -23,18 +26,22 @@ interface AutocompleteInputProps<T extends AutocompleteOption> {
   formatSelected?: (option: T) => string;
   allowCreate?: boolean;
   createNewText?: string;
+  onFocus?: (event: React.FocusEvent<HTMLInputElement>) => void;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
-function AutocompleteInput<T extends AutocompleteOption>({
+// Update the function signature constraint
+function AutocompleteInput<T extends BaseOption>({
   id,
   name,
   value,
-  onChange,
+  onChange = (val: string) => { console.warn(`AutocompleteInput (${id}/${name}): Missing onChange handler`, val); },
   onSelect,
   onCreateNew,
   options,
   getOptionLabel,
-  getOptionValue = (option) => getOptionLabel(option),
+  getOptionValue, // Remove default, must be provided
   placeholder = "",
   className = "",
   required = false,
@@ -44,6 +51,9 @@ function AutocompleteInput<T extends AutocompleteOption>({
   formatSelected,
   allowCreate = false,
   createNewText = "Create",
+  onFocus,
+  isLoading = false,
+  error = null,
 }: AutocompleteInputProps<T>): React.ReactElement {
   const [inputValue, setInputValue] = useState(value);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -52,64 +62,78 @@ function AutocompleteInput<T extends AutocompleteOption>({
   const [showCreateOption, setShowCreateOption] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null); // Ref for the main container
 
-  // Filter options based on input
+  // Sync input value if parent value changes
   useEffect(() => {
-    if (inputValue.trim() === "") {
+    if (document.activeElement !== inputRef.current) {
+      setInputValue(value);
+    }
+  }, [value]);
+
+  // Filter options based on input, handle loading state
+  useEffect(() => {
+    // If loading is finished, use the provided options directly.
+    // If loading is ongoing OR input is empty, clear options.
+    if (!isLoading && inputValue.trim() !== "") {
+      // Directly use the options passed from the parent 
+      // as they should already be filtered by the backend search
+      setFilteredOptions(options.slice(0, 10)); // Apply limit
+      
+      // Still need to determine if create option should show based on exact match
+      const exactMatch = options.some(
+        (option) =>
+          getOptionLabel(option).toLowerCase() === inputValue.toLowerCase(),
+      );
+      setShowCreateOption(
+        allowCreate && !exactMatch && inputValue.trim().length > 0,
+      );
+
+    } else { // Covers isLoading or empty inputValue
       setFilteredOptions([]);
       setShowCreateOption(false);
-      return;
+      // Optionally hide dropdown immediately if loading starts
+      // if (isLoading) setShowDropdown(false); 
     }
 
-    let filtered;
-    if (filterOptions) {
-      filtered = filterOptions(options, inputValue);
-    } else {
-      filtered = options.filter(
-        (option) =>
-          getOptionLabel(option)
-            .toLowerCase()
-            .includes(inputValue.toLowerCase()) ||
-          (option.abbreviation as string)?.toLowerCase().includes(inputValue.toLowerCase()),
-      );
-    }
+    setHighlightedIndex(-1); // Reset highlight on options change
 
-    // Check if we should show create option
-    const exactMatch = filtered.some(
-      (option) =>
-        getOptionLabel(option).toLowerCase() === inputValue.toLowerCase(),
-    );
+  // Depend on options and isLoading coming from parent, and local inputValue
+  }, [inputValue, options, getOptionLabel, allowCreate, isLoading]);
 
-    setShowCreateOption(
-      allowCreate && !exactMatch && inputValue.trim().length > 0,
-    );
-    setFilteredOptions(filtered.slice(0, 10)); // Limit to 10 options for performance
-    setHighlightedIndex(-1);
-  }, [inputValue, options, filterOptions, getOptionLabel, allowCreate]);
-
-  // Handle outside click to close dropdown
+  // Handle outside click to close dropdown (Refined)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        inputRef.current &&
-        !inputRef.current.contains(event.target as Node)
-      ) {
-        setShowDropdown(false);
+      // Check if the click is outside the entire component container
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+          setShowDropdown(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, []);
+  }, []); // Empty dependency array - only runs on mount/unmount
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
-    onChange(e.target.value);
-    setShowDropdown(true);
+    if (isLoading) return;
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    
+    // Call onChange directly (it's guaranteed to be a function now)
+    onChange(newValue); 
+    
+    // Explicitly ensure dropdown is shown after input change
+    if (!showDropdown) {
+        setShowDropdown(true); 
+    }
+    
+    // If the text value becomes empty or doesn't match any option label, trigger onSelect with null
+    if (newValue.trim() === '' || !options.some(opt => getOptionLabel(opt) === newValue)) {
+       if (onSelect && typeof onSelect === 'function') {
+          onSelect(null); 
+       }
+    }
   };
 
   const handleSelect = (option: T) => {
@@ -117,10 +141,10 @@ function AutocompleteInput<T extends AutocompleteOption>({
       ? formatSelected(option)
       : getOptionLabel(option);
     setInputValue(selectedValue);
-    onChange(selectedValue);
+    onChange(selectedValue); // Notify parent of final text value
 
     if (onSelect) {
-      onSelect(option);
+      onSelect(option); // Notify parent of selected *object*
     }
 
     setShowDropdown(false);
@@ -157,29 +181,50 @@ function AutocompleteInput<T extends AutocompleteOption>({
     }
   };
 
+  const handleInputFocus = (event: React.FocusEvent<HTMLInputElement>) => {
+    if (!isLoading) {
+        setShowDropdown(true);
+    }
+    if (onFocus) {
+        onFocus(event);
+    }
+  };
+
   const handleClear = () => {
     setInputValue("");
     onChange("");
+    if(onSelect) {
+      onSelect(null); // Notify selection cleared
+    }
     if (inputRef.current) {
       inputRef.current.focus();
     }
   };
 
+  // Determine input classes based on state
+  const inputClasses = `
+    w-full px-4 py-2 pl-10 pr-10 border rounded-md focus:outline-none focus:ring-2 
+    ${error ? 'border-red-500 focus:ring-red-500/50' : 'border-slate-300 focus:ring-primary/50'}
+    ${disabled ? 'bg-slate-100 cursor-not-allowed' : 'bg-white'}
+    ${className}
+  `;
+
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <Search className="h-5 w-5 text-slate-400" />
         </div>
-        {inputValue && (
+        {inputValue && !isLoading && (
           <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
             <button
               type="button"
               onClick={handleClear}
-              className="text-slate-400 hover:text-slate-500"
+              disabled={disabled}
+              className="text-slate-400 hover:text-slate-500 disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Clear input"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </button>
           </div>
         )}
@@ -190,77 +235,60 @@ function AutocompleteInput<T extends AutocompleteOption>({
           name={name}
           value={inputValue}
           onChange={handleInputChange}
-          onFocus={() => setShowDropdown(true)}
+          onFocus={handleInputFocus}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className={`w-full pl-10 ${inputValue ? "pr-10" : "pr-4"} py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 ${className}`}
+          className={inputClasses}
           required={required}
           disabled={disabled}
           autoComplete="off"
         />
       </div>
 
-      {/* Custom dropdown for better UI control */}
-      {showDropdown && (filteredOptions.length > 0 || showCreateOption) && (
-        <div
-          ref={dropdownRef}
-          className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm border border-slate-200"
-        >
-          <ul className="list-none p-0 m-0 w-full">
-            {filteredOptions.map((option, index) => {
-              const isHighlighted = index === highlightedIndex;
-              return (
-                <li
-                  key={getOptionValue(option)}
-                  onClick={() => handleSelect(option)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      handleSelect(option);
-                    }
-                  }}
-                  tabIndex={0}
-                  className={`cursor-pointer select-none relative py-2 pl-3 pr-9 ${
-                    isHighlighted
-                      ? "bg-primary/10 text-primary"
-                      : "text-slate-900"
-                  } hover:bg-primary/10 hover:text-primary`}
-                >
-                  {renderOption ? renderOption(option) : (
-                    <div>
-                      <div className="font-medium">{getOptionLabel(option)}</div>
-                      {typeof option.country === 'string' && (
-                        <div className="text-xs text-slate-500">
-                          {option.country}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-
-            {/* Create New Option */}
-            {showCreateOption && (
-              <li
-                onClick={handleCreateNew}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handleCreateNew();
-                  }
-                }}
-                tabIndex={0}
-                className="cursor-pointer select-none relative py-2 pl-3 pr-9 text-green-800 hover:bg-green-100 flex items-center border-t border-slate-100"
+      {(() => { // IIFE for logging
+          const shouldShow = showDropdown && !isLoading && (filteredOptions.length > 0 || showCreateOption);
+          // Remove detailed logging for dropdown visibility check
+          // if (showDropdown) { 
+          //   console.log(`[AutocompleteInput ${id}] Dropdown Check: ...`);
+          // }
+          return shouldShow && (
+              <div
+                ref={dropdownRef}
+                className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
               >
-                <Plus className="h-4 w-4 mr-2 text-green-600" />
-                <div className="font-medium">
-                  {createNewText} "{inputValue}"
-                </div>
-              </li>
-            )}
-          </ul>
-        </div>
+                <ul className="list-none p-0 m-0 w-full">
+                  {filteredOptions.map((option, index) => {
+                    const optionLabel = getOptionLabel(option);
+                    const optionValue = getOptionValue(option);
+                    const isHighlighted = index === highlightedIndex;
+                    return (
+                      <li
+                        key={String(optionValue)}
+                        onClick={() => handleSelect(option)}
+                        onMouseEnter={() => setHighlightedIndex(index)}
+                        className={`px-4 py-2 cursor-pointer ${isHighlighted ? 'bg-primary/10 text-primary' : 'hover:bg-slate-100'}`}
+                      >
+                        {renderOption ? renderOption(option) : optionLabel}
+                      </li>
+                    );
+                  })}
+
+                  {showCreateOption && (
+                    <li
+                      onClick={handleCreateNew}
+                      onMouseEnter={() => setHighlightedIndex(filteredOptions.length)}
+                      className={`px-4 py-2 cursor-pointer flex items-center ${highlightedIndex === filteredOptions.length ? 'bg-primary/10 text-primary' : 'hover:bg-slate-100'}`}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      {createNewText} "{inputValue}"
+                    </li>
+                  )}
+                </ul>
+              </div>
+          );
+      })()}
+      {error && (
+          <p className="mt-1 text-xs text-red-600">{error}</p>
       )}
     </div>
   );

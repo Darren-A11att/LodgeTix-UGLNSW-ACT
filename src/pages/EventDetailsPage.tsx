@@ -1,26 +1,103 @@
-import React from 'react';
+'use client'; // Mark as client component
+
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Calendar, Clock, MapPin, Users, DollarSign, AlertCircle, Calendar as CalendarIcon } from 'lucide-react';
-import { events } from '../shared/data/events';
-import { format, parseISO } from 'date-fns';
+import { Calendar, Clock, MapPin, Users, AlertCircle, Loader2 } from 'lucide-react';
+import { format, isValid, parseISO } from 'date-fns';
 import EventPaymentCard from '../shared/components/EventPaymentCard';
+import { getEventById, getChildEvents, getRelatedEvents } from '../lib/api/events';
+import { EventType } from '../shared/types/event';
+import { generateGoogleCalendarUrl, CalendarEventData } from '../lib/calendarUtils';
 
 const EventDetailsPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   
-  // Find the event by id
-  const event = events.find(e => e.id === id);
-  
-  // If event not found, show error
-  if (!event) {
+  // State variables for data, loading, and errors
+  const [event, setEvent] = useState<EventType | null>(null);
+  const [childEvents, setChildEvents] = useState<EventType[]>([]);
+  const [relatedEvents, setRelatedEvents] = useState<EventType[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // useEffect to fetch data when component mounts or slug changes
+  useEffect(() => {
+    if (!slug) {
+      setError("No event identifier provided.");
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchEventData = async () => {
+      setIsLoading(true);
+      setError(null);
+      setEvent(null);
+      setChildEvents([]);
+      setRelatedEvents([]);
+
+      try {
+        const fetchedEvent = await getEventById(slug);
+        
+        if (fetchedEvent) {
+          setEvent(fetchedEvent);
+          
+          // Fetch child events if it's a multi-day parent
+          if (fetchedEvent.is_multi_day) { 
+            const children = await getChildEvents(fetchedEvent.id);
+            setChildEvents(children);
+          }
+          
+          // Fetch related events (same day, excluding self and children)
+          if (fetchedEvent.event_start) {
+            try {
+              const startDate = parseISO(fetchedEvent.event_start);
+              if (isValid(startDate)) {
+                const dateString = format(startDate, 'yyyy-MM-dd'); // Format as YYYY-MM-DD
+                const related = await getRelatedEvents(fetchedEvent.id, dateString);
+                setRelatedEvents(related);
+              } else {
+                 console.warn(`Cannot fetch related events: Invalid start date parsed from ${fetchedEvent.event_start}`);
+              }
+            } catch (parseError) {
+              console.error(`Error parsing event_start for related events: ${fetchedEvent.event_start}`, parseError);
+            }
+          } else {
+             console.warn("Cannot fetch related events: Event event_start is missing.")
+          }
+          
+        } else {
+          setError("Event not found.");
+        }
+      } catch (err) {
+        console.error("Error fetching event details:", err);
+        setError("Failed to load event details. Please try again later.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEventData();
+  }, [slug]); // Dependency array includes 'slug'
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="w-12 h-12 text-primary animate-spin" />
+        <p className="ml-4 text-lg text-slate-600">Loading event details...</p>
+      </div>
+    );
+  }
+
+  // Error state (includes event not found)
+  if (error || !event) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center p-8 max-w-md">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-4">Event Not Found</h2>
+          <h2 className="text-2xl font-bold mb-4">{error ? "Error" : "Event Not Found"}</h2>
           <p className="text-slate-600 mb-6">
-            Sorry, the event you're looking for doesn't exist or has been removed.
+            {error || "Sorry, the event you're looking for doesn't exist or has been removed."}
           </p>
           <Link to="/events" className="btn-primary">
             View All Events
@@ -30,41 +107,54 @@ const EventDetailsPage: React.FC = () => {
     );
   }
 
-  // Format date for add to calendar button
-  const eventDate = parseISO(event.date);
-  const formattedDate = format(eventDate, 'yyyy-MM-dd');
-  
-  // Extract time for calendar
-  const [startTime] = event.time.split(' - ');
-  
-  // Create Google Calendar link
-  const createGoogleCalendarLink = () => {
-    const baseUrl = 'https://calendar.google.com/calendar/render';
-    const eventTitle = encodeURIComponent(event.title);
-    const eventLocation = encodeURIComponent(event.location);
-    const eventDescription = encodeURIComponent(event.description);
-    
-    // Format parameters for Google Calendar
-    const params = new URLSearchParams({
-      action: 'TEMPLATE',
-      text: eventTitle,
-      dates: `${formattedDate.replace(/-/g, '')}T${startTime.replace(':', '')}00/${formattedDate.replace(/-/g, '')}T${startTime.replace(':', '')}00`,
-      details: eventDescription,
-      location: eventLocation,
-    });
-    
-    return `${baseUrl}?${params.toString()}`;
-  };
-  
-  // Handle direct registration
+  // --- Success State: Event data is available ---
+
   const handleRegister = () => {
-    // Navigate to registration page with event pre-selected
-    navigate('/register', { state: { selectedEventId: event.id } });
+    if (event && event.id) {
+      navigate('/register', { state: { selectedEventId: event.id } });
+    } else {
+      console.error("Cannot register: event data is missing.");
+    }
   };
   
+  // --- Prepare Data for Google Calendar Link ---
+  let startDateTime: Date | undefined = undefined;
+  let endDateTime: Date | undefined = undefined;
+  let googleCalendarUrl = '#'; 
+  let isCalendarLinkDisabled = true;
+
+  if (event && event.event_start) {
+    try {
+      startDateTime = parseISO(event.event_start);
+
+      if (event.event_end) {
+        endDateTime = parseISO(event.event_end);
+      }
+
+      if (startDateTime && isValid(startDateTime)) {
+         const validEndDateTime = endDateTime && isValid(endDateTime) ? endDateTime : undefined;
+
+         const calendarData: CalendarEventData = {
+           title: event.title || 'Event',
+           description: event.description ?? '',
+           location: event.location ?? '',
+           startDateTime: startDateTime,
+           endDateTime: validEndDateTime,
+         };
+         googleCalendarUrl = generateGoogleCalendarUrl(calendarData);
+         isCalendarLinkDisabled = false;
+      } else {
+         console.warn("Could not generate calendar link: Invalid start date/time after parsing ISO string.");
+      }
+    } catch (e) {
+      console.error("Error parsing event ISO date/time for calendar link:", e);
+    }
+  }
+  // --- End Prepare Data ---
+
   return (
     <div>
-      {/* Hero Banner */}
+      {/* Hero Banner - Use fetched data */}
       <section className="relative bg-primary text-white py-16">
         {event.imageSrc && (
           <div 
@@ -82,6 +172,7 @@ const EventDetailsPage: React.FC = () => {
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
               {event.title}
             </h1>
+            {/* Use event.description, removed short_description */}
             <p className="text-xl opacity-90 mb-6">
               {event.description}
             </p>
@@ -89,7 +180,7 @@ const EventDetailsPage: React.FC = () => {
         </div>
       </section>
       
-      {/* Event Details */}
+      {/* Event Details - Use fetched data */}
       <section className="py-12 bg-white">
         <div className="container-custom">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -99,30 +190,39 @@ const EventDetailsPage: React.FC = () => {
                 <h2 className="text-2xl font-bold mb-6">Event Details</h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  {/* Date Display: Use new 'day' format */}
                   <div className="flex items-start">
                     <Calendar className="w-5 h-5 text-primary mt-1 mr-3" />
                     <div>
                       <h3 className="font-bold text-slate-900">Date</h3>
-                      <p className="text-slate-700">{event.day}</p>
+                      <p className="text-slate-700">
+                        {event.day || 'Date not available'}
+                      </p>
                     </div>
                   </div>
                   
+                  {/* Time Display: Use new 'time' and 'until' formats */}
                   <div className="flex items-start">
                     <Clock className="w-5 h-5 text-primary mt-1 mr-3" />
                     <div>
                       <h3 className="font-bold text-slate-900">Time</h3>
-                      <p className="text-slate-700">{event.time}</p>
+                      <p className="text-slate-700">
+                        {event.time || 'Time not available'}
+                        {event.until ? ` - ${event.until}` : ''} 
+                      </p>
                     </div>
                   </div>
                   
-                  <div className="flex items-start">
+                  {/* Location Display */}
+                   <div className="flex items-start">
                     <MapPin className="w-5 h-5 text-primary mt-1 mr-3" />
                     <div>
                       <h3 className="font-bold text-slate-900">Location</h3>
-                      <p className="text-slate-700">{event.location}</p>
+                      <p className="text-slate-700">{event.location || 'Location not specified'}</p>
                     </div>
                   </div>
                   
+                  {/* Capacity Display */}
                   {event.maxAttendees && (
                     <div className="flex items-start">
                       <Users className="w-5 h-5 text-primary mt-1 mr-3" />
@@ -134,35 +234,71 @@ const EventDetailsPage: React.FC = () => {
                   )}
                 </div>
                 
+                {/* Display Child Events if they exist */}
+                {childEvents.length > 0 && (
+                   <div className="border-t border-slate-200 pt-6 mb-6">
+                    <h3 className="font-bold text-xl mb-4">Event Schedule</h3>
+                    <ul className="space-y-3">
+                      {childEvents.map(child => (
+                        <li key={child.id} className="flex items-center justify-between p-3 bg-white rounded border border-slate-200">
+                           <div>
+                             <Link to={`/events/${child.slug}`} className="font-medium text-primary hover:underline">{child.title}</Link>
+                             <p className="text-sm text-slate-600">{child.day} at {child.time}</p>
+                           </div>
+                           <Link to={`/events/${child.slug}`} className="text-sm text-primary hover:underline">View Day</Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 <div className="border-t border-slate-200 pt-6">
                   <h3 className="font-bold text-xl mb-4">Event Description</h3>
-                  <p className="text-slate-700 mb-4">{event.description}</p>
+                  <p className="text-slate-700 mb-4 whitespace-pre-wrap">{event.description || 'No description available.'}</p>
                   
-                  {/* Additional content can be added here as needed */}
                   <div className="bg-primary/5 p-4 rounded-md border border-primary/10 mt-6">
                     <h4 className="font-bold mb-2">Important Information</h4>
                     <ul className="text-slate-700 list-disc list-inside space-y-2">
-                      <li>Please arrive 15 minutes before the event start time</li>
-                      <li>Bring your confirmation email or registration number</li>
+                      <li>Please arrive 15 minutes before the event start time.</li>
+                      <li>Bring your confirmation email or registration number.</li>
                       {event.type === 'Ceremony' && (
-                        <li>Appropriate Masonic regalia should be worn for this event</li>
+                        <li>Appropriate Masonic regalia should be worn for this event.</li>
                       )}
                       {event.type === 'Social' && (
-                        <li>Dress code: Formal attire (Black tie)</li>
+                        <li>Dress code: Formal attire (Black tie).</li>
                       )}
                     </ul>
                   </div>
                 </div>
               </div>
               
-              {/* Location Map (Placeholder) */}
+              {/* Location Map */}
               <div className="bg-slate-50 rounded-lg p-6 mb-8">
                 <h3 className="font-bold text-xl mb-4">Location</h3>
-                <div className="h-64 bg-slate-200 rounded-md flex items-center justify-center">
-                  <p className="text-slate-600">Map will be displayed here</p>
-                </div>
+                {event.latitude && event.longitude ? (
+                   <div className="h-64 bg-slate-200 rounded-md flex flex-col items-center justify-center text-center">
+                    <MapPin className="w-10 h-10 text-primary mb-3" />
+                    {/* Removed unused @ts-expect-error */}
+                    <p className="text-slate-700 font-medium mb-3"> 
+                      {event.location || ''} 
+                    </p> 
+                    <a 
+                       href={`https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}`}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="btn-secondary btn-sm"
+                    >
+                       View Map
+                    </a>
+                  </div>
+                ) : (
+                  <div className="h-64 bg-slate-200 rounded-md flex items-center justify-center">
+                    <p className="text-slate-600 italic">Map integration coming soon!</p> 
+                  </div>
+                )}
+                {/* Display location name below map/placeholder - use empty string fallback */}
                 <p className="mt-4 text-slate-700">
-                  {event.location}
+                  {event.location || ''}
                 </p>
               </div>
             </div>
@@ -170,47 +306,69 @@ const EventDetailsPage: React.FC = () => {
             {/* Right Column - Registration Panel */}
             <div>
               <div className="sticky top-4">
-                <EventPaymentCard event={event} />
+                <EventPaymentCard event={event} /> 
                 
-                <div className="mt-6">
-                  <a 
-                    href={createGoogleCalendarLink()} 
-                    target="_blank" 
+                {/* Google Calendar Link */}
+                <div className="mt-6 w-full"> 
+                  <a
+                    href={googleCalendarUrl}
+                    target="_blank"
                     rel="noopener noreferrer"
-                    className="btn-outline w-full flex justify-center items-center"
+                    className={`btn-outline w-full flex items-center justify-center ${isCalendarLinkDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    {...(isCalendarLinkDisabled ? { 'aria-disabled': 'true' } : {})}
+                    onClick={(e) => { if (isCalendarLinkDisabled) e.preventDefault(); }}
                   >
-                    <CalendarIcon className="w-4 h-4 mr-2" />
-                    Add to Calendar
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Add to Google Calendar
                   </a>
                 </div>
+
+                 {/* Register Button */}
+                 <div className="mt-4">
+                    <button 
+                      onClick={handleRegister} 
+                      className="btn-primary w-full"
+                      disabled={!event || !event.id} // Keep original register button logic
+                    >
+                      Register Now
+                    </button>               
+                 </div>
               </div>
             </div>
           </div>
           
-          {/* Related Events Section */}
-          <div className="mt-12 border-t border-slate-200 pt-12">
-            <h2 className="text-2xl font-bold mb-6">Related Events</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {events
-                .filter(e => e.id !== event.id && e.day === event.day)
-                .slice(0, 3)
-                .map(relatedEvent => (
-                  <div key={relatedEvent.id} className="bg-white rounded-lg shadow-md overflow-hidden border border-slate-100">
-                    <div className="p-6">
-                      <div className="text-sm font-medium text-primary mb-2">{relatedEvent.day}</div>
-                      <h3 className="font-bold mb-2">{relatedEvent.title}</h3>
-                      <div className="flex items-center text-sm text-slate-600 mb-4">
-                        <Clock className="w-4 h-4 mr-2 text-primary" />
-                        {relatedEvent.time}
+          {/* Related Events Section - Check for nullish coalescing here if needed */}
+          {relatedEvents.length > 0 && (
+            <div className="mt-12 border-t border-slate-200 pt-12">
+              <h2 className="text-2xl font-bold mb-6">Related Events</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {relatedEvents.map(relatedEvent => (
+                    <div key={relatedEvent.id} className="bg-white rounded-lg shadow-md overflow-hidden border border-slate-100 transition-shadow hover:shadow-lg">
+                      {/* Ensure imageSrc uses ?? */}
+                      {relatedEvent.imageSrc && (
+                        <Link to={`/events/${relatedEvent.slug}`}>
+                          <img src={relatedEvent.imageSrc} alt={relatedEvent.title ?? 'Related Event'} className="w-full h-40 object-cover"/>
+                        </Link>
+                       )}
+                      <div className="p-6">
+                        {/* Ensure day uses ?? */}
+                        <div className="text-sm font-medium text-primary mb-2">{relatedEvent.day ?? 'Date N/A'}</div> 
+                        {/* Ensure title uses ?? */}
+                        <h3 className="font-bold mb-2 truncate">{relatedEvent.title ?? 'Untitled Event'}</h3> 
+                        <div className="flex items-center text-sm text-slate-600 mb-4">
+                          <Clock className="w-4 h-4 mr-2 text-primary" />
+                           {/* Ensure time uses ?? */} 
+                          {relatedEvent.time ?? 'Time N/A'} 
+                        </div>
+                        <Link to={`/events/${relatedEvent.slug}`} className="text-primary font-medium hover:underline">
+                          View Event
+                        </Link>
                       </div>
-                      <Link to={`/events/${relatedEvent.id}`} className="text-primary font-medium hover:underline">
-                        View Event
-                      </Link>
                     </div>
-                  </div>
-                ))}
+                  ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
     </div>

@@ -48,6 +48,10 @@ export interface MasonData {
   contactPreference?: string; // Primary Attendee, Directly, Provide Later - Only for additional Masons
   contactConfirmed?: boolean; // Confirmation that selected contact will be responsible
   ticket?: AttendeeTicket; // Selected ticket and events
+
+  // Fields for pending lodge creation
+  isPendingNewLodge?: boolean; 
+  pendingLodgeDetails?: { name: string; number: string; grandLodgeId: string } | null;
 }
 
 export interface GuestPartnerData {
