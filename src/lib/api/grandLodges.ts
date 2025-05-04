@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import { Database } from '../../shared/types/supabase';
+import { Database } from '../../../supabase/supabase.types';
 
 // Explicitly type based on your Database schema definitions
 export type GrandLodgeRow = Database['public']['Tables']['grand_lodges']['Row'];

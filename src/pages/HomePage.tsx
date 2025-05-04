@@ -78,17 +78,17 @@ const HomePage: React.FC = () => {
 
   // Countdown Timer Logic
   useEffect(() => {
-    if (!parentEvent?.event_start) {
+    if (!parentEvent?.eventStart) {
       setTimeLeft(null); // Reset if no start date
       return; 
     }
 
     let targetDate: Date;
     try {
-      targetDate = parseISO(parentEvent.event_start);
+      targetDate = parseISO(parentEvent.eventStart);
       if (!isValid(targetDate)) throw new Error('Invalid date');
     } catch (e) {
-      console.error("Invalid parent event start date for countdown:", parentEvent.event_start);
+      console.error("Invalid parent event start date for countdown:", parentEvent.eventStart);
       setTimeLeft(null);
       return;
     }
@@ -196,7 +196,11 @@ const HomePage: React.FC = () => {
               Join us for the Grand Proclamation ceremony of the United Grand Lodge of NSW & ACT
             </p>
             <div className="flex flex-wrap gap-4">
-              <Link to="/register" className="btn-secondary">
+              <Link 
+                to="/register" 
+                className="btn-secondary"
+                state={{ checkForDrafts: true }}
+              >
                 Register Now
               </Link>
               <Link to="/events" className="btn-outline bg-white/10 text-white border-white">
@@ -223,7 +227,7 @@ const HomePage: React.FC = () => {
                   <h3 className="font-bold text-lg mb-2">Date</h3>
                   <p className="text-slate-700">
                     {(() => {
-                      const rangeData = formatDateRange(parentEvent.event_start, parentEvent.event_end);
+                      const rangeData = formatDateRange(parentEvent.eventStart, parentEvent.eventEnd);
                       if (typeof rangeData === 'string') {
                         return rangeData; // Display 'Date TBC' or error string
                       }
@@ -356,7 +360,11 @@ const HomePage: React.FC = () => {
             Join fellow Freemasons from around the world for this momentous celebration. 
             Reserve your place today for the Grand Proclamation ceremony.
           </p>
-          <Link to="/register" className="btn-secondary">
+          <Link 
+            to="/register" 
+            className="btn-secondary"
+            state={{ checkForDrafts: true }}
+          >
             Register Now
           </Link>
         </div>

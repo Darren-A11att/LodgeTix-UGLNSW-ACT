@@ -5,8 +5,8 @@ import PhoneInputWrapper from '../PhoneInputWrapper';
 
 interface MasonContactInfoProps {
   mason: MasonData;
-  index: number;
-  onChange: (index: number, field: string, value: string | boolean) => void;
+  id: string;
+  onChange: (id: string, field: string, value: string | boolean) => void;
   handlePhoneChange: (value: string) => void;
   isPrimary: boolean;
   hideContactFields: boolean;
@@ -16,7 +16,7 @@ interface MasonContactInfoProps {
 
 const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
   mason,
-  index,
+  id,
   onChange,
   handlePhoneChange,
   isPrimary,
@@ -34,7 +34,7 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
       {isPrimary ? (
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`phone-${index}`}>
+            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`phone-${id}`}>
               Mobile Number *
             </label>
             <div 
@@ -52,11 +52,11 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
             >
               <PhoneInputWrapper
                 value={mason.phone}
-                onChange={handlePhoneChange}
-                name={`phone-${index}`}
+                onChange={(value) => handlePhoneChange(value)}
+                name={`phone-${id}`}
                 inputProps={{
-                  id: `phone-${index}`,
-                  name: `phone-${index}`
+                  id: `phone-${id}`,
+                  name: `phone-${id}`
                 }}
                 required={true}
               />
@@ -64,22 +64,22 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`email-${index}`}>
+            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`email-${id}`}>
               Email Address *
             </label>
             <input
               type="email"
-              id={`email-${index}`}
-              name={`email-${index}`}
+              id={`email-${id}`}
+              name={`email-${id}`}
               value={mason.email}
-              onChange={(e) => onChange(index, 'email', e.target.value)}
+              onChange={(e) => onChange(id, 'email', e.target.value)}
               onBlur={() => setEmailInteracted(true)}
               required={true}
               className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
                          ${emailInteracted ? 'interacted' : ''} 
                          [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
                          focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
-              pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.{a-zA-Z]{2,}$"
+              
               title="Please enter a valid email address (e.g., user@example.com)"
             />
           </div>
@@ -90,7 +90,7 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
           <div className="grid grid-cols-12 gap-4">
             {/* Contact dropdown */}
             <div className="col-span-4">
-              <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`contactPreference-${index}`}>
+              <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`contactPreference-${id}`}>
                 <span>Contact *</span>
                 <span className="inline-block ml-1">
                   <div className="relative inline-block group">
@@ -102,10 +102,10 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
                 </span>
               </label>
               <select
-                id={`contactPreference-${index}`}
-                name={`contactPreference-${index}`}
+                id={`contactPreference-${id}`}
+                name={`contactPreference-${id}`}
                 value={mason.contactPreference ?? 'Please Select'}
-                onChange={(e) => onChange(index, 'contactPreference', e.target.value)}
+                onChange={(e) => onChange(id, 'contactPreference', e.target.value)}
                 required
                 className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
@@ -121,13 +121,13 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
                 <div className="flex items-center">
                   <input
                     type="checkbox"
-                    id={`contactConfirmed-${index}`}
+                    id={`contactConfirmed-${id}`}
                     checked={mason.contactConfirmed ?? false}
-                    onChange={(e) => onChange(index, 'contactConfirmed', e.target.checked)}
+                    onChange={(e) => onChange(id, 'contactConfirmed', e.target.checked)}
                     required
                     className="h-4 w-4 text-primary border-slate-300 rounded focus:ring-primary"
                   />
-                  <label htmlFor={`contactConfirmed-${index}`} className="ml-2 text-sm text-slate-700">
+                  <label htmlFor={`contactConfirmed-${id}`} className="ml-2 text-sm text-slate-700">
                     {getConfirmationMessage()} *
                   </label>
                 </div>
@@ -137,7 +137,7 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
                 <>
                   {/* Phone input */}
                   <div className="col-span-4">
-                    <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`phone-${index}`}>
+                    <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`phone-${id}`}>
                       Mobile Number *
                     </label>
                     <div 
@@ -155,11 +155,11 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
                     >
                       <PhoneInputWrapper
                         value={mason.phone}
-                        onChange={handlePhoneChange}
-                        name={`phone-${index}`}
+                        onChange={(value) => handlePhoneChange(value)}
+                        name={`phone-${id}`}
                         inputProps={{
-                          id: `phone-${index}`,
-                          name: `phone-${index}`
+                          id: `phone-${id}`,
+                          name: `phone-${id}`
                         }}
                         required={true}
                       />
@@ -168,22 +168,22 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
                   
                   {/* Email input */}
                   <div className="col-span-4">
-                    <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`email-${index}`}>
+                    <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`email-${id}`}>
                       Email Address *
                     </label>
                     <input
                       type="email"
-                      id={`email-${index}`}
-                      name={`email-${index}`}
+                      id={`email-${id}`}
+                      name={`email-${id}`}
                       value={mason.email}
-                      onChange={(e) => onChange(index, 'email', e.target.value)}
+                      onChange={(e) => onChange(id, 'email', e.target.value)}
                       onBlur={() => setEmailInteracted(true)}
                       required={true}
                       className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
                                  ${emailInteracted ? 'interacted' : ''} 
                                  [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
                                  focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
-                      pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.{a-zA-Z]{2,}$"
+                      
                       title="Please enter a valid email address (e.g., user@example.com)"
                     />
                   </div>

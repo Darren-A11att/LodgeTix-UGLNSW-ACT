@@ -9,6 +9,16 @@ const TicketingModeToggle: React.FC<TicketingModeToggleProps> = ({
   useUniformTicketing,
   toggleUniformTicketing
 }) => {
+  // When changing modes, ensure we prevent redirects
+  const handleToggle = (useUniform: boolean) => {
+    // Ensure redirect prevention is active
+    localStorage.setItem('lodgetix_bypass_no_redirect', 'true');
+    localStorage.setItem('lodgetix_disable_expiry', 'true');
+    
+    // Forward the toggle call
+    toggleUniformTicketing(useUniform);
+  };
+  
   return (
     <div className="bg-slate-100 p-4 rounded-lg mb-6">
       <div className="flex flex-col sm:flex-row justify-between items-center">
@@ -20,7 +30,7 @@ const TicketingModeToggle: React.FC<TicketingModeToggleProps> = ({
         <div className="flex">
           <button 
             type="button"
-            onClick={() => toggleUniformTicketing(true)}
+            onClick={() => handleToggle(true)}
             className={`px-4 py-2 text-sm font-medium rounded-l-md ${
               useUniformTicketing 
                 ? 'bg-primary text-white' 
@@ -31,7 +41,7 @@ const TicketingModeToggle: React.FC<TicketingModeToggleProps> = ({
           </button>
           <button 
             type="button"
-            onClick={() => toggleUniformTicketing(false)}
+            onClick={() => handleToggle(false)}
             className={`px-4 py-2 text-sm font-medium rounded-r-md ${
               !useUniformTicketing 
                 ? 'bg-primary text-white' 

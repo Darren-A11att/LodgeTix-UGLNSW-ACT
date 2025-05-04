@@ -6,29 +6,25 @@ import PhoneInputWrapper from './PhoneInputWrapper';
 
 interface GuestPartnerFormProps {
   partner: GuestPartnerData;
-  index: number;
-  guestIndex: number;
-  guestData: GuestData;
-  onChange: (index: number, field: string, value: string | boolean) => void;
-  primaryMasonData?: any; // For accessing primary mason data in guest partner forms
-  onRemove?: () => void; // New prop to handle removal
+  id: string;
+  relatedGuestName: string;
+  updateField: (id: string, field: string, value: string | boolean) => void;
+  primaryMasonData?: any;
+  onRemove?: () => void;
 }
 
 const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
   partner,
-  index,
-  guestIndex,
-  guestData,
-  onChange,
+  id,
+  relatedGuestName,
+  updateField,
   primaryMasonData,
   onRemove
 }) => {
-  // Expanded titles to include more options
   const titles = ["Mr", "Mrs", "Ms", "Miss", "Dr", "Rev", "Prof", "Rabbi", "Hon", "Sir", "Madam", "Lady", "Dame"];
   const relationships = ["Wife", "Partner", "Fiancée", "Husband", "Fiancé"];
   const contactOptions = ["Please Select", "Primary Attendee", "Guest", "Directly", "Provide Later"];
 
-  // Interaction states
   const [relationshipInteracted, setRelationshipInteracted] = useState(false);
   const [titleInteracted, setTitleInteracted] = useState(false);
   const [firstNameInteracted, setFirstNameInteracted] = useState(false);
@@ -38,48 +34,36 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
   const [emailInteracted, setEmailInteracted] = useState(false);
 
   const handlePhoneChange = (value: string) => {
-    onChange(index, 'phone', value);
+    updateField(id, 'phone', value);
   };
 
   const showContactFields = partner.contactPreference === "Directly";
   const showConfirmation = partner.contactPreference !== "Directly" && partner.contactPreference !== "Please Select";
   
-  // Generate dynamic confirmation message
   const getConfirmationMessage = () => {
-    // We need both primary mason and the specific guest data for the messages
-    if (!primaryMasonData || !guestData) return ""; 
-    
-    const primaryFullName = `${primaryMasonData.firstName} ${primaryMasonData.lastName}`;
-    const guestFullName = `${guestData.firstName} ${guestData.lastName}`;
+    if (!primaryMasonData) return ""; 
+    const primaryFullName = `${primaryMasonData?.firstName ?? 'Primary'} ${primaryMasonData?.lastName ?? 'Attendee'}`;
 
-    // For Primary Attendee option
     if (partner.contactPreference === "Primary Attendee") {
       return `I confirm that ${primaryFullName} will be responsible for all communication with this attendee`;
     }
-    
-    // For guest option - Use the guest's actual name
     if (partner.contactPreference === "Guest") {
-      // Use guestFullName if available, otherwise fall back to generic text (shouldn't happen)
-      const nameToShow = guestFullName.trim() ? guestFullName : `Guest Attendee ${guestIndex + 1}`; 
+      const nameToShow = relatedGuestName.trim() ? relatedGuestName : `Guest Attendee`; 
       return `I confirm that ${nameToShow} will be responsible for all communication with this attendee`;
     }
-    
-    // For Provide Later option
     if (partner.contactPreference === "Provide Later") {
       return `I confirm that ${primaryFullName} will be responsible for all communication with this attendee until their contact details have been updated in their profile`;
     }
-    
     return "";
   };
 
   return (
-    <div className="border-t border-slate-200 pt-6 mt-6 relative">
-      {/* Add a Remove button in the top right */}
+    <div className="relative">
       {onRemove && (
         <button 
           type="button"
           onClick={onRemove}
-          className="absolute top-6 right-0 text-red-500 hover:text-red-700 flex items-center text-sm"
+          className="absolute top-0 right-0 text-red-500 hover:text-red-700 flex items-center text-sm"
           aria-label="Remove partner"
         >
           <X className="w-4 h-4 mr-1" />
@@ -91,20 +75,19 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
         </svg>
-        Partner Details
+        Partner Attendee
       </h4>
       
       <div className="grid grid-cols-12 gap-4 mb-4">
-        {/* Reduced width for Relationship */}
         <div className="col-span-2">
-          <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerRelationship-${index}`}>
+          <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerRelationship-${id}`}>
             Relationship *
           </label>
           <select
-            id={`partnerRelationship-${index}`}
-            name={`partnerRelationship-${index}`}
+            id={`partnerRelationship-${id}`}
+            name={`partnerRelationship-${id}`}
             value={partner.relationship}
-            onChange={(e) => onChange(index, 'relationship', e.target.value)}
+            onChange={(e) => updateField(id, 'relationship', e.target.value)}
             onBlur={() => setRelationshipInteracted(true)}
             required
             className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -118,16 +101,15 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
           </select>
         </div>
         
-        {/* Reduced width for Title */}
         <div className="col-span-2">
-          <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerTitle-${index}`}>
+          <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerTitle-${id}`}>
             Title *
           </label>
           <select
-            id={`partnerTitle-${index}`}
-            name={`partnerTitle-${index}`}
+            id={`partnerTitle-${id}`}
+            name={`partnerTitle-${id}`}
             value={partner.title}
-            onChange={(e) => onChange(index, 'title', e.target.value)}
+            onChange={(e) => updateField(id, 'title', e.target.value)}
             onBlur={() => setTitleInteracted(true)}
             required
             className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -141,17 +123,16 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
           </select>
         </div>
         
-        {/* Increased width for First Name */}
         <div className="col-span-4">
-          <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerFirstName-${index}`}>
+          <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerFirstName-${id}`}>
             First Name *
           </label>
           <input
             type="text"
-            id={`partnerFirstName-${index}`}
-            name={`partnerFirstName-${index}`}
+            id={`partnerFirstName-${id}`}
+            name={`partnerFirstName-${id}`}
             value={partner.firstName}
-            onChange={(e) => onChange(index, 'firstName', e.target.value)}
+            onChange={(e) => updateField(id, 'firstName', e.target.value)}
             onBlur={() => setFirstNameInteracted(true)}
             required
             className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -161,17 +142,16 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
           />
         </div>
         
-        {/* Increased width for Last Name */}
         <div className="col-span-4">
-          <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerLastName-${index}`}>
+          <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerLastName-${id}`}>
             Last Name *
           </label>
           <input
             type="text"
-            id={`partnerLastName-${index}`}
-            name={`partnerLastName-${index}`}
+            id={`partnerLastName-${id}`}
+            name={`partnerLastName-${id}`}
             value={partner.lastName}
-            onChange={(e) => onChange(index, 'lastName', e.target.value)}
+            onChange={(e) => updateField(id, 'lastName', e.target.value)}
             onBlur={() => setLastNameInteracted(true)}
             required
             className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -182,10 +162,9 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
         </div>
       </div>
       
-      {/* Contact Preference Section - Modified layout */}
       <div className="mb-4">
         <div className="flex items-center mb-1">
-          <label className="block text-sm font-medium text-slate-700" htmlFor={`partnerContactPreference-${index}`}>
+          <label className="block text-sm font-medium text-slate-700" htmlFor={`partnerContactPreference-${id}`}>
             Contact *
           </label>
           <div className="relative inline-block ml-2 group">
@@ -197,13 +176,12 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
         </div>
         
         <div className="grid grid-cols-12 gap-4">
-          {/* Contact dropdown */}
           <div className={showConfirmation ? "col-span-3" : "col-span-3"}>
             <select
-              id={`partnerContactPreference-${index}`}
-              name={`partnerContactPreference-${index}`}
+              id={`partnerContactPreference-${id}`}
+              name={`partnerContactPreference-${id}`}
               value={partner.contactPreference}
-              onChange={(e) => onChange(index, 'contactPreference', e.target.value)}
+              onChange={(e) => updateField(id, 'contactPreference', e.target.value)}
               onBlur={() => setContactPreferenceInteracted(true)}
               required
               className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -216,19 +194,18 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
             </select>
           </div>
           
-          {/* Confirmation checkbox - show inline with dropdown */}
           {showConfirmation && (
             <div className="col-span-9 flex items-center">
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                  id={`partnerContactConfirmed-${index}`}
+                  id={`partnerContactConfirmed-${id}`}
                   checked={partner.contactConfirmed}
-                  onChange={(e) => onChange(index, 'contactConfirmed', e.target.checked)}
+                  onChange={(e) => updateField(id, 'contactConfirmed', e.target.checked)}
                   required
                   className="h-4 w-4 text-primary border-slate-300 rounded focus:ring-primary"
                 />
-                <label htmlFor={`partnerContactConfirmed-${index}`} className="ml-2 text-sm text-slate-700">
+                <label htmlFor={`partnerContactConfirmed-${id}`} className="ml-2 text-sm text-slate-700">
                   {getConfirmationMessage()} *
                 </label>
               </div>
@@ -240,7 +217,7 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
             <>
               {/* Phone input */}
               <div className="col-span-4">
-                <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerPhone-${index}`}>Mobile Number *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerPhone-${id}`}>Mobile Number *</label>
                 <div 
                     className={`${phoneInteracted ? 'interacted' : ''} 
                                [&.interacted:invalid]:[&>.custom-phone-input>input]:border-red-500 
@@ -258,8 +235,8 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
                   <PhoneInputWrapper
                     value={partner.phone}
                     onChange={handlePhoneChange}
-                    name={`partnerPhone-${index}`}
-                    inputProps={{ id: `partnerPhone-${index}`, name: `partnerPhone-${index}` }}
+                    name={`partnerPhone-${id}`}
+                    inputProps={{ id: `partnerPhone-${id}`, name: `partnerPhone-${id}` }}
                     required={showContactFields}
                   />
                 </div>
@@ -267,13 +244,13 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
               
               {/* Email input */}
               <div className="col-span-5">
-                <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerEmail-${index}`}>Email Address *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerEmail-${id}`}>Email Address *</label>
                 <input
                   type="email"
-                  id={`partnerEmail-${index}`}
-                  name={`partnerEmail-${index}`}
+                  id={`partnerEmail-${id}`}
+                  name={`partnerEmail-${id}`}
                   value={partner.email}
-                  onChange={(e) => onChange(index, 'email', e.target.value)}
+                  onChange={(e) => updateField(id, 'email', e.target.value)}
                   onBlur={() => setEmailInteracted(true)}
                   required={showContactFields}
                   placeholder="Email Address"
@@ -281,7 +258,6 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
                              ${emailInteracted ? 'interacted' : ''} 
                              [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
                              focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
-                  pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.{a-zA-Z]{2,}$"
                   title="Please enter a valid email address (e.g., user@example.com)"
                 />
               </div>
@@ -291,29 +267,29 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
       </div>
       
       <div className="mb-4">
-        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerDietary-${index}`}>
+        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerDietary-${id}`}>
           Dietary Requirements
         </label>
         <input
           type="text"
-          id={`partnerDietary-${index}`}
-          name={`partnerDietary-${index}`}
+          id={`partnerDietary-${id}`}
+          name={`partnerDietary-${id}`}
           value={partner.dietary}
-          onChange={(e) => onChange(index, 'dietary', e.target.value)}
+          onChange={(e) => updateField(id, 'dietary', e.target.value)}
           placeholder="E.g., vegetarian, gluten-free, allergies"
           className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
         />
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerSpecialNeeds-${index}`}>
+        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerSpecialNeeds-${id}`}>
           Special Needs or Accessibility Requirements
         </label>
         <textarea
-          id={`partnerSpecialNeeds-${index}`}
-          name={`partnerSpecialNeeds-${index}`}
+          id={`partnerSpecialNeeds-${id}`}
+          name={`partnerSpecialNeeds-${id}`}
           value={partner.specialNeeds}
-          onChange={(e) => onChange(index, 'specialNeeds', e.target.value)}
+          onChange={(e) => updateField(id, 'specialNeeds', e.target.value)}
           rows={2}
           className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
         ></textarea>

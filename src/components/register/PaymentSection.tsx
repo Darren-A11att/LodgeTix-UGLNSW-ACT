@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { CreditCard, ShieldCheck, User } from 'lucide-react';
-import type { FormState } from '../../shared/types/register';
+import type { FormState, SubmissionData } from '../../shared/types/register';
 import PhoneInputWrapper from './PhoneInputWrapper';
 import AutocompleteInput from './AutocompleteInput';
 import { loadStripe } from '@stripe/stripe-js';
@@ -10,6 +10,7 @@ import {
   useStripe,
   useElements
 } from '@stripe/react-stripe-js';
+import { useRegisterForm } from '../../hooks/useRegisterForm';
 
 interface PaymentSectionProps {
   formState: FormState;
@@ -19,11 +20,28 @@ interface PaymentSectionProps {
 }
 
 // Load Stripe outside of component render to avoid recreation
-// Using a fixed test key for now - in production this would come from environment variables
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? '');
-
-// Comment out Stripe initialization to prevent errors in development mode
-// const stripePromise = null;
+// Using environment variables for the Stripe publishable key
+const stripePromise = (() => {
+  // Get the Stripe key from environment variables
+  const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+  
+  try {
+    // Configure Stripe with proper options
+    const stripeOptions = {
+      // Set locale to English
+      locale: 'en',
+      // Suppress HTTP warnings in development to avoid console errors
+      betas: import.meta.env.DEV ? ['stripe_universal_js_without_https'] : undefined
+    };
+    
+    // Initialize Stripe with the key and options
+    return loadStripe(stripeKey || '', stripeOptions);
+  } catch (err) {
+    console.error('Error initializing Stripe:', err);
+    // Return null to gracefully handle the error
+    return Promise.resolve(null);
+  }
+})();
 
 // The inner payment component that uses the Stripe hooks
 const PaymentForm: React.FC<PaymentSectionProps> = ({
@@ -97,6 +115,32 @@ const PaymentForm: React.FC<PaymentSectionProps> = ({
     }));
   };
 
+  // Use the optimized helpers from RegisterFormContext
+  const { prepareSubmissionData, calculateTotalPrice } = useRegisterForm();
+  
+  // Prepare submission data for the backend
+  const getSubmissionData = useCallback((): SubmissionData & { billingDetails: any } => {
+    // Get the optimized data structure using our helper
+    const submissionData = prepareSubmissionData();
+    
+    // Add billing details
+    return {
+      ...submissionData,
+      billingDetails: {
+        firstName: billingDetails.firstName,
+        lastName: billingDetails.lastName,
+        businessName: billingDetails.businessName,
+        email: billingDetails.email,
+        phone: billingDetails.phone,
+        address: billingDetails.address,
+        suburb: billingDetails.suburb,
+        country: billingDetails.country,
+        state: billingDetails.state,
+        postCode: billingDetails.postCode
+      }
+    };
+  }, [prepareSubmissionData, billingDetails]);
+
   // Handle payment submission
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,11 +170,22 @@ const PaymentForm: React.FC<PaymentSectionProps> = ({
     }
 
     try {
+      // Get the optimized submission data
+      const submissionData = getSubmissionData();
+      
+      // Log the submission data (in a real app, you'd send this to your server)
+      console.log('Submitting registration data:', submissionData);
+      
       // In a real implementation, you would call your backend to create a payment intent
       // and then confirm it here using the clientSecret returned from the backend.
-
-      // For now, we'll simulate a successful payment
-      // In a real app, this would be:
+      // For example:
+      // const response = await fetch('/api/create-payment-intent', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(submissionData)
+      // });
+      // const { clientSecret } = await response.json();
+      
       // const {error, paymentIntent} = await stripe.confirmCardPayment(clientSecret, {
       //   payment_method: {
       //     card: cardElement,

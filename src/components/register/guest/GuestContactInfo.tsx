@@ -5,8 +5,8 @@ import PhoneInputWrapper from '../PhoneInputWrapper';
 
 interface GuestContactInfoProps {
   guest: GuestData;
-  index: number;
-  onChange: (index: number, field: string, value: string | boolean) => void;
+  id: string;
+  onChange: (id: string, field: string, value: string | boolean) => void;
   handlePhoneChange: (value: string) => void;
   contactOptions: string[];
   showContactFields: boolean;
@@ -16,7 +16,7 @@ interface GuestContactInfoProps {
 
 const GuestContactInfo: React.FC<GuestContactInfoProps> = ({
   guest,
-  index,
+  id,
   onChange,
   handlePhoneChange,
   contactOptions,
@@ -33,7 +33,7 @@ const GuestContactInfo: React.FC<GuestContactInfoProps> = ({
       <div className="grid grid-cols-12 gap-4">
         {/* Contact dropdown */}
         <div className="col-span-4">
-          <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`contactPreference-${index}`}>
+          <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`contactPreference-${id}`}>
             Contact *
             <span className="inline-block ml-1">
               <div className="relative inline-block group">
@@ -45,10 +45,10 @@ const GuestContactInfo: React.FC<GuestContactInfoProps> = ({
             </span>
           </label>
           <select
-            id={`contactPreference-${index}`}
-            name={`contactPreference-${index}`}
+            id={`contactPreference-${id}`}
+            name={`contactPreference-${id}`}
             value={guest.contactPreference}
-            onChange={(e) => onChange(index, 'contactPreference', e.target.value)}
+            onChange={(e) => onChange(id, 'contactPreference', e.target.value)}
             onBlur={() => setContactPreferenceInteracted(true)}
             required
             className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -67,13 +67,13 @@ const GuestContactInfo: React.FC<GuestContactInfoProps> = ({
             <div className="flex items-center">
               <input
                 type="checkbox"
-                id={`contactConfirmed-${index}`}
+                id={`contactConfirmed-${id}`}
                 checked={guest.contactConfirmed}
-                onChange={(e) => onChange(index, 'contactConfirmed', e.target.checked)}
+                onChange={(e) => onChange(id, 'contactConfirmed', e.target.checked)}
                 required
                 className="h-4 w-4 text-primary border-slate-300 rounded focus:ring-primary"
               />
-              <label htmlFor={`contactConfirmed-${index}`} className="ml-2 text-sm text-slate-700">
+              <label htmlFor={`contactConfirmed-${id}`} className="ml-2 text-sm text-slate-700">
                 {getConfirmationMessage()} *
               </label>
             </div>
@@ -83,7 +83,7 @@ const GuestContactInfo: React.FC<GuestContactInfoProps> = ({
             <>
               {/* Phone input */}
               <div className="col-span-4">
-                <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`guestPhone-${index}`}>
+                <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`guestPhone-${id}`}>
                   Mobile Number *
                 </label>
                 <div 
@@ -102,8 +102,8 @@ const GuestContactInfo: React.FC<GuestContactInfoProps> = ({
                   <PhoneInputWrapper
                     value={guest.phone}
                     onChange={handlePhoneChange}
-                    name={`guestPhone-${index}`}
-                    inputProps={{ id: `guestPhone-${index}`, name: `guestPhone-${index}` }}
+                    name={`guestPhone-${id}`}
+                    inputProps={{ id: `guestPhone-${id}`, name: `guestPhone-${id}` }}
                     required={true}
                   />
                 </div>
@@ -111,22 +111,21 @@ const GuestContactInfo: React.FC<GuestContactInfoProps> = ({
               
               {/* Email input */}
               <div className="col-span-4">
-                <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`guestEmail-${index}`}>
+                <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`guestEmail-${id}`}>
                   Email Address *
                 </label>
                 <input
                   type="email"
-                  id={`guestEmail-${index}`}
-                  name={`guestEmail-${index}`}
+                  id={`guestEmail-${id}`}
+                  name={`guestEmail-${id}`}
                   value={guest.email}
-                  onChange={(e) => onChange(index, 'email', e.target.value)}
+                  onChange={(e) => onChange(id, 'email', e.target.value)}
                   onBlur={() => setEmailInteracted(true)}
                   required={true}
                   className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
                              ${emailInteracted ? 'interacted' : ''} 
                              [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
                              focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
-                  pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.{a-zA-Z]{2,}$"
                   title="Please enter a valid email address (e.g., user@example.com)"
                 />
               </div>

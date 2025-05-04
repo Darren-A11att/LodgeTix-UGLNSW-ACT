@@ -16,9 +16,9 @@ export async function getCustomerForUser(userId: string): Promise<CustomerProfil
 
   try {
     const { data, error } = await supabase
-      .from('customers')
+      .from('Customers')
       .select('*') // Select all customer fields
-      .eq('user_id', userId)
+      .eq('userId', userId)
       .maybeSingle(); // Use maybeSingle as a user might not have a customer record yet
 
     if (error) {
@@ -57,10 +57,10 @@ export async function createCustomer(
    
    try {
      const { data, error } = await supabase
-      .from('customers')
+      .from('Customers')
       .insert({
         ...customerData,
-        user_id: userId, // Link to the authenticated user
+        userId: userId, // Link to the authenticated user
       })
       .select('*')
       .single();
@@ -96,14 +96,14 @@ export async function updateCustomer(
   }
 
   try {
-    // Ensure user_id and id are not accidentally included in the update payload
-    const { id, user_id, created_at, ...updatePayload } = customerData;
+    // Ensure userId and id are not accidentally included in the update payload
+    const { id, userId, createdAt, ...updatePayload } = customerData;
     
     const { data, error } = await supabase
-      .from('customers')
+      .from('Customers')
       .update({
         ...updatePayload,
-        updated_at: new Date().toISOString(), // Manually set updated_at
+        updatedAt: new Date().toISOString(), // Manually set updatedAt
       })
       .eq('id', customerId)
       .select('*')

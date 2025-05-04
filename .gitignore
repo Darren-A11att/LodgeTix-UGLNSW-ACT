@@ -32,3 +32,11 @@ dist-ssr
 .env.sentry-build-plugin
 
 .cursor/*
+
+.githubignore/mcp-supabase-config.json
+**/.claude/settings.local.json
+.claude/*
+*.md 
+*.sql
+
+supabase/migrations/*

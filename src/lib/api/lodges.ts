@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import { Database } from '../../shared/types/supabase';
+import { Database } from '../../../supabase/supabase.types';
 import { LodgeType } from '../../shared/data/lodges';
 
 // Explicitly type based on your Database schema definitions
@@ -31,9 +31,9 @@ export async function getLodgesByGrandLodgeId(
     if (searchTerm && searchTerm.trim().match(/^\d+$/)) {
       const searchNumber = searchTerm.trim();
       query = supabase
-        .from('lodges')
+        .from('Lodges')
         .select('*')
-        .eq('grand_lodge_id', grandLodgeId)
+        .eq('grandLodgeId', grandLodgeId)
         .eq('number', searchNumber);
         
       const { data: numberMatchData, error: numberMatchError } = await query;
@@ -52,34 +52,56 @@ export async function getLodgesByGrandLodgeId(
 
     // 2. Perform text search if applicable (not numeric, or numeric yielded no results)
     if (performTextSearch) {
-        query = supabase
-          .from('lodges')
-          .select('*')
-          .eq('grand_lodge_id', grandLodgeId);
+        try {
+            query = supabase
+              .from('Lodges')
+              .select('*')
+              .eq('grandLodgeId', grandLodgeId);
 
-        if (searchTerm && searchTerm.trim()) {
-            const term = `%${searchTerm.trim()}%`;
-            query = query.or(
-              `name.ilike.${term},` +
-              `display_name.ilike.${term},` +
-              `district.ilike.${term},` +
-              `meeting_place.ilike.${term}`
-            );
-        } else {
+            if (searchTerm && searchTerm.trim()) {
+                const term = `%${searchTerm.trim()}%`;
+                // Fix the query syntax to properly use the PostgREST filter format for OR conditions
+                // Each condition needs to be properly formatted for the PostgREST API
+                // Don't include number in ILIKE comparison since it's numeric and can't use ILIKE
+                query = query.or(
+                  `name.ilike.${term},displayName.ilike.${term},district.ilike.${term},meetingPlace.ilike.${term}`
+                );
+                
+                // Only do a separate number comparison if the search term could be part of a number
+                if (searchTerm.trim().match(/^\d+/)) {
+                  // For number search, use a separate approach since it's a numeric column
+                  query = query.or(`number::text.ilike.${term}`);
+                }
+            }
+            
+            // Apply ordering
+            query = query
+              .order('displayName', { ascending: true, nullsFirst: false })
+              .order('name', { ascending: true });
+
+            const { data, error } = await query;
+
+            if (error) {
+              console.error('[getLodgesByGrandLodgeId] Error during text search:', error);
+              return [];
+            }
+            
+            // Additional safety check for the returned data
+            const safeData = data?.map(lodge => ({
+              ...lodge,
+              // Ensure all properties have at least empty string defaults
+              name: lodge.name || '',
+              number: lodge.number || '',
+              displayName: lodge.displayName || '',
+              district: lodge.district || '',
+              meetingPlace: lodge.meetingPlace || ''
+            })) || [];
+            
+            return safeData as LodgeType[]; 
+        } catch (err) {
+            console.error('[getLodgesByGrandLodgeId] Unexpected error in text search:', err);
+            return [];
         }
-        
-        // Apply ordering
-        query = query
-          .order('display_name', { ascending: true, nullsFirst: false })
-          .order('name', { ascending: true });
-
-        const { data, error } = await query;
-
-        if (error) {
-          console.error('[getLodgesByGrandLodgeId] Error during text search:', error);
-          return [];
-        }
-        return (data || []) as LodgeType[]; 
     }
     
     // Should not be reached if logic is correct, but return empty array as fallback
@@ -97,18 +119,18 @@ export async function getLodgesByGrandLodgeId(
  * @returns Promise resolving to the created LodgeRow object or null.
  */
 export async function createLodge(lodgeData: LodgeInsert): Promise<LodgeType | null> {
-  if (!lodgeData.grand_lodge_id) {
-    console.error('createLodge called without a grand_lodge_id.');
+  if (!lodgeData.grandLodgeId) {
+    console.error('createLodge called without a grandLodgeId.');
     return null;
   }
 
-  // Generate display_name if not provided
+  // Generate displayName if not provided
   const displayName = lodgeData.name + (lodgeData.number ? ` No. ${lodgeData.number}` : '');
-  const insertData = { ...lodgeData, display_name: displayName }; 
+  const insertData = { ...lodgeData, displayName: displayName }; 
 
   try {
     const { data, error } = await supabase
-      .from('lodges')
+      .from('Lodges')
       .insert(insertData)
       .select()
       .single(); // Expecting a single row back

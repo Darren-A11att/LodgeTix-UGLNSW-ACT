@@ -1,0 +1,9 @@
+// Update line 230 in reservationService.ts to use the new function name
+
+      // Call the reserve_tickets_v2 function (updated name)
+      const { data, error } = await supabase.rpc('reserve_tickets_v2', {
+        p_event_id: eventId,
+        p_ticket_definition_id: ticketDefinitionId,
+        p_quantity: quantity,
+        p_reservation_minutes: 15
+      });

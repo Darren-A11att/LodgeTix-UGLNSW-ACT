@@ -96,14 +96,14 @@ async function handleEvent(event: Stripe.Event) {
         } = stripeData as Stripe.Checkout.Session;
 
         // Insert the order into the stripe_orders table
-        const { error: orderError } = await supabase.from('stripe_orders').insert({
-          checkout_session_id,
-          payment_intent_id: payment_intent,
-          customer_id: customerId,
-          amount_subtotal,
-          amount_total,
+        const { error: orderError } = await supabase.from('StripeOrders').insert({
+          checkoutSessionId: checkout_session_id,
+          paymentIntentId: payment_intent,
+          customerId: customerId,
+          amountSubtotal: amount_subtotal,
+          amountTotal: amount_total,
           currency,
-          payment_status,
+          paymentStatus: payment_status,
           status: 'completed', // assuming we want to mark it as completed since payment is successful
         });
 
@@ -133,13 +133,13 @@ async function syncCustomerFromStripe(customerId: string) {
     // TODO verify if needed
     if (subscriptions.data.length === 0) {
       console.info(`No active subscriptions found for customer: ${customerId}`);
-      const { error: noSubError } = await supabase.from('stripe_subscriptions').upsert(
+      const { error: noSubError } = await supabase.from('StripeSubscriptions').upsert(
         {
-          customer_id: customerId,
-          subscription_status: 'not_started',
+          customerId: customerId,
+          subscriptionStatus: 'not_started',
         },
         {
-          onConflict: 'customer_id',
+          onConflict: 'customerId',
         },
       );
 
@@ -153,24 +153,24 @@ async function syncCustomerFromStripe(customerId: string) {
     const subscription = subscriptions.data[0];
 
     // store subscription state
-    const { error: subError } = await supabase.from('stripe_subscriptions').upsert(
+    const { error: subError } = await supabase.from('StripeSubscriptions').upsert(
       {
-        customer_id: customerId,
-        subscription_id: subscription.id,
-        price_id: subscription.items.data[0].price.id,
-        current_period_start: subscription.current_period_start,
-        current_period_end: subscription.current_period_end,
-        cancel_at_period_end: subscription.cancel_at_period_end,
+        customerId: customerId,
+        subscriptionId: subscription.id,
+        priceId: subscription.items.data[0].price.id,
+        currentPeriodStart: subscription.current_period_start,
+        currentPeriodEnd: subscription.current_period_end,
+        cancelAtPeriodEnd: subscription.cancel_at_period_end,
         ...(subscription.default_payment_method && typeof subscription.default_payment_method !== 'string'
           ? {
-              payment_method_brand: subscription.default_payment_method.card?.brand ?? null,
-              payment_method_last4: subscription.default_payment_method.card?.last4 ?? null,
+              paymentMethodBrand: subscription.default_payment_method.card?.brand ?? null,
+              paymentMethodLast4: subscription.default_payment_method.card?.last4 ?? null,
             }
           : {}),
         status: subscription.status,
       },
       {
-        onConflict: 'customer_id',
+        onConflict: 'customerId',
       },
     );
 

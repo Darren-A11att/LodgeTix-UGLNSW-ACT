@@ -70,9 +70,9 @@ Deno.serve(async (req) => {
     }
 
     const { data: customer, error: getCustomerError } = await supabase
-      .from('stripe_customers')
-      .select('customer_id')
-      .eq('user_id', user.id)
+      .from('StripeCustomers')
+      .select('customerId')
+      .eq('userId', user.id)
       .is('deleted_at', null)
       .maybeSingle();
 
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
     /**
      * In case we don't have a mapping yet, the customer does not exist and we need to create one.
      */
-    if (!customer || !customer.customer_id) {
+    if (!customer || !customer.customerId) {
       const newCustomer = await stripe.customers.create({
         email: user.email,
         metadata: {
@@ -97,9 +97,9 @@ Deno.serve(async (req) => {
 
       console.log(`Created new Stripe customer ${newCustomer.id} for user ${user.id}`);
 
-      const { error: createCustomerError } = await supabase.from('stripe_customers').insert({
-        user_id: user.id,
-        customer_id: newCustomer.id,
+      const { error: createCustomerError } = await supabase.from('StripeCustomers').insert({
+        userId: user.id,
+        customerId: newCustomer.id,
       });
 
       if (createCustomerError) {
@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
         // Try to clean up both the Stripe customer and subscription record
         try {
           await stripe.customers.del(newCustomer.id);
-          await supabase.from('stripe_subscriptions').delete().eq('customer_id', newCustomer.id);
+          await supabase.from('StripeSubscriptions').delete().eq('customerId', newCustomer.id);
         } catch (deleteError) {
           console.error('Failed to clean up after customer mapping error:', deleteError);
         }
@@ -117,8 +117,8 @@ Deno.serve(async (req) => {
       }
 
       if (mode === 'subscription') {
-        const { error: createSubscriptionError } = await supabase.from('stripe_subscriptions').insert({
-          customer_id: newCustomer.id,
+        const { error: createSubscriptionError } = await supabase.from('StripeSubscriptions').insert({
+          customerId: newCustomer.id,
           status: 'not_started',
         });
 
@@ -140,14 +140,14 @@ Deno.serve(async (req) => {
 
       console.log(`Successfully set up new customer ${customerId} with subscription record`);
     } else {
-      customerId = customer.customer_id;
+      customerId = customer.customerId;
 
       if (mode === 'subscription') {
         // Verify subscription exists for existing customer
         const { data: subscription, error: getSubscriptionError } = await supabase
-          .from('stripe_subscriptions')
+          .from('StripeSubscriptions')
           .select('status')
-          .eq('customer_id', customerId)
+          .eq('customerId', customerId)
           .maybeSingle();
 
         if (getSubscriptionError) {
@@ -158,8 +158,8 @@ Deno.serve(async (req) => {
 
         if (!subscription) {
           // Create subscription record for existing customer if missing
-          const { error: createSubscriptionError } = await supabase.from('stripe_subscriptions').insert({
-            customer_id: customerId,
+          const { error: createSubscriptionError } = await supabase.from('StripeSubscriptions').insert({
+            customerId: customerId,
             status: 'not_started',
           });
 

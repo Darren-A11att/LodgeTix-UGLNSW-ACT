@@ -1,26 +1,28 @@
 import React from 'react';
 
 interface LadyPartnerToggleProps {
-  hasLadyPartner: boolean;
-  onToggle: () => void;
+  // hasLadyPartner: boolean; // Keep removed prop comment
+  // onToggle: () => void; // Keep removed prop comment
+  onAdd: () => void;
+  // attendeeName: string; // Remove this prop
 }
 
 const LadyPartnerToggle: React.FC<LadyPartnerToggleProps> = ({
-  hasLadyPartner,
-  onToggle
+  // hasLadyPartner, // Keep removed prop comment
+  // onToggle // Keep removed prop comment
+  onAdd,
+  // attendeeName // Remove this prop
 }) => {
   return (
-    <div className="mt-6 border-t border-slate-200 pt-4 flex justify-center">
+    <div className="mb-6 flex justify-center">
       <button
         type="button"
-        onClick={onToggle}
-        className={`py-2 px-6 rounded-md flex items-center justify-center font-medium transition-colors ${
-          hasLadyPartner 
-            ? 'bg-white border-2 border-secondary text-primary' 
-            : 'bg-secondary text-white'
-        }`}
+        onClick={onAdd} // Use onAdd
+        // Apply consistent styling for an 'Add' button
+        className="py-2 px-6 rounded-md flex items-center justify-center font-medium transition-colors bg-secondary text-white hover:bg-secondary/90"
       >
-        {hasLadyPartner ? 'Remove Lady & Partner' : 'Register Lady or Partner'}
+        {/* Revert button text */}
+        Register Lady or Partner
       </button>
     </div>
   );
