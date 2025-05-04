@@ -3,14 +3,14 @@ import { MasonData } from '../../../shared/types/register';
 
 interface MasonGrandLodgeFieldsProps {
   mason: MasonData;
-  index: number;
-  onChange: (index: number, field: string, value: string | boolean) => void;
+  id: string;
+  onChange: (id: string, field: string, value: string | boolean) => void;
   isPrimary?: boolean;
 }
 
 const MasonGrandLodgeFields: React.FC<MasonGrandLodgeFieldsProps> = ({
   mason,
-  index,
+  id,
   onChange,
   isPrimary = false,
 }) => {
@@ -39,15 +39,15 @@ const MasonGrandLodgeFields: React.FC<MasonGrandLodgeFieldsProps> = ({
     <div className="grid grid-cols-12 gap-4 mb-4 bg-primary/5 p-4 rounded-md border border-primary/10">
       {/* Grand Rank Input */}
       <div className="col-span-2">
-        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandRank-${index}`}>
+        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandRank-${id}`}>
           Grand Rank {isPrimary && "*"}
         </label>
         <input
           type="text"
-          id={`grandRank-${index}`}
-          name={`grandRank-${index}`}
+          id={`grandRank-${id}`}
+          name={`grandRank-${id}`}
           value={mason.grandRank || ''}
-          onChange={(e) => onChange(index, 'grandRank', e.target.value)}
+          onChange={(e) => onChange(id, 'grandRank', e.target.value)}
           onBlur={() => setGrandRankInteracted(true)}
           required={isPrimary && mason.rank === "GL"}
           maxLength={6}
@@ -61,14 +61,14 @@ const MasonGrandLodgeFields: React.FC<MasonGrandLodgeFieldsProps> = ({
       
       {/* Grand Officer */}
       <div className="col-span-2">
-        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandOfficer-${index}`}>
+        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandOfficer-${id}`}>
           Grand Officer {isPrimary && "*"}
         </label>
         <select
-          id={`grandOfficer-${index}`}
-          name={`grandOfficer-${index}`}
+          id={`grandOfficer-${id}`}
+          name={`grandOfficer-${id}`}
           value={mason.grandOfficer || 'Past'}
-          onChange={(e) => onChange(index, 'grandOfficer', e.target.value)}
+          onChange={(e) => onChange(id, 'grandOfficer', e.target.value)}
           onBlur={() => setGrandOfficerInteracted(true)}
           required={isPrimary && mason.rank === "GL"}
           className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -85,14 +85,14 @@ const MasonGrandLodgeFields: React.FC<MasonGrandLodgeFieldsProps> = ({
       {mason.grandOfficer === 'Current' && (
         <>
           <div className={`${showOtherGrandOfficeInput ? 'col-span-4' : 'col-span-4'}`}>
-            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandOffice-${index}`}>
+            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandOffice-${id}`}>
               Grand Office {isPrimary && "*"}
             </label>
             <select
-              id={`grandOffice-${index}`}
-              name={`grandOffice-${index}`}
+              id={`grandOffice-${id}`}
+              name={`grandOffice-${id}`}
               value={mason.grandOffice || 'Please Select'}
-              onChange={(e) => onChange(index, 'grandOffice', e.target.value)}
+              onChange={(e) => onChange(id, 'grandOffice', e.target.value)}
               onBlur={() => setGrandOfficeInteracted(true)}
               required={isPrimary && mason.rank === "GL" && mason.grandOfficer === 'Current'}
               className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -109,15 +109,15 @@ const MasonGrandLodgeFields: React.FC<MasonGrandLodgeFieldsProps> = ({
           {/* Show text field if "Other" is selected */}
           {showOtherGrandOfficeInput && (
             <div className="col-span-4">
-              <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandOfficeOther-${index}`}>
+              <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandOfficeOther-${id}`}>
                 Other Grand Office {isPrimary && "*"}
               </label>
               <input
                 type="text"
-                id={`grandOfficeOther-${index}`}
-                name={`grandOfficeOther-${index}`}
+                id={`grandOfficeOther-${id}`}
+                name={`grandOfficeOther-${id}`}
                 value={mason.grandOfficeOther || ''}
-                onChange={(e) => onChange(index, 'grandOfficeOther', e.target.value)}
+                onChange={(e) => onChange(id, 'grandOfficeOther', e.target.value)}
                 onBlur={() => setGrandOfficeOtherInteracted(true)}
                 placeholder=""
                 required={isPrimary && mason.rank === "GL" && mason.grandOfficer === 'Current' && mason.grandOffice === 'Other'}

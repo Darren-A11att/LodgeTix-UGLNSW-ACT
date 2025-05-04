@@ -5,6 +5,7 @@ import { EventType } from '../../../shared/types/event';
 interface EventSelectionListProps {
   events: EventType[];
   selectedEvents: string[];
+  isReserving?: boolean;
   toggleEvent: (eventId: string) => void;
   showEligibilityBadges?: boolean;
   attendeeType?: 'mason' | 'ladyPartner' | 'guest' | 'guestPartner';
@@ -13,6 +14,7 @@ interface EventSelectionListProps {
 const EventSelectionList: React.FC<EventSelectionListProps> = ({
   events,
   selectedEvents,
+  isReserving = false,
   toggleEvent,
   showEligibilityBadges = true,
   attendeeType
@@ -35,7 +37,8 @@ const EventSelectionList: React.FC<EventSelectionListProps> = ({
               ? 'border-primary bg-primary/5' 
               : 'border-slate-200 hover:border-primary/30'
           }`}
-          onClick={() => toggleEvent(event.id)}
+          onClick={() => !isReserving && toggleEvent(event.id)}
+          style={{ opacity: isReserving ? 0.7 : 1, cursor: isReserving ? 'not-allowed' : 'pointer' }}
         >
           <div className="flex justify-between">
             <div>

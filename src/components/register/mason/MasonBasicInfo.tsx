@@ -3,8 +3,8 @@ import { MasonData } from '../../../shared/types/register';
 
 interface MasonBasicInfoProps {
   mason: MasonData;
-  index: number;
-  onChange: (index: number, field: string, value: string | boolean) => void;
+  id: string;
+  onChange: (id: string, field: string, value: string | boolean) => void;
   isPrimary?: boolean;
   handleTitleChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   titles: string[];
@@ -13,7 +13,7 @@ interface MasonBasicInfoProps {
 
 const MasonBasicInfo: React.FC<MasonBasicInfoProps> = ({
   mason,
-  index,
+  id,
   onChange,
   isPrimary = false,
   handleTitleChange,
@@ -30,12 +30,12 @@ const MasonBasicInfo: React.FC<MasonBasicInfoProps> = ({
     <div className="grid grid-cols-12 gap-4 mb-4">
       {/* Masonic Title */}
       <div className="col-span-2">
-        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`title-${index}`}>
+        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`title-${id}`}>
           Masonic Title {isPrimary && "*"}
         </label>
         <select
-          id={`title-${index}`}
-          name={`title-${index}`}
+          id={`title-${id}`}
+          name={`title-${id}`}
           value={mason.title}
           onChange={handleTitleChange}
           onBlur={() => setTitleInteracted(true)}
@@ -53,15 +53,15 @@ const MasonBasicInfo: React.FC<MasonBasicInfoProps> = ({
       
       {/* First Name */}
       <div className="col-span-4">
-        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`firstName-${index}`}>
+        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`firstName-${id}`}>
           First Name {isPrimary && "*"}
         </label>
         <input
           type="text"
-          id={`firstName-${index}`}
-          name={`firstName-${index}`}
+          id={`firstName-${id}`}
+          name={`firstName-${id}`}
           value={mason.firstName}
-          onChange={(e) => onChange(index, 'firstName', e.target.value)}
+          onChange={(e) => onChange(id, 'firstName', e.target.value)}
           onBlur={() => setFirstNameInteracted(true)}
           required={isPrimary}
           className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -73,15 +73,15 @@ const MasonBasicInfo: React.FC<MasonBasicInfoProps> = ({
       
       {/* Last Name */}
       <div className="col-span-4">
-        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`lastName-${index}`}>
+        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`lastName-${id}`}>
           Last Name {isPrimary && "*"}
         </label>
         <input
           type="text"
-          id={`lastName-${index}`}
-          name={`lastName-${index}`}
+          id={`lastName-${id}`}
+          name={`lastName-${id}`}
           value={mason.lastName}
-          onChange={(e) => onChange(index, 'lastName', e.target.value)}
+          onChange={(e) => onChange(id, 'lastName', e.target.value)}
           onBlur={() => setLastNameInteracted(true)}
           required={isPrimary}
           className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -93,14 +93,14 @@ const MasonBasicInfo: React.FC<MasonBasicInfoProps> = ({
       
       {/* Rank */}
       <div className="col-span-2">
-        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`rank-${index}`}>
+        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`rank-${id}`}>
           Rank {isPrimary && "*"}
         </label>
         <select
-          id={`rank-${index}`}
-          name={`rank-${index}`}
+          id={`rank-${id}`}
+          name={`rank-${id}`}
           value={mason.rank}
-          onChange={(e) => onChange(index, 'rank', e.target.value)}
+          onChange={(e) => onChange(id, 'rank', e.target.value)}
           onBlur={() => setRankInteracted(true)}
           required={isPrimary}
           className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 

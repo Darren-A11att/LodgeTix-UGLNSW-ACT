@@ -5,14 +5,14 @@ import PhoneInputWrapper from '../PhoneInputWrapper';
 
 interface GuestBasicInfoProps {
   guest: GuestData;
-  index: number;
-  onChange: (index: number, field: string, value: string) => void;
+  id: string;
+  onChange: (id: string, field: string, value: string) => void;
   titles: string[];
 }
 
 const GuestBasicInfo: React.FC<GuestBasicInfoProps> = ({
   guest,
-  index,
+  id,
   onChange,
   titles,
 }) => {
@@ -25,14 +25,14 @@ const GuestBasicInfo: React.FC<GuestBasicInfoProps> = ({
     <div className="grid grid-cols-3 gap-4 mb-4">
       {/* Title */}
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`guestTitle-${index}`}>
+        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`guestTitle-${id}`}>
           Title *
         </label>
         <select
-          id={`guestTitle-${index}`}
-          name={`guestTitle-${index}`}
+          id={`guestTitle-${id}`}
+          name={`guestTitle-${id}`}
           value={guest.title}
-          onChange={(e) => onChange(index, 'title', e.target.value)}
+          onChange={(e) => onChange(id, 'title', e.target.value)}
           onBlur={() => setTitleInteracted(true)}
           required
           className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -48,15 +48,15 @@ const GuestBasicInfo: React.FC<GuestBasicInfoProps> = ({
       
       {/* First Name */}
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`guestFirstName-${index}`}>
+        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`guestFirstName-${id}`}>
           First Name *
         </label>
         <input
           type="text"
-          id={`guestFirstName-${index}`}
-          name={`guestFirstName-${index}`}
+          id={`guestFirstName-${id}`}
+          name={`guestFirstName-${id}`}
           value={guest.firstName}
-          onChange={(e) => onChange(index, 'firstName', e.target.value)}
+          onChange={(e) => onChange(id, 'firstName', e.target.value)}
           onBlur={() => setFirstNameInteracted(true)}
           required
           className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -68,15 +68,15 @@ const GuestBasicInfo: React.FC<GuestBasicInfoProps> = ({
       
       {/* Last Name */}
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`guestLastName-${index}`}>
+        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`guestLastName-${id}`}>
           Last Name *
         </label>
         <input
           type="text"
-          id={`guestLastName-${index}`}
-          name={`guestLastName-${index}`}
+          id={`guestLastName-${id}`}
+          name={`guestLastName-${id}`}
           value={guest.lastName}
-          onChange={(e) => onChange(index, 'lastName', e.target.value)}
+          onChange={(e) => onChange(id, 'lastName', e.target.value)}
           onBlur={() => setLastNameInteracted(true)}
           required
           className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 

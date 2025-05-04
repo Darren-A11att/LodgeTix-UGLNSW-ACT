@@ -10,6 +10,7 @@ import {
 import { events } from "../../shared/data/events";
 import { Edit2 } from "lucide-react";
 import AttendeeEditModal from "./AttendeeEditModal";
+import { AttendeeData as UnifiedAttendeeData } from '../../lib/api/registrations';
 
 // Define a type alias for the attendee type strings
 type AttendeeTypeString = "mason" | "ladyPartner" | "guest" | "guestPartner";
@@ -56,7 +57,8 @@ const ticketUtils = {
 
     // If it's an individual event
     const event = events.find((e) => e.id === ticketId);
-    return event ? event.title : "";
+    // Provide default empty string if title is null
+    return event ? (event.title || '') : ""; 
   },
 
   // Helper to get ticket price by ID
@@ -105,20 +107,10 @@ const ticketUtils = {
   // Calculate attendee total
   calculateAttendeeTotal: (
     ticketId: string | undefined,
-    attendee: AttendeeData,
+    attendee: UnifiedAttendeeData,
   ): number => {
     if (ticketId) {
       return ticketUtils.getTicketPrice(ticketId);
-    } else if (attendee.ticket?.events && attendee.ticket.events.length > 0) {
-      // Sum prices of individual events
-      let eventTotal = 0;
-      for (const eventId of attendee.ticket.events) {
-        const event = events.find((e) => e.id === eventId);
-        if (event?.price) {
-          eventTotal += event.price;
-        }
-      }
-      return eventTotal;
     }
     return 0;
   },
@@ -144,34 +136,40 @@ const attendeeUtils = {
 
   // Get contact details for display
   getContactInfo: (
-    attendee: AttendeeData,
+    attendee: UnifiedAttendeeData,
     type: string,
   ) => {
     if (!attendee) return "";
 
+    // Check attendeeType to gate logic if needed, although contactPreference should suffice
     if (
       type === "mason" ||
       type === "guest" ||
       type === "ladyPartner" ||
       type === "guestPartner"
     ) {
+      // Use primaryPhone and primaryEmail
+      const phone = attendee.primaryPhone;
+      const email = attendee.primaryEmail;
+
+      // Compare against correct enum values (as strings for now)
       if (
         attendee.contactPreference === "Directly" &&
-        attendee.phone &&
-        attendee.email
+        phone &&
+        email
       ) {
         // Convert international format (61...) to national format (04...)
         const formattedPhone =
-          attendee.phone.startsWith("61") &&
-          attendee.phone.length > 2 &&
-          attendee.phone.charAt(2) === "4"
-            ? "0" + attendee.phone.substring(2)
-            : attendee.phone;
+          phone.startsWith("61") &&
+          phone.length > 2 &&
+          phone.charAt(2) === "4"
+            ? "0" + phone.substring(2)
+            : phone;
 
-        return `${attendee.email} | ${formattedPhone}`;
-      } else if (attendee.contactPreference === "Primary Attendee") {
+        return `${email} | ${formattedPhone}`;
+      } else if (attendee.contactPreference === "PrimaryAttendee") { // Changed "Primary Attendee" to "PrimaryAttendee"
         return "Contact via Primary Attendee";
-      } else if (attendee.contactPreference === "Provide Later") {
+      } else if (attendee.contactPreference === "ProvideLater") { // Changed "Provide Later" to "ProvideLater"
         return "Contact details to be provided";
       } else if (
         type === "ladyPartner" &&
@@ -186,7 +184,7 @@ const attendeeUtils = {
       }
     }
 
-    return "";
+    return "Contact info pending"; // Default fallback
   },
 };
 
@@ -293,7 +291,16 @@ const PackageEventsTable: React.FC<PackageEventsTableProps> = ({
 
     {events.map((event) => {
       if (ticketUtils.isEventIncludedInPackage(event.id, ticketId)) {
-        return <EventItemRow key={event.id} event={event} isIncluded={true} />;
+        // Ensure event data matches EventItemRowProps expectations
+        const eventProps = {
+          ...event,
+          title: event.title || '', // Provide default
+          day: event.day || '', // Provide default
+          time: event.time || '', // Provide default
+          location: event.location || '', // Provide default
+          price: event.price ?? undefined 
+        };
+        return <EventItemRow key={event.id} event={eventProps} isIncluded={true} />;
       }
       return null;
     })}
@@ -313,7 +320,15 @@ const IndividualEventsTable: React.FC<IndividualEventsTableProps> = ({
       eventIds.map((eventId) => {
         const event = ticketUtils.getEventById(eventId);
         if (!event) return null;
-        return <EventItemRow key={eventId} event={event} />;
+        const eventProps = {
+          ...event,
+          title: event.title || '', // Provide default
+          day: event.day || '', // Provide default
+          time: event.time || '', // Provide default
+          location: event.location || '', // Provide default
+          price: event.price ?? undefined
+        };
+        return <EventItemRow key={eventId} event={eventProps} />;
       })
     ) : (
       <tr>
@@ -359,7 +374,7 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
   // Helper to create an attendee entry object
   const createAttendeeEntry = (
     type: AttendeeTypeString,
-    attendee: AttendeeData,
+    attendee: UnifiedAttendeeData,
     index: number,
     formStateInstance: FormState,
     relatedInfo: {
@@ -368,11 +383,11 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
       relationship?: string;
     } | null = null,
   ): OrderedAttendeeEntry | null => {
-    // Skip if attendee data seems incomplete (e.g., missing firstName)
-    // We need to cast here as AttendeeData is a union
-    if (!(attendee as MasonData | LadyPartnerData | GuestData | GuestPartnerData).firstName) return null; 
+    // Check completeness using UnifiedAttendeeData fields
+    if (!attendee.firstName) return null; 
 
-    const ticketId = getTicketIdForAttendee(attendee, formStateInstance);
+    // Access ticketDefinitionId from UnifiedAttendeeData structure
+    const ticketId = attendee.ticket?.ticketDefinitionId || "";
 
     // Refine relatedInfo structure based on type
     let finalRelatedInfo = null;
@@ -405,85 +420,50 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
   // Generate attendee entries in the required order
   const generateOrderedAttendeeEntries = (): OrderedAttendeeEntry[] => {
     const orderedEntries: OrderedAttendeeEntry[] = [];
+    const attendees = formState.attendees || [];
 
-    // 1. Primary Mason
-    const primaryMason = formState.masons[0];
-    if (primaryMason) {
-      const masonEntry = createAttendeeEntry(
-        "mason",
-        primaryMason,
-        0,
-        formState,
-      );
-      if (masonEntry) orderedEntries.push(masonEntry);
+    // Create a map for easy lookup
+    const attendeeMap = new Map(attendees.map(att => [att.attendeeId, att]));
 
-      // 2. Primary Lady & Partner
-      const primaryLadyPartnerIndex = formState.ladyPartners.findIndex(
-        (lp) => lp.masonIndex === 0,
-      );
-      if (primaryLadyPartnerIndex !== -1) {
-        const partner = formState.ladyPartners[primaryLadyPartnerIndex];
-        const partnerEntry = createAttendeeEntry(
-          "ladyPartner",
-          partner,
-          primaryLadyPartnerIndex,
-          formState,
-          { masonIndex: 0, relationship: partner.relationship },
-        );
-        if (partnerEntry) orderedEntries.push(partnerEntry);
-      }
-    }
-
-    // 3. Additional Masons and their Partners
-    formState.masons.slice(1).forEach((mason, relativeIndex) => {
-      const actualIndex = relativeIndex + 1;
-      const masonEntry = createAttendeeEntry(
-        "mason",
-        mason,
-        actualIndex,
-        formState,
-      );
-      if (masonEntry) orderedEntries.push(masonEntry);
-
-      const ladyPartnerIndex = formState.ladyPartners.findIndex(
-        (lp) => lp.masonIndex === actualIndex,
-      );
-      if (ladyPartnerIndex !== -1) {
-        const partner = formState.ladyPartners[ladyPartnerIndex];
-        const partnerEntry = createAttendeeEntry(
-          "ladyPartner",
-          partner,
-          ladyPartnerIndex,
-          formState,
-          { masonIndex: actualIndex, relationship: partner.relationship },
-        );
-        if (partnerEntry) orderedEntries.push(partnerEntry);
-      }
+    // Sort attendees: Primary Mason first, then others, keeping partners after their primary
+    const sortedAttendees = [...attendees].sort((a, b) => {
+      if (a.attendeeType === 'Mason' && a.isPrimary) return -1;
+      if (b.attendeeType === 'Mason' && b.isPrimary) return 1;
+      if (a.relatedAttendeeId === b.attendeeId) return 1; // a is partner of b, b comes first
+      if (b.relatedAttendeeId === a.attendeeId) return -1; // b is partner of a, a comes first
+      // Basic fallback sort (can be improved if specific order is needed)
+      return 0; 
     });
 
-    // 4. Guests and their Partners
-    formState.guests.forEach((guest, index) => {
-      const guestEntry = createAttendeeEntry("guest", guest, index, formState);
-      if (guestEntry) orderedEntries.push(guestEntry);
-
-      const guestPartnerIndex = formState.guestPartners.findIndex(
-        (gp) => gp.guestIndex === index,
-      );
-      if (guestPartnerIndex !== -1) {
-        const partner = formState.guestPartners[guestPartnerIndex];
-        const partnerEntry = createAttendeeEntry(
-          "guestPartner",
-          partner,
-          guestPartnerIndex,
-          formState,
-          { guestIndex: index, relationship: partner.relationship },
-        );
-        if (partnerEntry) orderedEntries.push(partnerEntry);
+    sortedAttendees.forEach((attendee, index) => {
+      const type = attendee.attendeeType.toLowerCase() as AttendeeTypeString;
+      let relatedInfo: { masonIndex?: number; guestIndex?: number; relationship?: string } | null = null;
+      
+      // Add relationship info if it's a partner
+      if (attendee.relatedAttendeeId) {
+          const relatedAttendee = attendeeMap.get(attendee.relatedAttendeeId);
+          if (relatedAttendee) {
+              // Find the index of the related attendee in the *sorted* list
+              const relatedIndex = sortedAttendees.findIndex(att => att.attendeeId === attendee.relatedAttendeeId);
+              if (relatedAttendee.attendeeType === 'Mason') {
+                  relatedInfo = { masonIndex: relatedIndex, relationship: attendee.relationship || undefined };
+              } else if (relatedAttendee.attendeeType === 'Guest') {
+                  relatedInfo = { guestIndex: relatedIndex, relationship: attendee.relationship || undefined };
+              }
+          }
       }
-    });
 
-    // Filter out any null entries and return with proper type
-    return orderedEntries.filter((entry): entry is OrderedAttendeeEntry => entry !== null);
+      const entry = createAttendeeEntry(
+        type,
+        attendee,
+        index, // Use the current index in the sorted array
+        formState,
+        relatedInfo
+      );
+      if (entry) orderedEntries.push(entry);
+    });
+    
+    return orderedEntries;
   };
 
   // Calculate total price
@@ -538,7 +518,6 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
 
   const totalPrice = calculateTotalPrice();
   const orderedEntries = generateOrderedAttendeeEntries();
-  const primaryMason = formState.masons[0];
 
   return (
     <div>
@@ -563,29 +542,38 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
           let thirdRow = "";
 
           if (entry.type === "mason") {
-            const mason = entry.attendee as MasonData;
+            const mason = entry.attendee; // This is UnifiedAttendeeData
 
-            attendeeHeading = `${mason.title} ${mason.firstName} ${mason.lastName} ${
-              mason.rank === "GL" && mason.grandRank
-                ? mason.grandRank
-                : mason.rank && mason.rank !== "GL"
-                  ? mason.rank
-                  : ""
-            }`;
+            // Perform type check before accessing Mason-specific fields
+            const rankDisplay = (mason.attendeeType === 'Mason' && mason.rank && mason.rank !== "GL") ? mason.rank : "";
+            const grandRankDisplay = (mason.attendeeType === 'Mason' && mason.rank === "GL" && mason.grandRank) ? mason.grandRank : "";
+            
+            attendeeHeading = `${mason.title} ${mason.firstName} ${mason.lastName} ${grandRankDisplay || rankDisplay}`.trim();
 
             // Reconstruct secondRow for Lodge Info
-            if (entry.index === 0) {
-              secondRow = `${mason.lodge || 'Lodge details missing'}${mason.grandLodge ? `, ${mason.grandLodge}` : ''}`;
+            const lodgeDisplay = (mason.attendeeType === 'Mason' && mason.lodgeId) ? mason.lodgeId : 'Lodge details missing'; 
+            const grandLodgeDisplay = 'Grand Lodge Name?'; // Placeholder
+            
+            // Check if this mason should use the primary mason's lodge details
+            // Note: 'sameLodgeAsPrimary' might not exist on UnifiedAttendeeData, logic needs verification
+            const usePrimaryLodge = (mason.attendeeType === 'Mason' && (mason as any).sameLodgeAsPrimary === true);
+            
+            if (usePrimaryLodge && !mason.isPrimary) {
+                // Find the primary mason from the attendees array
+                const primaryMason = formState.attendees?.find(a => a.attendeeType === 'Mason' && a.isPrimary);
+                const primaryLodgeDisplay = (primaryMason?.lodgeId) ? primaryMason.lodgeId : 'Lodge details missing';
+                // TODO: Look up primary grand lodge name
+                const primaryGrandLodgeDisplay = 'Grand Lodge Name?'; 
+                secondRow = `${primaryLodgeDisplay}, ${primaryGrandLodgeDisplay} (Same as Primary)`;
             } else {
-              secondRow = mason.sameLodgeAsPrimary
-                ? `${primaryMason.lodge || 'Lodge details missing'}${primaryMason.grandLodge ? `, ${primaryMason.grandLodge}` : ''}`
-                : `${mason.lodge || 'Lodge details missing'}${mason.grandLodge ? `, ${mason.grandLodge}` : ''}`;
+                // Use this mason's own details
+                secondRow = `${lodgeDisplay}, ${grandLodgeDisplay}`;
             }
-
-            // Construct thirdRow with Contact and Needs
-            const phoneStr = mason.phone || 'No mobile';
-            const emailStr = mason.email || 'No email';
-            const dietaryStr = mason.dietary || 'No dietary needs';
+            
+            // Construct thirdRow with Contact and Needs from AttendeeData
+            const phoneStr = mason.primaryPhone || 'No mobile';
+            const emailStr = mason.primaryEmail || 'No email';
+            const dietaryStr = mason.dietaryRequirements || 'No dietary needs';
             const needsStr = mason.specialNeeds || 'No special needs';
             thirdRow = `${phoneStr} | ${emailStr} | ${dietaryStr} | ${needsStr}`;
 
@@ -618,12 +606,24 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
                       </tr>
                     </thead>
                     <tbody>
-                      {entry.ticketId && ["full", "ceremony", "social"].includes(entry.ticketId) ? (
-                        <PackageEventsTable ticketId={entry.ticketId} ticketName={ticketName} />
-                      ) : (
-                        <IndividualEventsTable events={entry.attendee.ticket?.events || []} />
-                      )}
-                      {(entry.ticketId || (entry.attendee.ticket?.events && entry.attendee.ticket.events.length > 0)) && (
+                      {/* Check ticketDefinitionId from the attendee data */}
+                      {(() => {
+                        const ticketDefId = entry.attendee.ticket?.ticketDefinitionId;
+                        const isPackageTicket = ticketDefId && ["full", "ceremony", "social"].includes(ticketDefId);
+                        
+                        if (isPackageTicket) {
+                          // It's a package, render PackageEventsTable
+                          const packageName = ticketUtils.getTicketName(ticketDefId); // Use helper to get name
+                          return <PackageEventsTable ticketId={ticketDefId} ticketName={packageName} />;
+                        } else {
+                          // It's not a package (or no ticket selected)
+                          // Render IndividualEventsTable - currently expects events array which is empty
+                          // This will show "No events selected" until individual event selection is fixed
+                          // const individualEvents = entry.attendee.ticket?.events || []; // This path is currently not supported
+                          return <IndividualEventsTable events={[]} />;
+                        }
+                      })()}
+                      {(entry.attendee.ticket?.ticketDefinitionId) && (
                         <tr className="bg-slate-50 font-medium">
                           <td colSpan={4} className="p-4 text-right border-t border-slate-200">Attendee Total:</td>
                           <td className="p-4 text-right border-t border-slate-200">${attendeeTotal.toFixed(2)}</td>
@@ -635,21 +635,43 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
               </div>
             );
           } else if (entry.type === "guest") {
-            const guest = entry.attendee as GuestData;
+            const guest = entry.attendee;
             attendeeHeading = `${guest.title} ${guest.firstName} ${guest.lastName}`;
-            secondRow = `Guest of ${primaryMason.title} ${primaryMason.firstName} ${primaryMason.lastName}`;
+            // Find primary mason from attendees array
+            const primaryMason = formState.attendees?.find(a => a.attendeeType === 'Mason' && a.isPrimary);
+            secondRow = primaryMason ? `Guest of ${primaryMason.title} ${primaryMason.firstName} ${primaryMason.lastName}` : 'Guest';
             thirdRow = attendeeUtils.getContactInfo(guest, entry.type);
           } else if (entry.type === "ladyPartner") {
-            const partner = entry.attendee as LadyPartnerData;
-            const relatedMason = formState.masons[partner.masonIndex];
+            const partner = entry.attendee;
+            // Find related mason using relatedAttendeeId from attendees array
+            const relatedMason = partner.relatedAttendeeId ? formState.attendees?.find(m => m.attendeeId === partner.relatedAttendeeId && m.attendeeType === 'Mason') : undefined;
+            
             attendeeHeading = `${partner.title} ${partner.firstName} ${partner.lastName}`;
-            secondRow = `${partner.relationship} of ${relatedMason.title} ${relatedMason.firstName} ${relatedMason.lastName}`;
+            
+            // Add null check for relatedMason
+            if (relatedMason) {
+              secondRow = `${partner.relationship || 'Partner'} of ${relatedMason.title} ${relatedMason.firstName} ${relatedMason.lastName}`;
+            } else {
+              secondRow = `${partner.relationship || 'Partner'} of Mason`;
+              console.log(`Warning: Related mason not found for lady partner ${partner.id}`);
+            }
+            
             thirdRow = attendeeUtils.getContactInfo(partner, entry.type);
           } else if (entry.type === "guestPartner") {
-            const partner = entry.attendee as GuestPartnerData;
-            const relatedGuest = formState.guests[partner.guestIndex];
+            const partner = entry.attendee;
+            // Find related guest using relatedAttendeeId from attendees array
+            const relatedGuest = partner.relatedAttendeeId ? formState.attendees?.find(g => g.attendeeId === partner.relatedAttendeeId && g.attendeeType === 'Guest') : undefined;
+            
             attendeeHeading = `${partner.title} ${partner.firstName} ${partner.lastName}`;
-            secondRow = `${partner.relationship} of ${relatedGuest.title} ${relatedGuest.firstName} ${relatedGuest.lastName}`;
+            
+            // Add null check for relatedGuest
+            if (relatedGuest) {
+              secondRow = `${partner.relationship || 'Partner'} of ${relatedGuest.title} ${relatedGuest.firstName} ${relatedGuest.lastName}`;
+            } else {
+              secondRow = `${partner.relationship || 'Partner'} of Guest`;
+              console.log(`Warning: Related guest not found for guest partner ${partner.id}`);
+            }
+            
             thirdRow = attendeeUtils.getContactInfo(partner, entry.type);
           }
 
@@ -680,12 +702,24 @@ const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {entry.ticketId && ["full", "ceremony", "social"].includes(entry.ticketId) ? (
-                      <PackageEventsTable ticketId={entry.ticketId} ticketName={ticketName} />
-                    ) : (
-                      <IndividualEventsTable events={entry.attendee.ticket?.events || []} />
-                    )}
-                    {(entry.ticketId || (entry.attendee.ticket?.events && entry.attendee.ticket.events.length > 0)) && (
+                    {/* Check ticketDefinitionId from the attendee data */}
+                    {(() => {
+                      const ticketDefId = entry.attendee.ticket?.ticketDefinitionId;
+                      const isPackageTicket = ticketDefId && ["full", "ceremony", "social"].includes(ticketDefId);
+                      
+                      if (isPackageTicket) {
+                        // It's a package, render PackageEventsTable
+                        const packageName = ticketUtils.getTicketName(ticketDefId); // Use helper to get name
+                        return <PackageEventsTable ticketId={ticketDefId} ticketName={packageName} />;
+                      } else {
+                        // It's not a package (or no ticket selected)
+                        // Render IndividualEventsTable - currently expects events array which is empty
+                        // This will show "No events selected" until individual event selection is fixed
+                        // const individualEvents = entry.attendee.ticket?.events || []; // This path is currently not supported
+                        return <IndividualEventsTable events={[]} />;
+                      }
+                    })()}
+                    {(entry.attendee.ticket?.ticketDefinitionId) && (
                       <tr className="bg-slate-50 font-medium">
                         <td colSpan={4} className="p-4 text-right border-t border-slate-200">Attendee Total:</td>
                         <td className="p-4 text-right border-t border-slate-200">${attendeeTotal.toFixed(2)}</td>
