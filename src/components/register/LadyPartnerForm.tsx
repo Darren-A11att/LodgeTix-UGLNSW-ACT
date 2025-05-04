@@ -5,22 +5,18 @@ import { HelpCircle, X } from "lucide-react";
 import PhoneInputWrapper from "./PhoneInputWrapper";
 
 interface LadyPartnerFormProps {
-  ladyPartner: LadyPartnerData;
-  index: number;
-  onChange: (index: number, field: string, value: string | boolean) => void;
-  masonData?: MasonData; // Associated mason data
-  isPrimaryMason?: boolean; // Whether this is attached to primary or additional mason
-  primaryMasonData?: MasonData; // Primary mason data for reference
-  onRemove?: () => void; // New prop to handle removal
+  partner: LadyPartnerData;
+  id: string;
+  updateField: (id: string, field: string, value: string | boolean) => void;
+  relatedMasonName: string;
+  onRemove?: () => void;
 }
 
 const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
-  ladyPartner,
-  index,
-  onChange,
-  masonData,
-  isPrimaryMason = false,
-  primaryMasonData,
+  partner,
+  id,
+  updateField,
+  relatedMasonName,
   onRemove,
 }) => {
   const titles = [
@@ -38,17 +34,7 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
   const relationships = ["Wife", "Partner", "Fiancée", "Husband", "Fiancé"];
 
   // Determine available contact options
-  const contactOptions = ["Please Select", "Directly", "Provide Later"];
-
-  // Add "Mason" option if linked to any mason
-  if (masonData) {
-    contactOptions.splice(1, 0, "Mason"); // Insert "Mason" after "Please Select"
-  }
-
-  // Add "Primary Attendee" option if linked to an additional mason
-  if (!isPrimaryMason) {
-    contactOptions.splice(1, 0, "Primary Attendee"); // Insert "Primary Attendee" after "Please Select"
-  }
+  const contactOptions = ["Please Select", "Directly", "Provide Later", "Mason"];
 
   // Interaction states
   const [relationshipInteracted, setRelationshipInteracted] = useState(false);
@@ -60,54 +46,32 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
   const [emailInteracted, setEmailInteracted] = useState(false);
 
   const handlePhoneChange = (value: string) => {
-    onChange(index, "phone", value);
+    updateField(id, "phone", value);
   };
 
-  const showContactFields = ladyPartner.contactPreference === "Directly";
+  const showContactFields = partner.contactPreference === "Directly";
   const showConfirmation =
-    ladyPartner.contactPreference !== "Directly" &&
-    ladyPartner.contactPreference !== "Please Select";
+    partner.contactPreference !== "Directly" &&
+    partner.contactPreference !== "Please Select";
 
   // Generate dynamic confirmation message
   const getConfirmationMessage = () => {
-    if (!masonData) return "";
-
-    // For Primary Attendee option (for Additional Mason's Lady Partner)
-    if (
-      ladyPartner.contactPreference === "Primary Attendee" &&
-      primaryMasonData
-    ) {
-      const primaryFullName = `${primaryMasonData.firstName} ${primaryMasonData.lastName}`;
-      return `I confirm that ${primaryFullName} will be responsible for all communication with this attendee`;
+    if (partner.contactPreference === "Mason") {
+      return `I confirm that ${relatedMasonName} will be responsible for all communication with this attendee`;
     }
-
-    // For Mason option
-    if (ladyPartner.contactPreference === "Mason") {
-      const masonFullName = `${masonData.firstName} ${masonData.lastName}`;
-      return `I confirm that ${masonFullName} will be responsible for all communication with this attendee`;
+    if (partner.contactPreference === "Provide Later") {
+      return `I confirm that the primary contact will be responsible for all communication with this attendee until their contact details have been updated in their profile`;
     }
-
-    // For Provide Later option
-    if (ladyPartner.contactPreference === "Provide Later") {
-      const responsibleName =
-        isPrimaryMason || !primaryMasonData
-          ? `${masonData.firstName} ${masonData.lastName}`
-          : `${primaryMasonData.firstName} ${primaryMasonData.lastName}`;
-
-      return `I confirm that ${responsibleName} will be responsible for all communication with this attendee until their contact details have been updated in their profile`;
-    }
-
     return "";
   };
 
   return (
-    <div className="border-t border-slate-200 pt-6 mt-6 relative">
-      {/* Add a Remove button in the top right */}
+    <div className="relative">
       {onRemove && (
         <button
           type="button"
           onClick={onRemove}
-          className="absolute top-6 right-0 text-red-500 hover:text-red-700 flex items-center text-sm"
+          className="absolute top-0 right-0 text-red-500 hover:text-red-700 flex items-center text-sm"
           aria-label="Remove partner"
         >
           <X className="w-4 h-4 mr-1" />
@@ -128,23 +92,22 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
             clipRule="evenodd"
           />
         </svg>
-        Lady & Partner Details
+        Partner Attendee
       </h4>
 
       <div className="grid grid-cols-12 gap-4 mb-4">
-        {/* Reduced width for Relationship */}
         <div className="col-span-2">
           <label
             className="block text-sm font-medium text-slate-700 mb-1"
-            htmlFor={`relationship-${index}`}
+            htmlFor={`relationship-${id}`}
           >
             Relationship *
           </label>
           <select
-            id={`relationship-${index}`}
-            name={`relationship-${index}`}
-            value={ladyPartner.relationship}
-            onChange={(e) => onChange(index, "relationship", e.target.value)}
+            id={`relationship-${id}`}
+            name={`relationship-${id}`}
+            value={partner.relationship}
+            onChange={(e) => updateField(id, "relationship", e.target.value)}
             onBlur={() => setRelationshipInteracted(true)}
             required
             className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -160,19 +123,18 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
           </select>
         </div>
 
-        {/* Reduced width for Title */}
         <div className="col-span-2">
           <label
             className="block text-sm font-medium text-slate-700 mb-1"
-            htmlFor={`ladyTitle-${index}`}
+            htmlFor={`ladyTitle-${id}`}
           >
             Title *
           </label>
           <select
-            id={`ladyTitle-${index}`}
-            name={`ladyTitle-${index}`}
-            value={ladyPartner.title}
-            onChange={(e) => onChange(index, "title", e.target.value)}
+            id={`ladyTitle-${id}`}
+            name={`ladyTitle-${id}`}
+            value={partner.title}
+            onChange={(e) => updateField(id, "title", e.target.value)}
             onBlur={() => setTitleInteracted(true)}
             required
             className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -188,20 +150,19 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
           </select>
         </div>
 
-        {/* Increased width for First Name */}
         <div className="col-span-4">
           <label
             className="block text-sm font-medium text-slate-700 mb-1"
-            htmlFor={`ladyFirstName-${index}`}
+            htmlFor={`ladyFirstName-${id}`}
           >
             First Name *
           </label>
           <input
             type="text"
-            id={`ladyFirstName-${index}`}
-            name={`ladyFirstName-${index}`}
-            value={ladyPartner.firstName}
-            onChange={(e) => onChange(index, "firstName", e.target.value)}
+            id={`ladyFirstName-${id}`}
+            name={`ladyFirstName-${id}`}
+            value={partner.firstName}
+            onChange={(e) => updateField(id, "firstName", e.target.value)}
             onBlur={() => setFirstNameInteracted(true)}
             required
             className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -211,20 +172,19 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
           />
         </div>
 
-        {/* Increased width for Last Name */}
         <div className="col-span-4">
           <label
             className="block text-sm font-medium text-slate-700 mb-1"
-            htmlFor={`ladyLastName-${index}`}
+            htmlFor={`ladyLastName-${id}`}
           >
             Last Name *
           </label>
           <input
             type="text"
-            id={`ladyLastName-${index}`}
-            name={`ladyLastName-${index}`}
-            value={ladyPartner.lastName}
-            onChange={(e) => onChange(index, "lastName", e.target.value)}
+            id={`ladyLastName-${id}`}
+            name={`ladyLastName-${id}`}
+            value={partner.lastName}
+            onChange={(e) => updateField(id, "lastName", e.target.value)}
             onBlur={() => setLastNameInteracted(true)}
             required
             className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -235,14 +195,12 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
         </div>
       </div>
 
-      {/* Contact Preference Section - Modified layout */}
       <div className="mb-4">
         <div className="grid grid-cols-12 gap-4">
-          {/* Contact dropdown */}
           <div className="col-span-4">
             <label
               className="block text-sm font-medium text-slate-700 mb-1"
-              htmlFor={`contactPreference-${index}`}
+              htmlFor={`contactPreference-${id}`}
             >
               Contact *{" "}
               <span className="inline-block ml-1">
@@ -256,11 +214,11 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
               </span>
             </label>
             <select
-              id={`contactPreference-${index}`}
-              name={`contactPreference-${index}`}
-              value={ladyPartner.contactPreference}
+              id={`contactPreference-${id}`}
+              name={`contactPreference-${id}`}
+              value={partner.contactPreference}
               onChange={(e) =>
-                onChange(index, "contactPreference", e.target.value)
+                updateField(id, "contactPreference", e.target.value)
               }
               onBlur={() => setContactPreferenceInteracted(true)}
               required
@@ -276,22 +234,21 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
             </select>
           </div>
 
-          {/* Confirmation checkbox or input fields */}
           {showConfirmation ? (
             <div className="col-span-8 flex items-center">
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                  id={`contactConfirmed-${index}`}
-                  checked={ladyPartner.contactConfirmed}
+                  id={`contactConfirmed-${id}`}
+                  checked={partner.contactConfirmed}
                   onChange={(e) =>
-                    onChange(index, "contactConfirmed", e.target.checked)
+                    updateField(id, "contactConfirmed", e.target.checked)
                   }
                   required
                   className="h-4 w-4 text-primary border-slate-300 rounded focus:ring-primary"
                 />
                 <label
-                  htmlFor={`contactConfirmed-${index}`}
+                  htmlFor={`contactConfirmed-${id}`}
                   className="ml-2 text-sm text-slate-700"
                 >
                   {getConfirmationMessage()} *
@@ -301,11 +258,10 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
           ) : (
             showContactFields && (
               <>
-                {/* Phone input */}
                 <div className="col-span-4">
                   <label
                     className="block text-sm font-medium text-slate-700 mb-1"
-                    htmlFor={`ladyPhone-${index}`}
+                    htmlFor={`ladyPhone-${id}`}
                   >
                     Mobile Number *
                   </label>
@@ -323,33 +279,32 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
                      }}
                    >
                     <PhoneInputWrapper
-                      value={ladyPartner.phone}
+                      value={partner.phone}
                       onChange={handlePhoneChange}
-                      name={`ladyPhone-${index}`}
+                      name={`ladyPhone-${id}`}
                       inputProps={{
-                        id: `ladyPhone-${index}`,
-                        name: `ladyPhone-${index}`,
+                        id: `ladyPhone-${id}`,
+                        name: `ladyPhone-${id}`,
                       }}
                       required={true}
                     />
                    </div>
                 </div>
 
-                {/* Email input */}
                 <div className="col-span-4">
                   <label
                     className="block text-sm font-medium text-slate-700 mb-1"
-                    htmlFor={`ladyEmail-${index}`}
+                    htmlFor={`ladyEmail-${id}`}
                   >
                     Email Address *
                   </label>
                   <input
                     type="email"
-                    id={`ladyEmail-${index}`}
-                    name={`ladyEmail-${index}`}
-                    value={ladyPartner.email}
+                    id={`ladyEmail-${id}`}
+                    name={`ladyEmail-${id}`}
+                    value={partner.email}
                     onChange={(e) =>
-                      onChange(index, "email", e.target.value)
+                      updateField(id, "email", e.target.value)
                     }
                     onBlur={() => setEmailInteracted(true)}
                     required
@@ -357,7 +312,6 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
                                ${emailInteracted ? 'interacted' : ''} 
                                [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
                                focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
-                    pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.{a-zA-Z]{2,}$"
                     title="Please enter a valid email address (e.g., user@example.com)"
                   />
                 </div>
@@ -370,16 +324,16 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
       <div className="mb-4">
         <label
           className="block text-sm font-medium text-slate-700 mb-1"
-          htmlFor={`ladyDietary-${index}`}
+          htmlFor={`ladyDietary-${id}`}
         >
           Dietary Requirements
         </label>
         <input
           type="text"
-          id={`ladyDietary-${index}`}
-          name={`ladyDietary-${index}`}
-          value={ladyPartner.dietary}
-          onChange={(e) => onChange(index, "dietary", e.target.value)}
+          id={`ladyDietary-${id}`}
+          name={`ladyDietary-${id}`}
+          value={partner.dietary}
+          onChange={(e) => updateField(id, "dietary", e.target.value)}
           placeholder="E.g., vegetarian, gluten-free, allergies"
           className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
         />
@@ -388,15 +342,15 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
       <div>
         <label
           className="block text-sm font-medium text-slate-700 mb-1"
-          htmlFor={`ladySpecialNeeds-${index}`}
+          htmlFor={`ladySpecialNeeds-${id}`}
         >
           Special Needs or Accessibility Requirements
         </label>
         <textarea
-          id={`ladySpecialNeeds-${index}`}
-          name={`ladySpecialNeeds-${index}`}
-          value={ladyPartner.specialNeeds}
-          onChange={(e) => onChange(index, "specialNeeds", e.target.value)}
+          id={`ladySpecialNeeds-${id}`}
+          name={`ladySpecialNeeds-${id}`}
+          value={partner.specialNeeds}
+          onChange={(e) => updateField(id, "specialNeeds", e.target.value)}
           rows={2}
           className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
         ></textarea>

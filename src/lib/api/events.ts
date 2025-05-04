@@ -1,11 +1,22 @@
-import { supabase } from '../supabase';
+import { supabase, table } from '../supabase';
 import { EventType } from '../../shared/types/event';
 import { formatEventForDisplay } from '../formatters';
-import { Database } from '../../shared/types/supabase';
+import { Database } from '../../../supabase/supabase.types';
 import { EventDayOverviewType } from '../../shared/types/event';
 
+/**
+ * Events API module
+ * 
+ * This module handles interactions with the Events table in the database.
+ * Note: DisplayScopes functionality has been temporarily disabled to prevent
+ * console errors. The code has been updated to work without the DisplayScopes table.
+ * 
+ * When the DisplayScopes table is properly initialized, you can re-enable the
+ * DisplayScopes code by reverting this file to its previous version.
+ */
+
 // Define DbEvent type here for use in the function
-type DbEvent = Database['public']['Tables']['events']['Row'];
+type DbEvent = Database['public']['Tables']['Events']['Row'];
 
 // Interface for the function's return value
 export interface PaginatedEventsResponse {
@@ -19,11 +30,12 @@ interface GetEventsParams {
   page?: number;
   limit?: number;
   filterType?: string | null;
+  parentEventId?: string | null; // Add parent event ID filter
 }
 
 /**
  * Fetches events based on filters and pagination.
- * @param params - Object containing page, limit, filterType.
+ * @param params - Object containing page, limit, filterType, and parentEventId.
  * @returns Promise resolving to PaginatedEventsResponse.
  */
 export async function getEvents({
@@ -31,6 +43,7 @@ export async function getEvents({
   page = 1,
   limit = 9, // Default limit per page
   filterType = null,
+  parentEventId = null, // Add parentEventId parameter with default null
 }: GetEventsParams): Promise<PaginatedEventsResponse> {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
@@ -44,23 +57,25 @@ export async function getEvents({
 
     // Columns needed for EventCard + formatting
     const selectColumns = `
-      id, slug, title, description, event_start, event_end, location, type, price, maxAttendees, imageUrl
+      id, slug, title, description, eventStart, eventEnd, location, type, price, maxAttendees, imageUrl
     `;
 
     // Start building the query
-    let query = supabase
-      .from('events')
-      .select(selectColumns, { count: 'exact' })
-      // TODO: Review logic for fetching parent/child events if needed
-      .not('parent_event_id', 'is', null); 
+    let query = table('events')
+      .select(selectColumns, { count: 'exact' });
 
     // Apply type filter if provided
     if (filterType) {
       query = query.eq('type', filterType);
     }
 
+    // Apply parent event filter if provided
+    if (parentEventId) {
+      query = query.eq('parentEventId', parentEventId);
+    }
+
     // Apply pagination and ordering
-    query = query.order('event_start', { ascending: true }).range(from, to);
+    query = query.order('eventStart', { ascending: true }).range(from, to);
 
     // Execute the query
     const { data, error, count } = await query;
@@ -92,29 +107,24 @@ export async function getEvents({
 export async function getFeaturedEvents(limit: number = 3): Promise<EventType[]> {
   // console.log(`Fetching featured events`);
   try {
-    const { data: scopeData, error: scopeError } = await supabase
-      .from('display_scopes')
-      .select('id')
-      .eq('name', 'anonymous') // Hardcoding anonymous for featured for now
-      .single();
+    // Skip scope ID lookup entirely - DisplayScopes table may not be set up yet
+    let scopeId = null;
+    // We'll query featured events without scope filtering
 
-    if (scopeError || !scopeData) {
-      // Keep this error log
-      console.error(`Error fetching display scope ID for 'anonymous' (featured):`, scopeError);
-      return [];
-    }
-    const scopeId = scopeData.id;
-
-    const { data, error } = await supabase
-      .from('events')
-      // .select('*') // OLD
-      // NEW: Explicitly select columns needed for featured display
-      .select('id, slug, title, event_start, event_end, location, imageUrl, price, description, type') 
-      .not('parent_event_id', 'is', null) // Assuming featured events are also children
+    // Build query for featured events
+    let query = table('events')
+      // Explicitly select columns needed for featured display
+      .select('id, slug, title, eventStart, eventEnd, location, imageUrl, price, description, type')
       .eq('featured', true)
-      .eq('display_scope_id', scopeId) // Filter by anonymous scope
-      .order('event_start', { ascending: true })
+      .order('eventStart', { ascending: true })
       .limit(limit);
+    
+    // Only add the scope filter if we have a valid scope ID
+    if (scopeId) {
+      query = query.eq('displayScopeId', scopeId); // Filter by anonymous scope
+    }
+    
+    const { data, error } = await query;
     
     if (error) {
       // Keep this error log
@@ -141,26 +151,23 @@ export async function getFeaturedEvents(limit: number = 3): Promise<EventType[]>
 export async function getEventsByType(type: string, scopeName: string = 'anonymous'): Promise<EventType[]> {
   // console.log(`Fetching events of type '${type}' for scope '${scopeName}'`);
   try {
-    const { data: scopeData, error: scopeError } = await supabase
-      .from('display_scopes')
-      .select('id')
-      .eq('name', scopeName)
-      .single();
+    // Skip scope ID lookup entirely - DisplayScopes table may not be set up yet
+    let scopeId = null;
+    // We'll query events without scope filtering
 
-    if (scopeError || !scopeData) {
-      // Keep this error log
-      console.error(`Error fetching display scope ID for '${scopeName}' (type filter):`, scopeError);
-      return [];
-    }
-    const scopeId = scopeData.id;
-
-    const { data, error } = await supabase
-      .from('events')
+    // Build query for events by type
+    let query = table('events')
       .select('*')
-      .not('parent_event_id', 'is', null) // Assuming type filters apply to child events
+      .not('parentEventId', 'is', null) // Assuming type filters apply to child events
       .eq('type', type)
-      .eq('display_scope_id', scopeId) // Filter by scope
-      .order('event_start', { ascending: true });
+      .order('eventStart', { ascending: true });
+    
+    // Only add the scope filter if we have a valid scope ID
+    if (scopeId) {
+      query = query.eq('displayScopeId', scopeId); // Filter by scope
+    }
+    
+    const { data, error } = await query;
     
     if (error) {
       // Keep this error log
@@ -189,15 +196,14 @@ export async function getEventById(slug: string): Promise<EventType | null> {
     return null;
   }
   try {
-    const { data, error } = await supabase
-      .from('events')
+    const { data, error } = await table('events')
       .select(`
         id,
         slug, 
         title,
         description,
-        event_start, 
-        event_end,
+        eventStart, 
+        eventEnd,
         location,
         latitude, 
         longitude,
@@ -205,9 +211,9 @@ export async function getEventById(slug: string): Promise<EventType | null> {
         imageUrl,
         maxAttendees,
         price,
-        is_multi_day,
-        parent_event_id,
-        created_at,
+        isMultiDay,
+        parentEventId,
+        createdAt,
         featured
       `)
       .eq('slug', slug)
@@ -244,11 +250,10 @@ export async function getChildEvents(parentEventId: string): Promise<EventType[]
     return [];
   }
   try {
-    const { data, error } = await supabase
-      .from('events')
+    const { data, error } = await table('events')
       .select('*')
-      .eq('parent_event_id', parentEventId) // Filter by parent_event_id
-      .order('event_start', { ascending: true }) // Order child events by date
+      .eq('parentEventId', parentEventId) // Filter by parentEventId
+      .order('eventStart', { ascending: true }) // Order child events by date
 
     if (error) {
       // Keep this error log
@@ -290,18 +295,17 @@ export async function getRelatedEvents(
     return [];
   }
   try {
-    const { data, error } = await supabase
-      .from('events')
+    const { data, error } = await table('events')
       .select('*')
       // .eq('date', eventDate) // OLD: Match the date column
       // NEW: Filter where the date part of event_start matches eventDate
       // We assume eventDate is YYYY-MM-DD. We cast event_start to date in the DB timezone.
       // Note: Using .filter() with DB functions is generally preferred over .rpc() for simple selects.
-      .filter('event_start', 'gte', `${eventDate}T00:00:00`) // Greater than or equal to start of day
-      .filter('event_start', 'lt', `${eventDate}T23:59:59`) // Less than end of day (adjust timezone if needed)
+      .filter('eventStart', 'gte', `${eventDate}T00:00:00`) // Greater than or equal to start of day
+      .filter('eventStart', 'lt', `${eventDate}T23:59:59`) // Less than end of day (adjust timezone if needed)
       .neq('id', eventId) // Exclude the event itself
-      .is('parent_event_id', null) // Exclude child events (assuming parent_event_id is null for main/single events)
-      .order('event_start', { ascending: true })
+      .is('parentEventId', null) // Exclude child events (assuming parentEventId is null for main/single events)
+      .order('eventStart', { ascending: true })
       .limit(limit);
 
     if (error) {
@@ -330,9 +334,8 @@ export async function getRelatedEvents(
  */
 export async function getEventDaysOverview(): Promise<EventDayOverviewType[]> {
   try {
-    const { data, error } = await supabase
-      .from('event_days')
-      .select('id, date, name, featured_events_summary')
+    const { data, error } = await table('eventDays')
+      .select('id, date, name, featuredEventsSummary')
       .order('date', { ascending: true });
 
     if (error) {
@@ -361,20 +364,20 @@ export async function getEventDaysOverview(): Promise<EventDayOverviewType[]> {
  * @returns Promise resolving to the formatted parent event object or null if not found.
  */
 export async function getParentEvent(): Promise<EventType | null> {
-  console.log("Fetching parent event...");
+  // Fetch the parent event quietly - removed noisy logging
   try {
-    const { data, error } = await supabase
-      .from('events')
+    // Explicitly list each field to ensure correct camelCase column names
+    const { data, error } = await table('events')
       .select(`
         id,
         slug,
         title,
-        event_start,
-        event_end,
+        eventStart,
+        eventEnd,
         location,
         maxAttendees
       `)
-      .is('parent_event_id', null) // Key filter for parent event
+      .is('parentEventId', null) // Key filter for parent event
       .maybeSingle(); // Expecting only one top-level parent event
 
     if (error) {
@@ -383,11 +386,11 @@ export async function getParentEvent(): Promise<EventType | null> {
     }
 
     if (!data) {
-      console.warn('No parent event found (parent_event_id is NULL).');
+      // Reduce log noise
       return null;
     }
 
-    console.log("Parent event found:", data.title);
+    // Removed noisy logging
     return formatEventForDisplay(data as unknown as DbEvent);
 
   } catch (err) {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle } from 'lucide-react';
-import { TicketType } from '../../../types/register';
+import { TicketType } from '../../../shared/types/register';
 
 interface PackageTicketSectionProps {
   availableTickets: TicketType[];
@@ -13,6 +13,15 @@ const PackageTicketSection: React.FC<PackageTicketSectionProps> = ({
   selectedTicketId,
   onSelectTicket
 }) => {
+  if (!availableTickets || !Array.isArray(availableTickets)) {
+    // Return placeholder or loading state if no tickets are available
+    return (
+      <div className="p-4 border rounded-lg bg-slate-50">
+        <p className="text-center text-slate-500">No ticket packages available</p>
+      </div>
+    );
+  }
+  
   return (
     <div className="space-y-6">
       {availableTickets.map(ticket => (
@@ -33,12 +42,18 @@ const PackageTicketSection: React.FC<PackageTicketSectionProps> = ({
               <div className="mt-2">
                 <h4 className="font-medium mb-2">Includes:</h4>
                 <ul className="text-sm text-slate-700 space-y-1">
-                  {ticket.includes.map((item, i) => (
-                    <li key={i} className="flex items-center">
-                      <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                      {item}
-                    </li>
-                  ))}
+                  {ticket.includes && Array.isArray(ticket.includes) 
+                    ? ticket.includes.map((item, i) => (
+                      <li key={i} className="flex items-center">
+                        <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                        {item}
+                      </li>
+                    ))
+                    : <li className="flex items-center">
+                        <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                        Standard admission
+                      </li>
+                  }
                 </ul>
               </div>
             </div>

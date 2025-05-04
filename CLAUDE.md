@@ -4,6 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build/Lint/Test Commands
 - `npm run dev` - Start development server
+- `npm run dev:https` - Start development server with HTTPS (required for Stripe integration)
 - `npm run build` - Build for production
 - `npm run lint` - Run ESLint to check code quality
 - `npm run preview` - Preview production build locally

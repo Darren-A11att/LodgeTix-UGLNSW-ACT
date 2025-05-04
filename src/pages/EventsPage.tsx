@@ -14,6 +14,9 @@ const EventsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
+  // Define the specific parent event ID
+  const parentEventId = '307c2d85-72d5-48cf-ac94-082ca2a5d23d'; 
+
   const EVENTS_PER_PAGE = 9;
 
   const [filterType, setFilterType] = useState<string | null>(null);
@@ -28,6 +31,7 @@ const EventsPage: React.FC = () => {
         page: 1,
         limit: EVENTS_PER_PAGE,
         filterType: type,
+        parentEventId: parentEventId,
       });
       
       const { events: fetchedEvents, totalCount: fetchedTotalCount } = eventsResponse;
@@ -53,6 +57,7 @@ const EventsPage: React.FC = () => {
         page: page,
         limit: EVENTS_PER_PAGE,
         filterType: type,
+        parentEventId: parentEventId,
       });
       setEvents(prevEvents => [...prevEvents, ...fetchedEvents]);
       setTotalCount(fetchedTotalCount);
@@ -90,9 +95,9 @@ const EventsPage: React.FC = () => {
     const grouped: Record<string, { dateObj: Date; events: EventType[] }> = {};
 
     events.forEach(event => {
-      if (event.event_start) {
+      if (event.eventStart) {
         try {
-          const dateObj = parseISO(event.event_start);
+          const dateObj = parseISO(event.eventStart);
           if (isValid(dateObj)) {
             const dateKey = format(dateObj, 'yyyy-MM-dd');
             if (!grouped[dateKey]) {
@@ -101,7 +106,7 @@ const EventsPage: React.FC = () => {
             grouped[dateKey].events.push(event);
           }
         } catch (e) {
-          console.warn(`Error parsing date for event ${event.id}: ${event.event_start}`, e);
+          console.warn(`Error parsing date for event ${event.id}: ${event.eventStart}`, e);
         }
       }
     });
@@ -109,7 +114,7 @@ const EventsPage: React.FC = () => {
     Object.values(grouped).forEach(group => {
       group.events.sort((a, b) => {
         try {
-          return compareAsc(parseISO(a.event_start!), parseISO(b.event_start!));
+          return compareAsc(parseISO(a.eventStart!), parseISO(b.eventStart!));
         } catch {
           return 0;
         }

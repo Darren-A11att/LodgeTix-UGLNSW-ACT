@@ -8,6 +8,8 @@
   border: 1px solid rgb(203 213 225);
   border-radius: 0.375rem;
   outline: none;
+  font-size: 16px !important; /* Prevent iOS zoom */
+  min-height: 48px;
 }
 
 .custom-phone-input input:focus {
@@ -34,7 +36,7 @@
 .phone-input-container .PhoneInput {
   display: flex;
   align-items: center;
-  height: 2.75rem; /* h-11 equivalent */
+  height: 3rem; /* 48px for better touch target */
   border: 1px solid rgb(203 213 225);
   border-radius: 0.375rem;
   overflow: hidden;
@@ -47,6 +49,7 @@
   padding: 0.5rem;
   outline: none;
   height: 100%;
+  font-size: 16px !important; /* Prevent iOS zoom */
 }
 
 .phone-input-container .PhoneInputCountry {
@@ -56,4 +59,32 @@
   padding-right: 0.5rem;
   background-color: #f8fafc;
   border-right: 1px solid rgb(226 232 240);
+  min-width: 65px; /* Better touch target for country selector */
+  min-height: 48px;
+}
+
+/* Mobile-specific enhancements */
+@media (max-width: 640px) {
+  .custom-phone-input input,
+  .phone-input-container .PhoneInput {
+    height: 3.5rem; /* 56px touch target for mobile */
+  }
+  
+  .phone-input-container .PhoneInputCountry {
+    min-width: 70px;
+    min-height: 56px;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  /* Make the dropdown items larger for touch */
+  .PhoneInputCountrySelect {
+    font-size: 16px;
+  }
+  
+  /* Larger flags for better visibility */
+  .PhoneInputCountryIcon {
+    width: 1.75em;
+    height: 1.2em;
+  }
 }

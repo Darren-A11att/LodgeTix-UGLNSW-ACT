@@ -10,41 +10,42 @@ import GuestPartnerToggle from './guest/GuestPartnerToggle';
 
 interface GuestFormProps {
   guest: GuestData;
-  index: number;
-  onChange: (index: number, field: string, value: string | boolean) => void;
-  onToggleHasPartner?: (index: number, checked: boolean) => void;
+  id: string;
+  attendeeNumber: number;
+  onChange: (id: string, field: string, value: string | boolean) => void;
+  onToggleHasPartner?: (checked: boolean) => void;
   partnerData?: GuestPartnerData;
-  partnerIndex?: number;
-  updatePartnerField?: (index: number, field: string, value: string | boolean) => void;
+  updatePartnerField?: (partnerId: string, field: string, value: string | boolean) => void;
   primaryMasonData?: MasonData;
-  onRemove?: () => void;
+  onRemove?: (id: string) => void;
 }
 
 const GuestForm: React.FC<GuestFormProps> = ({
   guest,
-  index,
+  id,
+  attendeeNumber,
   onChange,
   onToggleHasPartner,
   partnerData,
-  partnerIndex,
   updatePartnerField,
   primaryMasonData,
   onRemove
 }) => {
   const handlePhoneChange = (value: string) => {
-    onChange(index, 'phone', value);
+    onChange(id, 'phone', value);
   };
 
   const handlePartnerToggle = () => {
+    console.log("Toggling guest partner to TRUE for Guest:", id);
     if (onToggleHasPartner) {
-      onToggleHasPartner(index, !guest.hasPartner);
+      onToggleHasPartner(true);
     }
   };
 
-  // Handler to remove partner
   const handleRemovePartner = () => {
+    console.log("Removing guest partner (setting to FALSE) for Guest:", id);
     if (onToggleHasPartner) {
-      onToggleHasPartner(index, false);
+      onToggleHasPartner(false);
     }
   };
 
@@ -80,7 +81,7 @@ const GuestForm: React.FC<GuestFormProps> = ({
       {onRemove && (
         <button 
           type="button"
-          onClick={onRemove}
+          onClick={() => onRemove(id)}
           className="absolute top-3 right-3 text-red-500 hover:text-red-700 flex items-center text-sm"
           aria-label="Remove this guest"
         >
@@ -89,18 +90,18 @@ const GuestForm: React.FC<GuestFormProps> = ({
         </button>
       )}
       
-      <h3 className="text-lg font-bold mb-4">Guest Attendee {index + 1}</h3>
+      <h3 className="text-lg font-bold mb-4">Guest Attendee</h3>
       
       <GuestBasicInfo
         guest={guest}
-        index={index}
+        id={id}
         onChange={onChange}
         titles={titles}
       />
       
       <GuestContactInfo
         guest={guest}
-        index={index}
+        id={id}
         onChange={onChange}
         handlePhoneChange={handlePhoneChange}
         contactOptions={contactOptions}
@@ -111,29 +112,35 @@ const GuestForm: React.FC<GuestFormProps> = ({
       
       <GuestAdditionalInfo
         guest={guest}
-        index={index}
+        id={id}
         onChange={onChange}
       />
 
-      {/* Show toggle button only if no partner is registered AND toggle function is provided */}
-      {!guest.hasPartner && onToggleHasPartner && (
-        <GuestPartnerToggle
-          hasPartner={guest.hasPartner}
-          onToggle={handlePartnerToggle}
-        />
-      )}
+      {/* --- Guest Partner Section --- */}
+      {/* Add horizontal line divider above partner section */}
+      {onToggleHasPartner && (
+          <>
+              <hr className="mt-6 mb-4 border-t border-slate-300" />
+              
+              {/* Show toggle button only if no partner is registered AND toggle function is provided */}
+              {!guest.hasPartner && (
+                  <GuestPartnerToggle
+                    onAdd={handlePartnerToggle}
+                  />
+              )}
 
-      {/* Show Partner form if checkbox is checked */}
-      {guest.hasPartner && partnerData && updatePartnerField && (
-        <GuestPartnerForm 
-          partner={partnerData}
-          index={partnerIndex ?? 0}
-          onChange={updatePartnerField}
-          guestIndex={index}
-          guestData={guest}
-          primaryMasonData={primaryMasonData}
-          onRemove={handleRemovePartner}
-        />
+              {/* Show Partner form if checkbox is checked */} 
+              {guest.hasPartner && partnerData && updatePartnerField && (
+                  <GuestPartnerForm 
+                    partner={partnerData}
+                    id={partnerData.id}
+                    updateField={updatePartnerField}
+                    relatedGuestName={`${guest.firstName} ${guest.lastName}`.trim() || `Guest ${attendeeNumber}`}
+                    primaryMasonData={primaryMasonData}
+                    onRemove={handleRemovePartner}
+                  />
+              )}
+          </>
       )}
     </div>
   );

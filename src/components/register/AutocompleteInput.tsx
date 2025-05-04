@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Search, X, Plus, Loader2 } from "lucide-react";
 
 // Define a more flexible base type - essentially any object
@@ -72,34 +72,75 @@ function AutocompleteInput<T extends BaseOption>({
   }, [value]);
 
   // Filter options based on input, handle loading state
+  // Using useRef to avoid infinite loops but still access updated props
+  const optionsRef = useRef(options);
+  const isLoadingRef = useRef(isLoading);
+  const allowCreateRef = useRef(allowCreate);
+  const getOptionLabelRef = useRef(getOptionLabel);
+  
+  // Update refs when props change
   useEffect(() => {
+    optionsRef.current = options;
+    isLoadingRef.current = isLoading;
+    allowCreateRef.current = allowCreate;
+    getOptionLabelRef.current = getOptionLabel;
+  }, [options, isLoading, allowCreate, getOptionLabel]);
+  
+  // Memoized filter function to avoid recomputing on every render
+  const updateFilteredOptions = useCallback(() => {
+    const currentOptions = optionsRef.current;
+    const currentIsLoading = isLoadingRef.current;
+    const currentAllowCreate = allowCreateRef.current;
+    const currentGetOptionLabel = getOptionLabelRef.current;
+    
     // If loading is finished, use the provided options directly.
     // If loading is ongoing OR input is empty, clear options.
-    if (!isLoading && inputValue.trim() !== "") {
-      // Directly use the options passed from the parent 
-      // as they should already be filtered by the backend search
-      setFilteredOptions(options.slice(0, 10)); // Apply limit
-      
-      // Still need to determine if create option should show based on exact match
-      const exactMatch = options.some(
-        (option) =>
-          getOptionLabel(option).toLowerCase() === inputValue.toLowerCase(),
-      );
-      setShowCreateOption(
-        allowCreate && !exactMatch && inputValue.trim().length > 0,
-      );
-
+    if (!currentIsLoading && inputValue.trim() !== "") {
+      try {
+        // Make a defensive copy of options first
+        const validOptions = currentOptions.filter(opt => opt !== null && typeof opt === 'object');
+        
+        // Directly use the options passed from the parent 
+        // as they should already be filtered by the backend search
+        setFilteredOptions(validOptions.slice(0, 10)); // Apply limit
+        
+        // Safely check for exact match with proper null/undefined handling
+        const exactMatch = validOptions.some(
+          (option) => {
+            try {
+              const label = currentGetOptionLabel(option).toLowerCase();
+              return label === inputValue.toLowerCase();
+            } catch (err) {
+              return false;
+            }
+          }
+        );
+        
+        setShowCreateOption(
+          currentAllowCreate && !exactMatch && inputValue.trim().length > 0,
+        );
+      } catch (err) {
+        console.error('Error processing options in AutocompleteInput:', err);
+        setFilteredOptions([]);
+        setShowCreateOption(false);
+      }
     } else { // Covers isLoading or empty inputValue
       setFilteredOptions([]);
       setShowCreateOption(false);
-      // Optionally hide dropdown immediately if loading starts
-      // if (isLoading) setShowDropdown(false); 
     }
-
+    
     setHighlightedIndex(-1); // Reset highlight on options change
-
-  // Depend on options and isLoading coming from parent, and local inputValue
-  }, [inputValue, options, getOptionLabel, allowCreate, isLoading]);
+  }, [inputValue]); // Only depend on inputValue to avoid loops
+  
+  // Run the filter operation when inputValue changes
+  useEffect(() => {
+    updateFilteredOptions();
+  }, [updateFilteredOptions, inputValue]);
+  
+  // Also update filtered options when options or loading state changes
+  useEffect(() => {
+    updateFilteredOptions();
+  }, [options, isLoading]);
 
   // Handle outside click to close dropdown (Refined)
   useEffect(() => {

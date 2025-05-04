@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import mobile optimizations */
+@import './mobile-optimizations.css';
+
 @layer base {
   :root {
     --color-primary: 25 59 103; /* Navy Blue */
@@ -16,23 +19,97 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-serif;
   }
+
+  /* Optimize form elements for touch */
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"],
+  input[type="number"],
+  select,
+  textarea {
+    @apply h-12 px-4 py-2 text-base border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary w-full;
+    font-size: 16px !important; /* Prevent iOS zoom */
+  }
+
+  /* Improve checkbox/radio touch targets */
+  input[type="checkbox"],
+  input[type="radio"] {
+    @apply h-5 w-5;
+    min-width: 20px;
+    min-height: 20px;
+  }
+  
+  /* Labels for form controls */
+  label {
+    @apply mb-1 block text-sm font-medium text-slate-700;
+  }
+
+  @media (max-width: 640px) {
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"],
+    select,
+    textarea {
+      @apply h-14 px-4 py-3 text-base;
+    }
+
+    input[type="checkbox"],
+    input[type="radio"] {
+      @apply h-6 w-6;
+      min-width: 24px;
+      min-height: 24px;
+    }
+  }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-primary text-white px-6 py-3 rounded-md font-medium hover:bg-primary/90 transition-colors;
+    @apply bg-primary text-white px-6 py-3 rounded-md font-medium hover:bg-primary/90 transition-colors min-h-[48px] min-w-[120px] text-center flex items-center justify-center touch-manipulation;
   }
   
   .btn-secondary {
-    @apply bg-secondary text-white px-6 py-3 rounded-md font-medium hover:bg-secondary/90 transition-colors;
+    @apply bg-secondary text-white px-6 py-3 rounded-md font-medium hover:bg-secondary/90 transition-colors min-h-[48px] min-w-[120px] text-center flex items-center justify-center touch-manipulation;
   }
   
   .btn-outline {
-    @apply border border-primary text-primary px-6 py-3 rounded-md font-medium hover:bg-primary/10 transition-colors;
+    @apply border border-primary text-primary px-6 py-3 rounded-md font-medium hover:bg-primary/10 transition-colors min-h-[48px] min-w-[120px] text-center flex items-center justify-center touch-manipulation;
+  }
+  
+  /* Mobile-optimized button variants */
+  @media (max-width: 640px) {
+    .btn-primary, .btn-secondary, .btn-outline {
+      @apply px-5 py-4 text-base w-full;
+    }
   }
 
   .container-custom {
     @apply container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl;
+  }
+  
+  /* Mobile optimized form layouts */
+  @media (max-width: 640px) {
+    /* Stacked form groups */
+    .form-group {
+      @apply flex flex-col gap-4 mb-6;
+    }
+    
+    /* Full width on mobile */
+    .form-row {
+      @apply grid grid-cols-1 gap-4;
+    }
+    
+    /* Improved spacing for small screens */
+    .form-section {
+      @apply bg-slate-50 p-6 rounded-lg mb-8 relative;
+    }
+    
+    /* Sticky form navigation */
+    .form-nav-sticky {
+      @apply sticky bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 z-10 flex justify-between;
+    }
   }
 
   /* Custom styles for phone input */

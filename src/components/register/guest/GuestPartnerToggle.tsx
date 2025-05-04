@@ -1,26 +1,20 @@
 import React from 'react';
 
 interface GuestPartnerToggleProps {
-  hasPartner: boolean;
-  onToggle: () => void;
+  onAdd: () => void;
 }
 
 const GuestPartnerToggle: React.FC<GuestPartnerToggleProps> = ({
-  hasPartner,
-  onToggle
+  onAdd,
 }) => {
   return (
-    <div className="mt-6 border-t border-slate-200 pt-4 flex justify-center">
+    <div className="mb-6 flex justify-center">
       <button
         type="button"
-        onClick={onToggle}
-        className={`py-2 px-6 rounded-md flex items-center justify-center font-medium transition-colors ${
-          hasPartner 
-            ? 'bg-white border-2 border-secondary text-primary' 
-            : 'bg-secondary text-white'
-        }`}
+        onClick={onAdd}
+        className="py-2 px-6 rounded-md flex items-center justify-center font-medium transition-colors bg-secondary text-white hover:bg-secondary/90"
       >
-        {hasPartner ? 'Remove Partner' : 'Register Partner'}
+        Register Partner
       </button>
     </div>
   );

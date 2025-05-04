@@ -1,13 +1,15 @@
 import React from 'react';
 import { User, Users } from 'lucide-react';
 import { MasonData, LadyPartnerData, GuestData, GuestPartnerData } from '../../../shared/types/register';
+import { AttendeeData as UnifiedAttendeeData } from '../../../lib/api/registrations';
 
 interface AttendeeType {
   type: 'mason' | 'ladyPartner' | 'guest' | 'guestPartner';
-  index: number;
+  index: number | string; // Can be numeric index (old format) or attendeeId string (new format)
+  id?: string; // The attendeeId field when using new format
   name: string;
   title: string;
-  data: MasonData | LadyPartnerData | GuestData | GuestPartnerData;
+  data: MasonData | LadyPartnerData | GuestData | GuestPartnerData | UnifiedAttendeeData;
   relatedTo?: string;
 }
 
