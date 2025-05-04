@@ -1,7 +1,9 @@
 import React from 'react';
 import { FormState, TicketType } from '../../../shared/types/register';
+import { TicketDefinitionType } from '../../../shared/types/ticket';
 import { events } from '../../../shared/data/events';
 import { AttendeeData } from '../../../lib/api/registrations';
+import { useRegistrationStore } from '../../../store/registrationStore';
 
 // Define the structure for the flattened attendee list passed from the parent
 interface AttendeeItem {
@@ -16,27 +18,29 @@ interface AttendeeItem {
 interface TicketingSummaryProps {
   formState: FormState;
   allAttendees: AttendeeItem[];
-  availableTickets: TicketType[];
+  // Support both ticket types for backward compatibility
+  availableTickets: (TicketType | TicketDefinitionType)[];
 }
 
 // Helper Utilities
 const ticketUtils = {
   // Helper to get friendly ticket name
-  getTicketName: (ticketId: string | undefined, availableTickets: TicketType[]): string => {
+  getTicketName: (ticketId: string | undefined, availableTickets: (TicketType | TicketDefinitionType)[]): string => {
     if (!ticketId) return "";
     const ticket = availableTickets.find(t => t.id === ticketId);
     return ticket?.name || "Unknown Ticket";
   },
 
-  // Helper to get ticket price
-  getTicketPrice: (ticketId: string | undefined, availableTickets: TicketType[]): number => {
+  // Helper to get ticket price - price is now required by the database schema
+  getTicketPrice: (ticketId: string | undefined, availableTickets: (TicketType | TicketDefinitionType)[]): number => {
     if (!ticketId) return 0;
     const ticket = availableTickets.find(t => t.id === ticketId);
+    // Since price is required in the updated schema, we can confidently return the price
     return ticket?.price || 0;
   },
 
   // Calculate the total price for all attendees
-  calculateTotalPrice: (attendees: AttendeeItem[], availableTickets: TicketType[]): number => {
+  calculateTotalPrice: (attendees: AttendeeItem[], availableTickets: (TicketType | TicketDefinitionType)[]): number => {
     let total = 0;
     
     attendees.forEach(attendee => {
@@ -50,40 +54,41 @@ const ticketUtils = {
   }
 };
 
-const TicketingSummary: React.FC<TicketingSummaryProps> = ({ formState, allAttendees, availableTickets }) => {
-  // Create a sorted list that keeps related attendees together
-  const sortedAttendees = [...(formState.attendees || [])].sort((a, b) => {
+const TicketingSummary: React.FC = () => {
+  // Access state from the registration store
+  const { attendees, availableTickets } = useRegistrationStore(state => ({
+    attendees: state.attendees,
+    availableTickets: state.availableTickets || [] // Ensure this is correctly defined in the store
+  }));
+
+  // Correct type comparisons
+  const sortedAttendees = [...attendees].sort((a, b) => {
     // Primary mason first
-    if (a.attendeeType === 'Mason' && a.isPrimary) return -1;
-    if (b.attendeeType === 'Mason' && b.isPrimary) return 1;
+    if (a.attendeeType === 'mason' && a.isPrimary) return -1;
+    if (b.attendeeType === 'mason' && b.isPrimary) return 1;
 
     // For partners, always keep them right after their related attendee
-    // First, identify if b is a partner of a
-    if ((b.attendeeType === 'LadyPartner' || b.attendeeType === 'GuestPartner') && 
+    if ((b.attendeeType === 'lady_partner' || b.attendeeType === 'guest_partner') && 
         b.relatedAttendeeId === a.attendeeId) {
       return -1; // a should come before b
     }
     
-    // Then, identify if a is a partner of b
-    if ((a.attendeeType === 'LadyPartner' || a.attendeeType === 'GuestPartner') && 
+    if ((a.attendeeType === 'lady_partner' || a.attendeeType === 'guest_partner') && 
         a.relatedAttendeeId === b.attendeeId) {
       return 1; // b should come before a
     }
     
-    // If no direct relationship, maintain original order in the array
-    // This assumes attendees are added to the array in the order they're created
-    return (formState.attendees?.findIndex(att => att.attendeeId === a.attendeeId) || 0) - 
-          (formState.attendees?.findIndex(att => att.attendeeId === b.attendeeId) || 0);
+    return (attendees.findIndex(att => att.attendeeId === a.attendeeId)) - 
+           (attendees.findIndex(att => att.attendeeId === b.attendeeId));
   });
 
   // Map the sorted AttendeeData to the AttendeeItem format expected
   const displayAttendees = sortedAttendees.map(attendee => {
-    const isPartner = attendee.attendeeType === 'LadyPartner' || attendee.attendeeType === 'GuestPartner';
+    const isPartner = attendee.attendeeType === 'lady_partner' || attendee.attendeeType === 'guest_partner';
     let relatedTo = '';
     
-    // Find related person for partners
     if (isPartner && attendee.relatedAttendeeId) {
-      const relatedAttendee = formState.attendees?.find(a => 
+      const relatedAttendee = attendees.find(a => 
         a.attendeeId === attendee.relatedAttendeeId
       );
       

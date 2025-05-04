@@ -1,349 +1,169 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import MasonForm from './MasonForm';
 import GuestForm from './GuestForm';
-import { FormState, MasonData, GuestData, LadyPartnerData, GuestPartnerData, AttendeeType, AttendeeTicket } from '../../shared/types/register';
+import { MasonData, GuestData, LadyPartnerData, GuestPartnerData, AttendeeTicket } from '../../shared/types/register';
 import AddRemoveControl from './AddRemoveControl';
 import { AttendeeData as UnifiedAttendeeData } from '../../lib/api/registrations';
+import { useRegistrationStore, RegistrationType, UnifiedAttendeeData as StoreUnifiedAttendeeData } from '../../store/registrationStore';
+import { PlusCircle, UserMinus } from 'lucide-react';
+import TermsAndConditions from './TermsAndConditions.tsx';
 
 interface AttendeeDetailsProps {
-  formState: FormState;
-  updateFormField: (field: string, value: unknown) => void;
-  updateMasonField: (id: string, field: string, value: string | boolean) => void;
-  updateGuestField: (id: string, field: string, value: string | boolean) => void;
-  updateLadyPartnerField: (id: string, field: string, value: string | boolean) => void;
-  updateGuestPartnerField?: (id: string, field: string, value: string | boolean) => void;
-  toggleSameLodge: (id: string, checked: boolean) => void;
-  toggleHasLadyPartner: (masonId: string, checked: boolean) => void;
-  toggleGuestHasPartner?: (guestId: string, checked: boolean) => void;
-  addMason: () => void;
-  removeMasonById: (id: string) => void;
-  addGuest: () => void;
-  removeGuestById: (id: string) => void;
+  agreeToTerms: boolean;
+  onAgreeToTermsChange: (agreed: boolean) => void;
   nextStep: () => void;
   prevStep: () => void;
+  validationErrors: string[];
 }
 
 const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
-  formState,
-  updateFormField,
-  updateMasonField,
-  updateGuestField,
-  updateLadyPartnerField,
-  updateGuestPartnerField,
-  toggleSameLodge,
-  toggleHasLadyPartner,
-  toggleGuestHasPartner,
-  addMason,
-  removeMasonById,
-  addGuest,
-  removeGuestById,
+  agreeToTerms,
+  onAgreeToTermsChange,
   nextStep,
-  prevStep
+  prevStep,
+  validationErrors,
 }) => {
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const {
+    attendees,
+    addAttendee,
+    removeAttendee,
+    updateAttendee,
+    setRegistrationType,
+    registrationType,
+    addPrimaryAttendee
+  } = useRegistrationStore();
 
-  // Find the primary mason from the unified attendees array
-  const primaryMasonData = useMemo(() => 
-    formState.attendees?.find(att => att.attendeeType === 'Mason' && att.isPrimary)
-  , [formState.attendees]);
+  const [showErrors, setShowErrors] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
-  // Find lady partner data using relatedAttendeeId (use unified attendees)
-  const findLadyPartnerForMason = useCallback((masonId: string): UnifiedAttendeeData | undefined => {
-    const partner = formState.attendees?.find(att => att.attendeeType === 'LadyPartner' && att.relatedAttendeeId === masonId);
-    return partner;
-  }, [formState.attendees]); 
+  const hasPrimaryAttendee = attendees.some(att => att.isPrimary);
+  const primaryMasonOrGuest = attendees.find(att => att.isPrimary);
 
-  // Find partner data using guestId (use unified attendees)
-  const findPartnerForGuest = useCallback((guestId: string): UnifiedAttendeeData | undefined => {
-    const partner = formState.attendees?.find(att => att.attendeeType === 'GuestPartner' && att.relatedAttendeeId === guestId);
-    return partner;
-  }, [formState.attendees]);
+  const handleAddMason = () => {
+      const typeToAdd = registrationType === 'lodge' ? 'lodge_contact' : 
+                       registrationType === 'delegation' ? 'delegation_contact' : 'mason';
+      addAttendee({ 
+          attendeeType: typeToAdd, 
+          isPrimary: attendees.length === 0, 
+          firstName:'', lastName:'' 
+      } as Omit<StoreUnifiedAttendeeData, 'attendeeId'>);
+  };
 
-  // Log form state changes to debug partner connections - with reduced frequency
-  useEffect(() => {
-    // Only log in development and with reduced frequency to avoid console spam
-    if (process.env.NODE_ENV === 'development' && Math.random() < 0.2) {
-      // Log based on unified attendees array
-      const partnerCounts = (formState.attendees || []).reduce((acc, att) => {
-        if (att.attendeeType === 'LadyPartner') acc.ladyPartners++;
-        if (att.attendeeType === 'GuestPartner') acc.guestPartners++;
-        return acc;
-      }, { ladyPartners: 0, guestPartners: 0 });
+  const handleAddGuest = () => {
+      addAttendee({ 
+          attendeeType: 'guest', 
+          isPrimary: attendees.length === 0, 
+          firstName:'', lastName:'' 
+      } as Omit<StoreUnifiedAttendeeData, 'attendeeId'>);
+  };
 
-      console.log("Form state updated with partners:", {
-        ladyPartners: partnerCounts.ladyPartners,
-        guestPartners: partnerCounts.guestPartners
-      });
-    }
-  // Update dependency to attendees array
-  }, [formState.attendees]); 
-
-  // *** Validation Helpers Refactored (where necessary) ***
-  
-  // Assuming validatePrimaryMason, validateAdditionalMason, validateGuest 
-  // primarily validate fields present on UnifiedAttendeeData and only receive one attendee at a time,
-  // they might not need significant changes beyond using attendeeId prefix.
-  // However, validateLadyPartner and validateGuestPartner need refactoring 
-  // because they receive the related Mason/Guest which needs to be looked up differently.
-
-  const validatePrimaryMason = useCallback((mason: UnifiedAttendeeData): Record<string, string> => {
-    const errors: Record<string, string> = {};
-    const prefix = `attendee-${mason.attendeeId}`;
-    // Example checks (ensure these fields exist or add guards)
-    if (!mason.title) errors[`${prefix}-title`] = `Masonic Title is required`;
-    if (!mason.firstName) errors[`${prefix}-firstName`] = `First Name is required`;
-    // ... add all other necessary checks for primary mason ...
-    return errors;
-  }, []);
-  
-  const validateAdditionalMason = useCallback((mason: UnifiedAttendeeData): Record<string, string> => {
-    const errors: Record<string, string> = {};
-    // ... add all necessary checks for additional mason ...
-    return errors;
-  }, []);
-  
-  const validateGuest = useCallback((guest: UnifiedAttendeeData): Record<string, string> => {
-    const errors: Record<string, string> = {};
-    // ... add all necessary checks for guest ...
-    return errors;
-  }, []);
-
-  // Refactored validateLadyPartner
-  const validateLadyPartner = useCallback((partner: UnifiedAttendeeData, allAttendees: UnifiedAttendeeData[]): Record<string, string> => {
-    const errors: Record<string, string> = {};
-    const relatedMason = allAttendees.find(att => att.attendeeId === partner.relatedAttendeeId && att.attendeeType === 'Mason');
-    const relatedMasonName = relatedMason ? `${relatedMason.firstName || ''} ${relatedMason.lastName || ''}`.trim() : `Related Mason`;
-    const partnerLabel = `Partner of ${relatedMasonName}`;
-    const partnerName = `${partner.firstName || partnerLabel} ${partner.lastName || ''}`.trim();
-    const prefix = `attendee-${partner.attendeeId}`; 
-
-    if (!partner.title) errors[`${prefix}-title`] = `Title is required for ${partnerName}`;
-    if (!partner.firstName) errors[`${prefix}-firstName`] = `First Name is required for ${partnerLabel}`;
-    // ... add other partner validation checks ...
-    if (!partner.relationship || partner.relationship === 'Please Select') errors[`${prefix}-relationship`] = `Relationship is required for ${partnerName}`;
-    // ... contact preference checks ...
-
-    return errors;
-  }, []);
-
-  // Refactored validateGuestPartner
-  const validateGuestPartner = useCallback((partner: UnifiedAttendeeData, allAttendees: UnifiedAttendeeData[]): Record<string, string> => {
-    const errors: Record<string, string> = {};
-    const relatedGuest = allAttendees.find(att => att.attendeeId === partner.relatedAttendeeId && att.attendeeType === 'Guest');
-    const relatedGuestName = relatedGuest ? `${relatedGuest.firstName || ''} ${relatedGuest.lastName || ''}`.trim() : `Related Guest`;
-    const partnerLabel = `Partner of ${relatedGuestName}`;
-    const partnerName = `${partner.firstName || partnerLabel} ${partner.lastName || ''}`.trim();
-    const prefix = `attendee-${partner.attendeeId}`; 
-    
-    if (!partner.title) errors[`${prefix}-title`] = `Title is required for ${partnerName}`;
-    if (!partner.firstName) errors[`${prefix}-firstName`] = `First Name is required for ${partnerLabel}`;
-    // ... add other partner validation checks ...
-     if (!partner.relationship || partner.relationship === 'Please Select') errors[`${prefix}-relationship`] = `Relationship is required for ${partnerName}`;
-     // ... contact preference checks ...
-
-    return errors;
-  }, []);
-
-  // Main validation function - Refactored
-  const validateStep2 = useCallback((): Record<string, string> => {
-    let combinedErrors: Record<string, string> = {};
-    const attendees = formState.attendees || [];
-    const agreeToTerms = formState.agreeToTerms;
-
-    attendees.forEach(attendee => {
-      if (attendee.attendeeType === 'Mason') {
-        if (attendee.isPrimary) {
-          combinedErrors = { ...combinedErrors, ...validatePrimaryMason(attendee) };
-        } else {
-          combinedErrors = { ...combinedErrors, ...validateAdditionalMason(attendee) };
-        }
-      } else if (attendee.attendeeType === 'Guest') {
-        combinedErrors = { ...combinedErrors, ...validateGuest(attendee) };
-      } else if (attendee.attendeeType === 'LadyPartner') {
-        combinedErrors = { ...combinedErrors, ...validateLadyPartner(attendee, attendees) };
-      } else if (attendee.attendeeType === 'GuestPartner') {
-        combinedErrors = { ...combinedErrors, ...validateGuestPartner(attendee, attendees) };
-      }
-    });
-
-    if (!agreeToTerms) combinedErrors['terms'] = 'You must agree to the Terms and Conditions';
-    return combinedErrors;
-  }, [formState.attendees, formState.agreeToTerms, validatePrimaryMason, validateAdditionalMason, validateGuest, validateLadyPartner, validateGuestPartner]);
-
-  useEffect(() => {
-    if (!formState.agreeToTerms) {
-      setValidationErrors({});
-    } else {
-      setValidationErrors({});
-    }
-  }, [formState.agreeToTerms]);
-
-  const handleNext = () => {
-    const errors = validateStep2();
-    setValidationErrors(errors);
-    if (Object.keys(errors).length === 0) {
-        nextStep();
-    } else {
-        const errorElement = document.getElementById('validation-errors');
-        errorElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const handleContinue = () => {
+    setShowErrors(true);
+    if (validationErrors.length === 0) {
+      nextStep();
     }
   };
 
+  const canAddMason = registrationType === 'individual' || registrationType === 'lodge' || registrationType === 'delegation';
+  const canAddGuest = registrationType === 'individual';
+  const addMasonButtonLabel = registrationType === 'lodge' ? 'Add Lodge Contact' : 
+                             registrationType === 'delegation' ? 'Add Delegation Contact' : 'Add Mason';
+
+  console.log('[AttendeeDetails] Rendering with attendees from STORE:', JSON.stringify(attendees, null, 2));
+
+  useEffect(() => {
+    if (attendees.length === 0) {
+      console.log("[AttendeeDetails] Attendees array is empty, calling addPrimaryAttendee.");
+      addPrimaryAttendee();
+    }
+  }, [attendees, addPrimaryAttendee]);
+
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Attendee Details</h2>
-
-      {/* Mason Attendee - Primary */}
-      {primaryMasonData && (
-        <MasonForm
-          // Pass the primary mason data found from attendees array
-          mason={primaryMasonData as any} // Cast needed as MasonForm expects old type
-          id={primaryMasonData.attendeeId}
-          // Update functions likely need refactoring to use attendeeId
-          onChange={updateMasonField as any} 
-          isPrimary={true}
-          onToggleHasLadyPartner={(checked: boolean) => toggleHasLadyPartner(primaryMasonData.attendeeId, checked)}
-          // Pass the found partner data (already UnifiedAttendeeData)
-          ladyPartnerData={findLadyPartnerForMason(primaryMasonData.attendeeId) as any} // Cast needed
-          updateLadyPartnerField={updateLadyPartnerField as any}
-          // Pass primaryMasonData itself
-          primaryMasonData={primaryMasonData as any} // Cast needed
-          attendeeNumber={1}
-        />
-      )}
-
-      {/* Render Additional Masons and Guests based on attendeeAddOrder */}
-      {formState.attendeeAddOrder?.map((orderItem, displayIndex) => {
-        // Find attendee using id from orderItem, ensure orderItem is object
-        const attendeeId = typeof orderItem === 'object' ? orderItem.id : null;
-        if (!attendeeId) return null; // Skip if orderItem is not the expected object
-        
-        const attendee = formState.attendees?.find(att => att.attendeeId === attendeeId);
-        if (!attendee) return null; 
-
-        // Compare attendeeType using string literals
-        if (attendee.attendeeType === 'Mason' && !attendee.isPrimary) {
-            const actualAttendeeNumber = (formState.attendees?.filter(a => a.attendeeType === 'Mason').findIndex(m => m.attendeeId === attendee.attendeeId) ?? 0) + 1;
-            return (
-              <MasonForm
-                key={attendee.attendeeId}
-                mason={attendee as any} // Cast needed
-                id={attendee.attendeeId}
-                onChange={updateMasonField as any}
-                // isSameLodgeAsFirst={attendee.sameLodgeAsPrimary} // Property might not exist
-                onToggleSameLodge={(checked: boolean) => toggleSameLodge(attendee.attendeeId, checked)} // toggleSameLodge might be removed/refactored
-                onToggleHasLadyPartner={(checked: boolean) => toggleHasLadyPartner(attendee.attendeeId, checked)}
-                ladyPartnerData={findLadyPartnerForMason(attendee.attendeeId) as any} // Cast needed
-                updateLadyPartnerField={updateLadyPartnerField as any}
-                primaryMasonData={primaryMasonData as any} // Pass found primary mason
-                onRemove={() => removeMasonById(attendee.attendeeId)}
-                attendeeNumber={actualAttendeeNumber}
-              />
-            );
-        } else if (attendee.attendeeType === 'Guest') {
-            const actualAttendeeNumber = (formState.attendees?.filter(a => a.attendeeType === 'Guest').findIndex(g => g.attendeeId === attendee.attendeeId) ?? 0) + 1;
-            return (
-              <GuestForm
-                key={attendee.attendeeId}
-                guest={attendee as any} // Cast needed
-                id={attendee.attendeeId}
-                onChange={updateGuestField as any}
-                onToggleHasPartner={(checked: boolean) => toggleGuestHasPartner && toggleGuestHasPartner(attendee.attendeeId, checked)}
-                partnerData={findPartnerForGuest(attendee.attendeeId) as any} // Cast needed
-                updatePartnerField={updateGuestPartnerField as any}
-                primaryMasonData={primaryMasonData as any} // Pass found primary mason
-                onRemove={() => removeGuestById(attendee.attendeeId)}
-                attendeeNumber={actualAttendeeNumber}
-              />
-            );
-        }
-        // Note: Rendering for LadyPartner and GuestPartner happens within MasonForm/GuestForm
-        return null;
+      <h2 className="text-2xl font-semibold mb-6 text-gray-800">Attendee Details</h2>
+      
+      {attendees.map((attendee, index) => {
+          console.log(`[AttendeeDetails] Mapping attendee ${index}:`, JSON.stringify(attendee, null, 2));
+          if (['mason', 'individual', 'lodge_contact', 'delegation_contact', 'delegation_member'].includes(attendee.attendeeType)) { 
+              console.log(`[AttendeeDetails] Rendering MasonForm for attendeeId: ${attendee.attendeeId}`);
+              return (
+                  <MasonForm
+                      key={attendee.attendeeId}
+                      attendeeId={attendee.attendeeId}
+                      attendeeNumber={index + 1}
+                      isPrimary={!!attendee.isPrimary}
+                  />
+              );
+          } else if (attendee.attendeeType === 'guest') {
+              console.log(`[AttendeeDetails] Rendering GuestForm for attendeeId: ${attendee.attendeeId}`);
+              return (
+                  <GuestForm
+                      key={attendee.attendeeId}
+                      attendeeId={attendee.attendeeId}
+                      attendeeNumber={index + 1}
+                      isPrimary={!!attendee.isPrimary}
+                  />
+              );
+          } else if (attendee.attendeeType === 'lady_partner' || attendee.attendeeType === 'guest_partner'){
+              console.log(`[AttendeeDetails] Skipping partner form render for attendeeId: ${attendee.attendeeId}`);
+              return null;
+          }
+          console.warn(`[AttendeeDetails] Unknown attendee type encountered: ${attendee.attendeeType} for attendeeId: ${attendee.attendeeId}`);
+          return <div key={attendee.attendeeId}>Unknown attendee type: {attendee.attendeeType}</div>;
       })}
 
-      {/* Add/Remove, T&C, and Buttons sections */}
-      <div className="mt-8 pt-6 space-y-6">
-        {/* Add/Remove Controls - Update counts based on attendees array */}
-        <div className="flex items-center gap-4">
-          <AddRemoveControl
-            label="Mason"
-            // Count using unified array
-            count={formState.attendees?.filter(att => att.attendeeType === 'Mason').length ?? 0}
-            onAdd={addMason}
-            onRemove={() => {
-                // Find last added non-primary Mason ID
-                const lastMason = [...(formState.attendees || [])].reverse().find(att => att.attendeeType === 'Mason' && !att.isPrimary);
-                if (lastMason) removeMasonById(lastMason.attendeeId);
-            }}
-            min={1} 
-            max={10}
-          />
-          <AddRemoveControl
-            label="Guest"
-            // Count using unified array
-            count={formState.attendees?.filter(att => att.attendeeType === 'Guest').length ?? 0}
-            onAdd={addGuest}
-            onRemove={() => {
-                const lastGuest = [...(formState.attendees || [])].reverse().find(att => att.attendeeType === 'Guest');
-                if (lastGuest) removeGuestById(lastGuest.attendeeId);
-            }}
-            min={0}
-            max={10}
-          />
-        </div>
-
-        {/* T&C Checkbox Section */}
-        <div className="flex items-start">
-          <div className="flex items-center h-5">
-            <input
-              type="checkbox"
-              id="agreeToTerms"
-              checked={formState.agreeToTerms}
-              onChange={(e) => updateFormField('agreeToTerms', e.target.checked)}
-              required
-              className="h-5 w-5 text-primary border-slate-300 rounded focus:ring-primary"
-            />
-          </div>
-          <div className="ml-3 text-sm">
-            <label htmlFor="agreeToTerms" className="font-medium text-slate-700">
-              I agree to the Terms and Conditions *
-            </label>
-            <p className="text-slate-500 text-xs mt-1">
-              I understand that by registering I agree to the cancellation policy and privacy terms.
-            </p>
-          </div>
-        </div>
-
-        {/* Validation Error Display */}
-        {Object.keys(validationErrors).length > 0 && (
-          <div id="validation-errors" className="p-4 bg-red-50 border border-red-200 rounded-md text-red-800">
-            <h4 className="font-bold mb-2">There {Object.keys(validationErrors).length === 1 ? 'was 1 error' : `were ${Object.keys(validationErrors).length} errors`} with your submission:</h4>
-            <ul className="list-disc list-inside text-sm space-y-1">
-              {Object.entries(validationErrors).map(([key, error]) => (
-                <li key={key}>{error}</li>
-              ))}
-            </ul>
-          </div>
+      <div className="flex space-x-4 my-6">
+        {canAddMason && (
+          <button
+            type="button"
+            onClick={handleAddMason}
+            className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
+          >
+            <PlusCircle className="w-5 h-5 mr-2" /> {addMasonButtonLabel}
+          </button>
         )}
+        {canAddGuest && (
+          <button
+            type="button"
+            onClick={handleAddGuest}
+            className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+          >
+            <PlusCircle className="w-5 h-5 mr-2" /> Add Guest
+          </button>
+        )}
+      </div>
 
-        {/* Button Section */}
-        <div className="flex justify-between">
-          <button
-            type="button"
-            onClick={prevStep}
-            className="btn-outline"
-          >
-            Back to Registration Type
-          </button>
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={!formState.agreeToTerms || Object.keys(validationErrors).length > 0}
-            className={`btn-primary ${!formState.agreeToTerms || Object.keys(validationErrors).length > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            Continue to Select Tickets
-          </button>
+      <div className="mt-8 p-4 border border-slate-200 rounded-md bg-slate-50">
+          <TermsAndConditions 
+              checked={agreeToTerms} 
+              onChange={onAgreeToTermsChange}
+          />
+      </div>
+
+      {showErrors && validationErrors.length > 0 && (
+        <div className="mt-6 bg-red-50 p-4 rounded-md border border-red-100">
+          <h3 className="text-sm font-medium text-red-800">Please correct the following errors:</h3>
+          <ul className="mt-2 text-sm text-red-700 list-disc list-inside space-y-1">
+            {validationErrors.map((error, index) => <li key={index}>{error}</li>)}
+          </ul>
         </div>
+      )}
+
+      <div className="flex justify-between mt-8">
+        <button
+          type="button"
+          onClick={prevStep}
+          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={handleContinue}
+          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+        >
+          Continue to Ticket Selection
+        </button>
       </div>
     </div>
   );

@@ -13,8 +13,9 @@ export interface EventType {
   description: string | null;
   location: string | null;
   type: string | null;             // Event category (e.g., 'Ceremony', 'Social')
-  price: number | null;
-  maxAttendees: number | null;     // Capacity
+  // price and maxAttendees removed from database schema
+  // Pricing now comes from ticket_definitions table
+  // Capacity now handled separately
   featured: boolean | null;        // Featured on homepage/listings
   imageUrl: string | null;         // URL for the event image
 

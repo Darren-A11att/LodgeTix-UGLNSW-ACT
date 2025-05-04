@@ -69,8 +69,6 @@ export function formatEventForDisplay(dbEvent: DbEvent): EventType {
     description: dbEvent.description,
     location: dbEvent.location,
     type: dbEvent.type,
-    price: dbEvent.price,
-    maxAttendees: dbEvent.maxAttendees,
     featured: dbEvent.featured,
     imageUrl: dbEvent.imageUrl,
     isMultiDay: dbEvent.isMultiDay, // Keep for now, might be derivable

@@ -1,150 +1,92 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { MasonData, LadyPartnerData, GuestData, GuestPartnerData, FormState } from '../../shared/types/register';
+import { FormState } from '../../shared/types/register';
+import { AttendeeData as UnifiedAttendeeData } from '../../lib/api/registrations';
 import { X, AlertTriangle } from 'lucide-react';
 import MasonForm from './MasonForm';
 import GuestForm from './GuestForm';
 
-// Define AttendeeData type alias locally for clarity
-type AttendeeData = MasonData | LadyPartnerData | GuestData | GuestPartnerData;
-
-type FieldValue = string | boolean | number | undefined; // Define shared type for field values
+type FieldValue = string | boolean | number | undefined | null; // Allow null
 
 interface AttendeeEditModalProps {
-  attendeeType: 'mason' | 'ladyPartner' | 'guest' | 'guestPartner';
-  attendeeIndex: number;
+  attendeeId: string;
   formState: FormState;
   onClose: () => void;
-  updateMasonField: (index: number, field: string, value: FieldValue) => void;
-  updateGuestField: (index: number, field: string, value: FieldValue) => void;
-  updateLadyPartnerField: (index: number, field: string, value: FieldValue) => void;
-  updateGuestPartnerField: (index: number, field: string, value: FieldValue) => void;
-  toggleSameLodge: (index: number, checked: boolean) => void;
-  toggleHasLadyPartner: (index: number, checked: boolean) => void;
-  toggleGuestHasPartner: (index: number, checked: boolean) => void;
+  updateAttendeeField: (attendeeId: string, field: keyof UnifiedAttendeeData, value: any) => void;
 }
 
 const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
-  attendeeType,
-  attendeeIndex,
+  attendeeId,
   formState,
   onClose,
-  updateMasonField,
-  updateGuestField,
-  updateLadyPartnerField,
-  updateGuestPartnerField,
-  toggleSameLodge,
-  toggleHasLadyPartner,
-  toggleGuestHasPartner,
+  updateAttendeeField,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const modalContentRef = useRef<HTMLDivElement>(null);
 
   // --- State Management ---
-  // Load initial data *unconditionally* using useState initializer
-  const [initialData] = useState<AttendeeData | null>(() => {
-     switch(attendeeType) {
-          case 'mason': return formState.masons[attendeeIndex];
-          case 'ladyPartner': return formState.ladyPartners[attendeeIndex];
-          case 'guest': return formState.guests[attendeeIndex];
-          case 'guestPartner': return formState.guestPartners[attendeeIndex];
-          default: return null;
-      }
+  const [initialData] = useState<UnifiedAttendeeData | null>(() => {
+     return formState.attendees.find(att => att.attendeeId === attendeeId) || null;
   });
-  const [editedData, setEditedData] = useState<AttendeeData | null>(initialData);
+  const [editedData, setEditedData] = useState<UnifiedAttendeeData | null>(initialData);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [showUnsavedConfirmAlert, setShowUnsavedConfirmAlert] = useState<boolean>(false);
 
+  // Get attendeeType from the data itself
+  const attendeeType = editedData?.attendeeType.toLowerCase() as 'mason' | 'ladypartner' | 'guest' | 'guestpartner' | undefined;
+
   // --- Change Tracking & Handling (Memoized) ---
-  const checkChanges = useCallback((newData: AttendeeData | null): boolean => {
-      if (!initialData || !newData) return false; // Use initialData state
-      for (const key in newData) {
-          if (newData[key as keyof AttendeeData] !== initialData[key as keyof AttendeeData]) {
-             return true;
+  const checkChanges = useCallback((newData: UnifiedAttendeeData | null): boolean => {
+      if (!initialData || !newData) return false;
+      for (const key in initialData) {
+          if (initialData.hasOwnProperty(key)) {
+              const typedKey = key as keyof UnifiedAttendeeData;
+              if (typedKey === 'ticket' && initialData.ticket && newData.ticket) {
+                  if (initialData.ticket.ticketDefinitionId !== newData.ticket.ticketDefinitionId) {
+                      return true;
+                  }
+              } else if (initialData[typedKey] !== newData[typedKey]) {
+                 return true;
+              }
           }
       }
       return false;
-  }, [initialData]); // Depend on initialData state
+  }, [initialData]);
 
-  const handleLocalChange = useCallback((index: number, field: string, value: FieldValue) => {
+  const handleLocalChange = useCallback((_attendeeId: string, field: keyof UnifiedAttendeeData, value: FieldValue) => {
     setEditedData(prevData => {
-      if (!prevData || index !== attendeeIndex) return prevData;
-      const newData = { ...prevData, [field]: value };
-
+      if (!prevData) return prevData;
+      const newData: UnifiedAttendeeData = { 
+        ...prevData, 
+        [field]: value 
+      };
       const changed = checkChanges(newData);
       setHasUnsavedChanges(changed);
       return newData;
     });
-  }, [attendeeIndex, checkChanges]);
-
-  const handleLocalToggleSameLodge = useCallback((checked: boolean) => {
-     setEditedData(prev => {
-        if (!prev || attendeeType !== 'mason') return prev;
-        const newData = { ...(prev as MasonData), sameLodgeAsPrimary: checked };
-        const changed = checkChanges(newData);
-        setHasUnsavedChanges(changed);
-        return newData;
-     });
-  }, [attendeeType, checkChanges]); 
+  }, [checkChanges]);
 
   // --- Save Logic (Memoized) ---
   const performActualSave = useCallback(() => {
-    if (!editedData) return;
-    // Choose the correct update function based on attendee type
-    let updateFn: (index: number, field: string, value: FieldValue) => void;
-    let keysToSkip: string[] = ['id', 'ticket']; // Base keys to skip
+    if (!editedData || !initialData) return;
 
-    switch(attendeeType) {
-      case 'mason':
-        updateFn = updateMasonField;
-        // Skip fields managed by specific toggles or complex objects
-        keysToSkip = [...keysToSkip, 'hasLadyPartner', 'ladyPartnerData', 'sameLodgeAsPrimary']; 
-        break;
-      case 'guest':
-        updateFn = updateGuestField;
-        keysToSkip = [...keysToSkip, 'hasPartner', 'partnerData'];
-        break;
-      case 'ladyPartner':
-        updateFn = updateLadyPartnerField;
-        keysToSkip = [...keysToSkip, 'masonIndex', 'contactConfirmed'];
-        break;
-      case 'guestPartner':
-        updateFn = updateGuestPartnerField;
-        keysToSkip = [...keysToSkip, 'guestIndex', 'contactConfirmed'];
-        break;
-      default:
-        return; // Should not happen
-    }
+    for (const key in editedData) {
+        if (editedData.hasOwnProperty(key)) {
+            const typedKey = key as keyof UnifiedAttendeeData;
+            let valueChanged = false;
+            if (typedKey === 'ticket' && initialData.ticket && editedData.ticket) {
+                valueChanged = initialData.ticket.ticketDefinitionId !== editedData.ticket.ticketDefinitionId;
+            } else {
+                valueChanged = initialData[typedKey] !== editedData[typedKey];
+            }
 
-    // Iterate through the locally edited data and update the main form state
-    Object.entries(editedData).forEach(([key, value]) => {
-      if (!keysToSkip.includes(key)) {
-        // Check if value is a simple type before updating
-        if (typeof value !== 'object' || value === null) {
-           updateFn(attendeeIndex, key, value as FieldValue);
-        } else {
-            console.warn(`Skipping update for potentially complex object field: ${key}`);
-        }
-      }
-    });
-    
-    // Handle specific boolean toggles that were managed locally (only sameLodge for now)
-    if (attendeeType === 'mason' && 'sameLodgeAsPrimary' in editedData) {
-        // Use the original toggle function from context
-        toggleSameLodge(attendeeIndex, (editedData as MasonData).sameLodgeAsPrimary ?? false);
-    }
-    // Note: hasLadyPartner/hasGuestPartner are handled by their own toggle functions passed to the forms
-
-    if ((attendeeType === 'ladyPartner' || attendeeType === 'guestPartner') && 'contactConfirmed' in editedData) {
-        // Use the original toggle function from context
-        if (attendeeType === 'ladyPartner') {
-            toggleHasLadyPartner(attendeeIndex, (editedData as LadyPartnerData).contactConfirmed || false);
-        } else {
-            toggleGuestHasPartner(attendeeIndex, (editedData as GuestPartnerData).contactConfirmed || false);
+            if (valueChanged) {
+               updateAttendeeField(attendeeId, typedKey, editedData[typedKey]);
+            }
         }
     }
 
     setHasUnsavedChanges(false);
-  }, [editedData, attendeeIndex, attendeeType, updateMasonField, updateGuestField, updateLadyPartnerField, updateGuestPartnerField, toggleSameLodge, toggleHasLadyPartner, toggleGuestHasPartner]);
+  }, [editedData, initialData, attendeeId, updateAttendeeField]);
 
   const handleSaveChanges = useCallback(() => {
     performActualSave();
@@ -164,10 +106,9 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
   const handleDiscardAndClose = useCallback(() => {
     setShowUnsavedConfirmAlert(false);
     setHasUnsavedChanges(false);
-    // Reset editedData back to initial state when discarding
     setEditedData(initialData); 
     onClose();
-  }, [onClose, initialData]); // Added initialData dependency
+  }, [onClose, initialData]);
 
   const handleBackToEdit = useCallback(() => {
     setShowUnsavedConfirmAlert(false);
@@ -186,40 +127,34 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
 
   // --- Title Logic (Memoized) ---
   const getFormTitle = useCallback((): string => {
-     // Read directly from formState prop to ensure latest data for title
-     let attendeeData: AttendeeData | undefined;
-     switch(attendeeType) {
-         case 'mason': attendeeData = formState.masons[attendeeIndex]; break;
-         case 'ladyPartner': attendeeData = formState.ladyPartners[attendeeIndex]; break;
-         case 'guest': attendeeData = formState.guests[attendeeIndex]; break;
-         case 'guestPartner': attendeeData = formState.guestPartners[attendeeIndex]; break;
-     }
+     // Use editedData which holds the current attendee being edited
+     const attendeeData = editedData;
 
-     if (!attendeeData) return 'Edit Attendee'; // Return default if data not found in formState
+     if (!attendeeData) return 'Edit Attendee'; // Return default if data not found
+     
+     const type = attendeeData.attendeeType.toLowerCase(); // Get type from current data
 
-     if (attendeeType === 'mason') {
-       const mason = attendeeData as MasonData;
+     // Construct title based on the attendee data
+     let namePart = `${attendeeData.title || ''} ${attendeeData.firstName || ''} ${attendeeData.lastName || ''}`.trim();
+     if (!namePart) namePart = attendeeData.attendeeType; // Fallback if no name yet
+     
+     if (type === 'mason') {
        let rankInfo = '';
-       // Explicitly check for rank and append if it exists (and isn't GL unless grandRank also exists)
-       if (mason.rank === 'GL' && mason.grandRank) {
-         rankInfo = ` ${mason.grandRank}`;
-       } else if (mason.rank && mason.rank !== 'GL') {
-         rankInfo = ` ${mason.rank}`;
+       if (attendeeData.rank === 'GL' && attendeeData.grandRank) {
+         rankInfo = ` ${attendeeData.grandRank}`;
+       } else if (attendeeData.rank && attendeeData.rank !== 'GL') {
+         rankInfo = ` ${attendeeData.rank}`;
        }
-
-       return `Edit Mason: ${mason.title} ${mason.firstName} ${mason.lastName}${rankInfo}`;
-     } else if (attendeeType === 'ladyPartner') {
-       const partner = attendeeData as LadyPartnerData;
-       return `Edit Lady & Partner: ${partner.title} ${partner.firstName} ${partner.lastName}`;
-     } else if (attendeeType === 'guest') {
-       const guest = attendeeData as GuestData;
-       return `Edit Guest: ${guest.title} ${guest.firstName} ${guest.lastName}`;
-     } else if (attendeeType === 'guestPartner') {
-       const partner = attendeeData as GuestPartnerData;
-       return `Edit Guest Partner: ${partner.title} ${partner.firstName} ${partner.lastName}`;
+       return `Edit Mason: ${namePart}${rankInfo}`;
+     } else if (type === 'ladypartner') {
+       return `Edit Lady/Partner: ${namePart}`;
+     } else if (type === 'guest') {
+       return `Edit Guest: ${namePart}`;
+     } else if (type === 'guestpartner') {
+       return `Edit Guest Partner: ${namePart}`;
      }
      return 'Edit Attendee';
-  }, [formState, attendeeType, attendeeIndex]);
+  }, [editedData]); // Depend on editedData state
 
   // --- Effect for ESC key --- 
   useEffect(() => {
@@ -240,42 +175,31 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
   }, [requestClose, showUnsavedConfirmAlert, handleBackToEdit]);
 
   // --- Conditional Return --- 
-  // Now safe to have conditional return after all hooks
   if (!editedData) {
-    // Render loading/error state instead of null
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
              <div className="bg-white p-4 rounded-md shadow-lg">
                 Loading attendee data...
-                {/* Optional: Add a close button here too? */} 
              </div>
         </div>
     );
   }
 
-  // --- Partner Data Lookup (runs after null check) ---
+  // --- Partner Data Lookup (using formState.attendees) ---
   const ladyPartnerData = (attendeeType === 'mason') 
-      ? formState.ladyPartners.find(lp => lp.masonIndex === attendeeIndex) 
+      ? formState.attendees.find(att => att.attendeeType === 'LadyPartner' && att.relatedAttendeeId === attendeeId) 
       : undefined;
-  const ladyPartnerIndex = (attendeeType === 'mason' && ladyPartnerData) 
-      ? formState.ladyPartners.findIndex(lp => lp.id === ladyPartnerData.id) 
-      : -1;
       
   const guestPartnerData = (attendeeType === 'guest') 
-      ? formState.guestPartners.find(gp => gp.guestIndex === attendeeIndex) 
+      ? formState.attendees.find(att => att.attendeeType === 'GuestPartner' && att.relatedAttendeeId === attendeeId) 
       : undefined;
-  const guestPartnerIndex = (attendeeType === 'guest' && guestPartnerData) 
-      ? formState.guestPartners.findIndex(gp => gp.id === guestPartnerData.id) 
-      : -1;
 
   // --- Disable Save Button Logic --- 
-  const isConfirmationRequired = (attendeeType === 'ladyPartner' || attendeeType === 'guestPartner') && editedData?.contactPreference !== 'Directly';
+  const isConfirmationRequired = (attendeeType === 'ladypartner' || attendeeType === 'guestpartner') && editedData?.contactPreference !== 'Directly';
   const isSaveDisabled = isConfirmationRequired && !editedData?.contactConfirmed;
 
-  // Log the state controlling the alert visibility just before render
   console.log('Rendering AttendeeEditModal. showUnsavedConfirmAlert:', showUnsavedConfirmAlert);
 
-  // --- Render ---
   return (
     <div
       ref={modalRef}
@@ -312,7 +236,6 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                           </div>
                        </div>
                   </div>
-                  {/* Buttons justified across width */}
                   <div className="mt-5 pt-4 px-4 border-t border-slate-200 flex justify-between">
                       <button
                           type="button"
@@ -364,76 +287,74 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
         <div className="p-6 flex-grow">
           {attendeeType === 'mason' && (
             <MasonForm
-              mason={editedData as MasonData}
-              index={attendeeIndex}
+              mason={editedData}
+              id={attendeeId}
+              attendeeNumber={formState.attendees.findIndex(att => att.attendeeId === attendeeId) + 1}
               onChange={handleLocalChange}
-              isPrimary={attendeeIndex === 0}
-              isSameLodgeAsFirst={(editedData as MasonData).sameLodgeAsPrimary}
-              onToggleSameLodge={handleLocalToggleSameLodge}
+              isPrimary={editedData.isPrimary}
               ladyPartnerData={ladyPartnerData}
-              ladyPartnerIndex={ladyPartnerIndex >= 0 ? ladyPartnerIndex : undefined}
-              primaryMasonData={formState.masons[0]}
+              primaryMasonData={formState.attendees.find(att => att.attendeeType === 'Mason' && att.isPrimary)}
             />
           )}
            {attendeeType === 'guest' && (
             <GuestForm
-              guest={editedData as GuestData}
-              index={attendeeIndex}
+              guest={editedData}
+              id={attendeeId}
+              attendeeNumber={formState.attendees.findIndex(att => att.attendeeId === attendeeId) + 1}
               onChange={handleLocalChange}
               partnerData={guestPartnerData}
-              partnerIndex={guestPartnerIndex >= 0 ? guestPartnerIndex : undefined}
-              primaryMasonData={formState.masons[0]}
+              primaryMasonData={formState.attendees.find(att => att.attendeeType === 'Mason' && att.isPrimary)}
             />
           )}
           {/* Direct editing for LadyPartner */}
-          {attendeeType === 'ladyPartner' && (
+          {attendeeType === 'ladypartner' && (
               <div className="space-y-6">
                   {/* Line 1: Title, First Name, Last Name */}
                   <div className="grid grid-cols-3 gap-4">
-                      <InputField label="Title" field="title" value={(editedData as LadyPartnerData).title} onChange={handleLocalChange} index={attendeeIndex} />
-                      <InputField label="First Name" field="firstName" value={(editedData as LadyPartnerData).firstName} onChange={handleLocalChange} index={attendeeIndex} required={true} />
-                      <InputField label="Last Name" field="lastName" value={(editedData as LadyPartnerData).lastName} onChange={handleLocalChange} index={attendeeIndex} required={true} />
+                      <InputField label="Title" field="title" value={(editedData as UnifiedAttendeeData).title} onChange={handleLocalChange} attendeeId={attendeeId} />
+                      <InputField label="First Name" field="firstName" value={(editedData as UnifiedAttendeeData).firstName} onChange={handleLocalChange} attendeeId={attendeeId} required={true} />
+                      <InputField label="Last Name" field="lastName" value={(editedData as UnifiedAttendeeData).lastName} onChange={handleLocalChange} attendeeId={attendeeId} required={true} />
                   </div>
 
                   {/* Line 2: Relationship, Contact Preference */}
                   <div className="grid grid-cols-2 gap-4">
-                      <InputField label="Relationship" field="relationship" value={(editedData as LadyPartnerData).relationship} onChange={handleLocalChange} index={attendeeIndex} required={true} />
+                      <InputField label="Relationship" field="relationship" value={(editedData as UnifiedAttendeeData).relationship} onChange={handleLocalChange} attendeeId={attendeeId} required={true} />
                       <SelectField 
                           label="Contact Preference" 
                           field="contactPreference" 
-                          value={(editedData as LadyPartnerData).contactPreference} 
+                          value={(editedData as UnifiedAttendeeData).contactPreference} 
                           onChange={handleLocalChange} 
-                          index={attendeeIndex}
+                          attendeeId={attendeeId}
                           options={['Directly', 'Mason', 'Provide Later']} // Options for LadyPartner
                           required={true} 
                       />
                   </div>
 
                   {/* Line 3: Conditional Contact Details or Confirmation */}
-                  {(editedData as LadyPartnerData).contactPreference === 'Directly' ? (
+                  {(editedData as UnifiedAttendeeData).contactPreference === 'Directly' ? (
                       <div className="grid grid-cols-2 gap-4">
-                           <InputField label="Mobile" field="phone" type="tel" value={(editedData as LadyPartnerData).phone} onChange={handleLocalChange} index={attendeeIndex} required={true} />
-                           <InputField label="Email" field="email" type="email" value={(editedData as LadyPartnerData).email} onChange={handleLocalChange} index={attendeeIndex} required={true} />
+                           <InputField label="Mobile" field="primaryPhone" type="tel" value={(editedData as UnifiedAttendeeData).primaryPhone} onChange={handleLocalChange} attendeeId={attendeeId} required={true} />
+                           <InputField label="Email" field="primaryEmail" type="email" value={(editedData as UnifiedAttendeeData).primaryEmail} onChange={handleLocalChange} attendeeId={attendeeId} required={true} />
                       </div>
                   ) : (
                        <div className="text-sm p-3 bg-blue-50 border border-blue-200 rounded-md">
                            {/* Confirmation Text based on selection */} 
-                           {(editedData as LadyPartnerData).contactPreference === 'Mason' && "Contact details will be managed by the associated Mason."}
-                           {(editedData as LadyPartnerData).contactPreference === 'Provide Later' && "Contact details will be provided later."}
+                           {(editedData as UnifiedAttendeeData).contactPreference === 'Mason' && "Contact details will be managed by the associated Mason."}
+                           {(editedData as UnifiedAttendeeData).contactPreference === 'Provide Later' && "Contact details will be provided later."}
                            {/* Confirmation Checkbox */}
                            <div className="mt-2 flex items-start">
                               <div className="flex items-center h-5">
                                  <input
-                                     id={`edit-lp-contactConfirmed-${attendeeIndex}`}
-                                     name={`edit-lp-contactConfirmed-${attendeeIndex}`}
+                                     id={`edit-lp-contactConfirmed-${attendeeId}`}
+                                     name={`edit-lp-contactConfirmed-${attendeeId}`}
                                      type="checkbox"
-                                     checked={(editedData as LadyPartnerData).contactConfirmed || false}
-                                     onChange={(e) => handleLocalChange(attendeeIndex, 'contactConfirmed', e.target.checked)}
+                                     checked={(editedData as UnifiedAttendeeData).contactConfirmed || false}
+                                     onChange={(e) => handleLocalChange(attendeeId, 'contactConfirmed', e.target.checked)}
                                      className="focus:ring-primary h-4 w-4 text-primary border-gray-300 rounded"
                                  />
                               </div>
                               <div className="ml-3 text-xs">
-                                 <label htmlFor={`edit-lp-contactConfirmed-${attendeeIndex}`} className="font-medium text-gray-700">
+                                 <label htmlFor={`edit-lp-contactConfirmed-${attendeeId}`} className="font-medium text-gray-700">
                                       I confirm the selected contact preference.
                                  </label>
                               </div>
@@ -442,61 +363,61 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                    )}
 
                   {/* Line 4: Dietary */}
-                  <InputField label="Dietary Requirements" field="dietary" value={(editedData as LadyPartnerData).dietary} onChange={handleLocalChange} index={attendeeIndex} />
+                  <InputField label="Dietary Requirements" field="dietaryRequirements" value={(editedData as UnifiedAttendeeData).dietaryRequirements} onChange={handleLocalChange} attendeeId={attendeeId} />
 
                    {/* Line 5: Special Needs */}
-                   <TextareaField label="Special Needs / Accessibility" field="specialNeeds" value={(editedData as LadyPartnerData).specialNeeds} onChange={handleLocalChange} index={attendeeIndex} />
+                   <TextareaField label="Special Needs / Accessibility" field="specialNeeds" value={(editedData as UnifiedAttendeeData).specialNeeds} onChange={handleLocalChange} attendeeId={attendeeId} />
               </div>
           )}
            {/* Direct editing for GuestPartner */}
-          {attendeeType === 'guestPartner' && (
+          {attendeeType === 'guestpartner' && (
               <div className="space-y-6">
                    {/* Line 1: Title, First Name, Last Name */}
                    <div className="grid grid-cols-3 gap-4">
-                       <InputField label="Title" field="title" value={(editedData as GuestPartnerData).title} onChange={handleLocalChange} index={attendeeIndex} />
-                       <InputField label="First Name" field="firstName" value={(editedData as GuestPartnerData).firstName} onChange={handleLocalChange} index={attendeeIndex} required={true} />
-                       <InputField label="Last Name" field="lastName" value={(editedData as GuestPartnerData).lastName} onChange={handleLocalChange} index={attendeeIndex} required={true} />
+                       <InputField label="Title" field="title" value={(editedData as UnifiedAttendeeData).title} onChange={handleLocalChange} attendeeId={attendeeId} />
+                       <InputField label="First Name" field="firstName" value={(editedData as UnifiedAttendeeData).firstName} onChange={handleLocalChange} attendeeId={attendeeId} required={true} />
+                       <InputField label="Last Name" field="lastName" value={(editedData as UnifiedAttendeeData).lastName} onChange={handleLocalChange} attendeeId={attendeeId} required={true} />
                    </div>
 
                    {/* Line 2: Relationship, Contact Preference */}
                    <div className="grid grid-cols-2 gap-4">
-                       <InputField label="Relationship" field="relationship" value={(editedData as GuestPartnerData).relationship} onChange={handleLocalChange} index={attendeeIndex} required={true} />
+                       <InputField label="Relationship" field="relationship" value={(editedData as UnifiedAttendeeData).relationship} onChange={handleLocalChange} attendeeId={attendeeId} required={true} />
                        <SelectField 
                            label="Contact Preference" 
                            field="contactPreference" 
-                           value={(editedData as GuestPartnerData).contactPreference} 
+                           value={(editedData as UnifiedAttendeeData).contactPreference} 
                            onChange={handleLocalChange} 
-                           index={attendeeIndex}
+                           attendeeId={attendeeId}
                            options={['Directly', 'Guest', 'Provide Later']} // Options for GuestPartner
                            required={true} 
                        />
                    </div>
 
                    {/* Line 3: Conditional Contact Details or Confirmation */}
-                   {(editedData as GuestPartnerData).contactPreference === 'Directly' ? (
+                   {(editedData as UnifiedAttendeeData).contactPreference === 'Directly' ? (
                        <div className="grid grid-cols-2 gap-4">
-                           <InputField label="Mobile" field="phone" type="tel" value={(editedData as GuestPartnerData).phone} onChange={handleLocalChange} index={attendeeIndex} required={true} />
-                           <InputField label="Email" field="email" type="email" value={(editedData as GuestPartnerData).email} onChange={handleLocalChange} index={attendeeIndex} required={true} />
+                           <InputField label="Mobile" field="primaryPhone" type="tel" value={(editedData as UnifiedAttendeeData).primaryPhone} onChange={handleLocalChange} attendeeId={attendeeId} required={true} />
+                           <InputField label="Email" field="primaryEmail" type="email" value={(editedData as UnifiedAttendeeData).primaryEmail} onChange={handleLocalChange} attendeeId={attendeeId} required={true} />
                        </div>
                    ) : (
                        <div className="text-sm p-3 bg-blue-50 border border-blue-200 rounded-md">
                            {/* Confirmation Text based on selection */} 
-                           {(editedData as GuestPartnerData).contactPreference === 'Guest' && "Contact details will be managed by the associated Guest."}
-                           {(editedData as GuestPartnerData).contactPreference === 'Provide Later' && "Contact details will be provided later."}
+                           {(editedData as UnifiedAttendeeData).contactPreference === 'Guest' && "Contact details will be managed by the associated Guest."}
+                           {(editedData as UnifiedAttendeeData).contactPreference === 'Provide Later' && "Contact details will be provided later."}
                            {/* Confirmation Checkbox */}
                            <div className="mt-2 flex items-start">
                                <div className="flex items-center h-5">
                                   <input
-                                      id={`edit-gp-contactConfirmed-${attendeeIndex}`}
-                                      name={`edit-gp-contactConfirmed-${attendeeIndex}`}
+                                      id={`edit-gp-contactConfirmed-${attendeeId}`}
+                                      name={`edit-gp-contactConfirmed-${attendeeId}`}
                                       type="checkbox"
-                                      checked={(editedData as GuestPartnerData).contactConfirmed || false}
-                                      onChange={(e) => handleLocalChange(attendeeIndex, 'contactConfirmed', e.target.checked)}
+                                      checked={(editedData as UnifiedAttendeeData).contactConfirmed || false}
+                                      onChange={(e) => handleLocalChange(attendeeId, 'contactConfirmed', e.target.checked)}
                                       className="focus:ring-primary h-4 w-4 text-primary border-gray-300 rounded"
                                   />
                                </div>
                                <div className="ml-3 text-xs">
-                                  <label htmlFor={`edit-gp-contactConfirmed-${attendeeIndex}`} className="font-medium text-gray-700">
+                                  <label htmlFor={`edit-gp-contactConfirmed-${attendeeId}`} className="font-medium text-gray-700">
                                        I confirm the selected contact preference.
                                   </label>
                                </div>
@@ -505,10 +426,10 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
                    )}
 
                   {/* Line 4: Dietary */}
-                  <InputField label="Dietary Requirements" field="dietary" value={(editedData as GuestPartnerData).dietary} onChange={handleLocalChange} index={attendeeIndex} />
+                  <InputField label="Dietary Requirements" field="dietaryRequirements" value={(editedData as UnifiedAttendeeData).dietaryRequirements} onChange={handleLocalChange} attendeeId={attendeeId} />
 
                    {/* Line 5: Special Needs */}
-                   <TextareaField label="Special Needs / Accessibility" field="specialNeeds" value={(editedData as GuestPartnerData).specialNeeds} onChange={handleLocalChange} index={attendeeIndex} />
+                   <TextareaField label="Special Needs / Accessibility" field="specialNeeds" value={(editedData as UnifiedAttendeeData).specialNeeds} onChange={handleLocalChange} attendeeId={attendeeId} />
               </div>
           )}
         </div>
@@ -539,24 +460,27 @@ const AttendeeEditModal: React.FC<AttendeeEditModalProps> = ({
 // Helper component for input fields (define at bottom or import)
 interface InputFieldProps {
     label: string;
-    field: string;
-    value: string | number | undefined;
-    onChange: (index: number, field: string, value: string | number) => void;
-    index: number;
+    field: keyof UnifiedAttendeeData; // Use keyof for type safety
+    value: string | number | undefined | null; // Allow null
+    // Update onChange signature to include attendeeId
+    onChange: (attendeeId: string, field: keyof UnifiedAttendeeData, value: string | number | boolean) => void;
+    // Change index to attendeeId
+    attendeeId: string;
     type?: string;
     required?: boolean;
 }
 
-const InputField: React.FC<InputFieldProps> = ({ label, field, value, onChange, index, type = 'text', required = false }) => (
+const InputField: React.FC<InputFieldProps> = ({ label, field, value, onChange, attendeeId, type = 'text', required = false }) => (
     <div>
-        <label htmlFor={`edit-${field}-${index}`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={`edit-${field}-${attendeeId}`} className="block text-sm font-medium text-gray-700 mb-1">
             {label}{required && ' *'}
         </label>
         <input
-            id={`edit-${field}-${index}`}
+            id={`edit-${field}-${attendeeId}`}
             type={type}
             value={value ?? ''}
-            onChange={(e) => onChange(index, field, e.target.value)}
+            // Pass attendeeId to onChange
+            onChange={(e) => onChange(attendeeId, field, e.target.value)}
             required={required}
             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
         />
@@ -566,23 +490,26 @@ const InputField: React.FC<InputFieldProps> = ({ label, field, value, onChange, 
 // Helper component for Select fields
 interface SelectFieldProps {
     label: string;
-    field: string;
+    field: keyof UnifiedAttendeeData; // Use keyof
     value: string | undefined;
-    onChange: (index: number, field: string, value: string) => void;
-    index: number;
+    // Update onChange signature
+    onChange: (attendeeId: string, field: keyof UnifiedAttendeeData, value: string | boolean) => void;
+    // Change index to attendeeId
+    attendeeId: string;
     options: string[];
     required?: boolean;
 }
 
-const SelectField: React.FC<SelectFieldProps> = ({ label, field, value, onChange, index, options, required = false }) => (
+const SelectField: React.FC<SelectFieldProps> = ({ label, field, value, onChange, attendeeId, options, required = false }) => (
     <div>
-        <label htmlFor={`edit-${field}-${index}`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={`edit-${field}-${attendeeId}`} className="block text-sm font-medium text-gray-700 mb-1">
             {label}{required && ' *'}
         </label>
         <select
-            id={`edit-${field}-${index}`}
+            id={`edit-${field}-${attendeeId}`}
             value={value ?? ''}
-            onChange={(e) => onChange(index, field, e.target.value)}
+            // Pass attendeeId to onChange
+            onChange={(e) => onChange(attendeeId, field, e.target.value)}
             required={required}
             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary bg-white"
         >
@@ -597,23 +524,26 @@ const SelectField: React.FC<SelectFieldProps> = ({ label, field, value, onChange
 // Helper component for Textarea fields
 interface TextareaFieldProps {
     label: string;
-    field: string;
-    value: string | undefined;
-    onChange: (index: number, field: string, value: string) => void;
-    index: number;
+    field: keyof UnifiedAttendeeData; // Use keyof
+    value: string | undefined | null; // Allow null
+    // Update onChange signature
+    onChange: (attendeeId: string, field: keyof UnifiedAttendeeData, value: string | boolean) => void;
+    // Change index to attendeeId
+    attendeeId: string;
     rows?: number;
     required?: boolean;
 }
 
-const TextareaField: React.FC<TextareaFieldProps> = ({ label, field, value, onChange, index, rows = 3, required = false }) => (
+const TextareaField: React.FC<TextareaFieldProps> = ({ label, field, value, onChange, attendeeId, rows = 3, required = false }) => (
     <div>
-        <label htmlFor={`edit-${field}-${index}`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={`edit-${field}-${attendeeId}`} className="block text-sm font-medium text-gray-700 mb-1">
             {label}{required && ' *'}
         </label>
         <textarea
-            id={`edit-${field}-${index}`}
+            id={`edit-${field}-${attendeeId}`}
             value={value ?? ''}
-            onChange={(e) => onChange(index, field, e.target.value)}
+            // Pass attendeeId to onChange
+            onChange={(e) => onChange(attendeeId, field, e.target.value)}
             required={required}
             rows={rows}
             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"

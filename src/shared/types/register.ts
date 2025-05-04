@@ -2,25 +2,29 @@ import { AttendeeData } from '../../lib/api/registrations';
 import { ProgressStep } from '../../hooks/useRegistrationProgress';
 import { EmailConflictInfo } from './validation';
 import { AttendeeType } from './enums';
+import { z } from 'zod';
+// Assuming validation schemas are defined here or imported elsewhere
+// import { MasonSchema, LadyPartnerSchema, GuestSchema, GuestPartnerSchema } from './validation';
 
 export enum AttendeeType {
-  Mason = 'mason',
-  Guest = 'guest',
-  LadyPartner = 'lady_partner',
-  GuestPartner = 'guest_partner'
+  MASON = 'Mason',
+  LADY_PARTNER = 'Lady Partner',
+  GUEST = 'Guest',
+  GUEST_PARTNER = 'Guest Partner'
 }
 
 export interface TicketType {
   id: string;
   name: string;
   description: string;
-  price: number;
+  price: number;           // Required as per the schema update
   includes: string[];
+  event_id?: string;       // Now required in the database schema
 }
 
 export interface AttendeeTicket {
   ticketId: string;
-  events: string[]; // Array of selected event IDs
+  events: string[]; // Array of selected event IDs (at least one is required)
 }
 
 export interface LadyPartnerData {
@@ -165,4 +169,108 @@ export interface FormState {
 // Define type alias for different attendee types and export it
 export type AttendeeData = MasonData | LadyPartnerData | GuestData | GuestPartnerData;
 
+// Placeholder type for package/ticket selections per attendee
+// TODO: Define the actual structure based on package data
+export interface PackageSelectionType {
+  ticketDefinitionId: string | null;
+  selectedEvents: string[]; // Array of event IDs
+  // Add other relevant package/ticket properties
+}
+
+// Placeholder type for billing details
+// TODO: Define the actual structure needed
+export interface BillingDetailsType {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  stateProvince: string;
+  postalCode: string;
+  country: string;
+  // Add other relevant billing properties
+}
+
+// Define RegistrationType if not already defined
 export type RegistrationType = 'individual' | 'lodge' | 'delegation';
+
+// --- Attendee Base Data ---
+// Keep AttendeeData export if it's used elsewhere
+export interface AttendeeDataBase {
+  id: string;
+  title?: string;
+  firstName: string;
+  lastName: string;
+  email?: string; 
+  phone?: string;
+  dietary?: string;
+  specialNeeds?: string;
+  contactPreference?: string; // Original might have been just string?
+  contactConfirmed?: boolean;
+  ticket?: AttendeeTicket;
+}
+
+// --- Specific Attendee Types (Extending Base) ---
+
+export interface MasonData extends AttendeeDataBase {
+  attendeeType: AttendeeType.MASON;
+  memberNumber?: string;
+  rank?: string; 
+  grandRank?: string;
+  grandLodgeId?: string | null;
+  lodgeId?: string | null;
+  grandOffice?: string;
+  pastGrandOffice?: string;
+  isPastGrandMaster?: boolean;
+  honours?: string;
+  hasLadyPartner?: boolean;
+  // email is required for Masons?
+  email: string; 
+}
+
+export interface LadyPartnerData extends AttendeeDataBase {
+  attendeeType: AttendeeType.LADY_PARTNER;
+  relationship?: string;
+  masonId: string; // Link back to the Mason
+}
+
+export interface GuestData extends AttendeeDataBase {
+  attendeeType: AttendeeType.GUEST;
+  relationship?: string;
+  hasGuestPartner?: boolean;
+}
+
+export interface GuestPartnerData extends AttendeeDataBase {
+  attendeeType: AttendeeType.GUEST_PARTNER;
+  relationship?: string;
+  guestId: string; // Link back to the Guest
+}
+
+// --- Unified Attendee Type --- 
+// This seems to be the intended unified type from `src/lib/api/registrations`
+// Let's keep this consistent if possible, otherwise redefine carefully
+// export type UnifiedAttendeeData = AttendeeDataBase & Partial<MasonData> & Partial<LadyPartnerData> & Partial<GuestData> & Partial<GuestPartnerData>;
+// If UnifiedAttendeeData comes from registrations API, import it there instead.
+
+// Placeholder type for package/ticket selections per attendee
+// This might be redundant if ticket info is stored within AttendeeDataBase
+export interface PackageSelectionType {
+  ticketDefinitionId: string | null;
+  selectedEvents: string[]; // Array of event IDs
+}
+
+// Placeholder type for billing details
+export interface BillingDetailsType {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  stateProvince: string;
+  postalCode: string;
+  country: string;
+}

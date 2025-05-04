@@ -11,13 +11,12 @@ const EventPaymentCard: React.FC<EventPaymentCardProps> = ({ event }) => {
     <div className="bg-white rounded-lg shadow-lg border border-slate-100 p-6">
       <div className="mb-6">
         <h3 className="font-bold text-2xl text-primary mb-2">
-          {event.price ? `$${event.price}` : 'Free'}
+          {/* Price info now comes from ticket_definitions table */}
+          See Ticket Options
         </h3>
-        {event.price ? (
-          <p className="text-slate-600 text-sm">per person, inclusive of GST</p>
-        ) : (
-          <p className="text-green-600 text-sm">No registration fee required</p>
-        )}
+        <p className="text-slate-600 text-sm">
+          Select from available ticket types during registration
+        </p>
       </div>
       
       <div className="space-y-4 mb-6">
@@ -72,14 +71,12 @@ const EventPaymentCard: React.FC<EventPaymentCardProps> = ({ event }) => {
         </ul>
       </div>
       
-      {event.maxAttendees && (
-        <div className="mt-6 bg-yellow-50 p-4 rounded-md border border-yellow-100">
-          <p className="text-amber-800 text-sm">
-            Limited capacity of {event.maxAttendees} attendees. 
-            Register early to secure your place.
-          </p>
-        </div>
-      )}
+      {/* Capacity information is now displayed based on ticket_definitions and availability */}
+      <div className="mt-6 bg-yellow-50 p-4 rounded-md border border-yellow-100">
+        <p className="text-amber-800 text-sm">
+          Limited availability. Register early to secure your place.
+        </p>
+      </div>
     </div>
   );
 };

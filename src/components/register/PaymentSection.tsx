@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { CreditCard, ShieldCheck, User } from 'lucide-react';
-import type { FormState, SubmissionData } from '../../shared/types/register';
+import type { FormState } from '../../shared/types/register';
 import PhoneInputWrapper from './PhoneInputWrapper';
 import AutocompleteInput from './AutocompleteInput';
 import { loadStripe } from '@stripe/stripe-js';
@@ -10,7 +10,7 @@ import {
   useStripe,
   useElements
 } from '@stripe/react-stripe-js';
-import { useRegisterForm } from '../../hooks/useRegisterForm';
+import { useRegistrationStore, UnifiedAttendeeData as StoreUnifiedAttendeeData, BillingDetailsType } from '../../store/registrationStore';
 
 interface PaymentSectionProps {
   formState: FormState;
@@ -20,28 +20,27 @@ interface PaymentSectionProps {
 }
 
 // Load Stripe outside of component render to avoid recreation
-// Using environment variables for the Stripe publishable key
 const stripePromise = (() => {
-  // Get the Stripe key from environment variables
   const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-  
   try {
-    // Configure Stripe with proper options
     const stripeOptions = {
-      // Set locale to English
-      locale: 'en',
-      // Suppress HTTP warnings in development to avoid console errors
+      locale: 'en' as const,
       betas: import.meta.env.DEV ? ['stripe_universal_js_without_https'] : undefined
     };
-    
-    // Initialize Stripe with the key and options
     return loadStripe(stripeKey || '', stripeOptions);
   } catch (err) {
     console.error('Error initializing Stripe:', err);
-    // Return null to gracefully handle the error
     return Promise.resolve(null);
   }
 })();
+
+// Define default structure for primaryMason fallback
+const defaultPrimaryMason: Partial<StoreUnifiedAttendeeData> = {
+  firstName: '',
+  lastName: '',
+  primaryEmail: '',
+  primaryPhone: '',
+};
 
 // The inner payment component that uses the Stripe hooks
 const PaymentForm: React.FC<PaymentSectionProps> = ({
@@ -53,107 +52,106 @@ const PaymentForm: React.FC<PaymentSectionProps> = ({
   const stripe = useStripe();
   const elements = useElements();
   
-  // Primary Mason's details
-  const primaryMason = formState.masons[0];
+  const { attendees, billingDetails: storeBillingDetails, updateBillingDetails } = useRegistrationStore();
+  
+  const currentAttendees = formState.attendees || attendees || [];
+  
+  // Use default structure for primaryMason fallback
+  const primaryMason = currentAttendees.find(attendee => 
+    attendee.attendeeType === 'mason' && (attendee.isPrimary === true || attendee.isPrimary === undefined)
+  ) || defaultPrimaryMason;
 
-  // Billing details state
-  const [billingDetails, setBillingDetails] = useState({
-    firstName: '',
-    lastName: '',
-    businessName: '',
-    email: '',
-    phone: '',
-    address: '',
-    suburb: '',
-    country: 'Australia',
-    state: 'NSW',
-    postCode: '',
-    usePrimaryMasonDetails: false
+  // Align localBillingDetails state with BillingDetailsType from store
+  const [localBillingDetails, setLocalBillingDetails] = useState<BillingDetailsType>(() => {
+    return storeBillingDetails || {
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      addressLine1: '',
+      addressLine2: '',
+      city: '',
+      stateProvince: '',
+      postalCode: '',
+      country: 'Australia',
+    };
   });
+  const [usePrimaryMasonDetailsFlag, setUsePrimaryMasonDetailsFlag] = useState(false);
 
   // Processing state
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
-  // Handle input change
+  // Update local state handlers to align with BillingDetailsType
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setBillingDetails(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    // Map form field names (like suburb, address) to store field names (city, addressLine1)
+    const fieldToUpdate = name === 'address' ? 'addressLine1' : 
+                          name === 'suburb' ? 'city' : 
+                          name === 'state' ? 'stateProvince' : 
+                          name === 'postCode' ? 'postalCode' : name;
+
+    // Skip businessName as it's not in BillingDetailsType
+    if (fieldToUpdate === 'businessName') return;
+
+    if (fieldToUpdate in localBillingDetails) {
+        const updatedDetails = { 
+            ...localBillingDetails, 
+            [fieldToUpdate as keyof BillingDetailsType]: value 
+        };
+        setLocalBillingDetails(updatedDetails);
+        updateBillingDetails(updatedDetails);
+    } else {
+        console.warn(`Field ${name} not found in BillingDetailsType`);
+    }
   };
 
-  // Handle phone change
   const handlePhoneChange = (value: string) => {
-    setBillingDetails(prev => ({
-      ...prev,
-      phone: value
-    }));
+    const updatedDetails = { ...localBillingDetails, phone: value };
+    setLocalBillingDetails(updatedDetails);
+    updateBillingDetails(updatedDetails);
   };
 
-  // Handle country selection
   const handleCountrySelect = (country: string) => {
-    setBillingDetails(prev => ({
-      ...prev,
-      country
-    }));
+    const updatedDetails = { ...localBillingDetails, country };
+    setLocalBillingDetails(updatedDetails);
+    updateBillingDetails(updatedDetails);
   };
 
-  // Toggle using primary mason's details
+  // Toggle using primary mason's details - Use separate flag, update relevant fields
   const handleTogglePrimaryDetails = (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
-    setBillingDetails(prev => ({
-      ...prev,
-      usePrimaryMasonDetails: checked,
-      firstName: checked ? primaryMason.firstName : '',
-      lastName: checked ? primaryMason.lastName : '',
-      email: checked ? primaryMason.email : '',
-      phone: checked ? primaryMason.phone : ''
-      // We don't pre-fill address details as they're not part of the Mason data
-    }));
-  };
-
-  // Use the optimized helpers from RegisterFormContext
-  const { prepareSubmissionData, calculateTotalPrice } = useRegisterForm();
-  
-  // Prepare submission data for the backend
-  const getSubmissionData = useCallback((): SubmissionData & { billingDetails: any } => {
-    // Get the optimized data structure using our helper
-    const submissionData = prepareSubmissionData();
+    setUsePrimaryMasonDetailsFlag(checked); // Update the separate flag
     
-    // Add billing details
-    return {
-      ...submissionData,
-      billingDetails: {
-        firstName: billingDetails.firstName,
-        lastName: billingDetails.lastName,
-        businessName: billingDetails.businessName,
-        email: billingDetails.email,
-        phone: billingDetails.phone,
-        address: billingDetails.address,
-        suburb: billingDetails.suburb,
-        country: billingDetails.country,
-        state: billingDetails.state,
-        postCode: billingDetails.postCode
-      }
+    const updatedDetails = {
+      ...localBillingDetails,
+      firstName: checked ? primaryMason.firstName || '' : '',
+      lastName: checked ? primaryMason.lastName || '' : '',
+      email: checked ? primaryMason.primaryEmail || '' : '', // Use primaryEmail
+      phone: checked ? primaryMason.primaryPhone || '' : '' // Use primaryPhone
     };
-  }, [prepareSubmissionData, billingDetails]);
+    setLocalBillingDetails(updatedDetails);
+    updateBillingDetails(updatedDetails);
+  };
+  
+  // Prepare submission data placeholder
+  const getSubmissionData = useCallback((): any => {
+    return {
+      attendees: currentAttendees, 
+      billingDetails: localBillingDetails
+    };
+  }, [currentAttendees, localBillingDetails]);
 
   // Handle payment submission
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!stripe || !elements) {
-      // Stripe.js has not loaded yet. Make sure to disable form submission until Stripe.js has loaded.
-      return;
-    }
+    if (!stripe || !elements) return;
 
-    // Validate billing details
-    if (!billingDetails.firstName || !billingDetails.lastName || !billingDetails.email || 
-        !billingDetails.phone || !billingDetails.address || !billingDetails.suburb || 
-        !billingDetails.postCode) {
+    // Validate localBillingDetails based on BillingDetailsType fields
+    if (!localBillingDetails.firstName || !localBillingDetails.lastName || !localBillingDetails.email || 
+        !localBillingDetails.phone || !localBillingDetails.addressLine1 || !localBillingDetails.city || 
+        !localBillingDetails.postalCode) {
       setPaymentError('Please fill in all required billing details.');
       return;
     }
@@ -176,34 +174,6 @@ const PaymentForm: React.FC<PaymentSectionProps> = ({
       // Log the submission data (in a real app, you'd send this to your server)
       console.log('Submitting registration data:', submissionData);
       
-      // In a real implementation, you would call your backend to create a payment intent
-      // and then confirm it here using the clientSecret returned from the backend.
-      // For example:
-      // const response = await fetch('/api/create-payment-intent', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(submissionData)
-      // });
-      // const { clientSecret } = await response.json();
-      
-      // const {error, paymentIntent} = await stripe.confirmCardPayment(clientSecret, {
-      //   payment_method: {
-      //     card: cardElement,
-      //     billing_details: {
-      //       name: `${billingDetails.firstName} ${billingDetails.lastName}`,
-      //       email: billingDetails.email,
-      //       phone: billingDetails.phone,
-      //       address: {
-      //         line1: billingDetails.address,
-      //         city: billingDetails.suburb,
-      //         state: billingDetails.state,
-      //         postal_code: billingDetails.postCode,
-      //         country: billingDetails.country
-      //       }
-      //     }
-      //   }
-      // });
-
       // Simulate a delay for the payment processing
       await new Promise(resolve => setTimeout(resolve, 1000));
       
@@ -325,19 +295,22 @@ const PaymentForm: React.FC<PaymentSectionProps> = ({
           <h3 className="text-lg font-bold">Billing Details</h3>
         </div>
         
-        <div className="mb-4">
-          <label className="inline-flex items-center">
-            <input
-              type="checkbox"
-              checked={billingDetails.usePrimaryMasonDetails}
-              onChange={handleTogglePrimaryDetails}
-              className="h-4 w-4 text-primary border-slate-300 rounded focus:ring-primary"
-            />
-            <span className="ml-2 text-sm text-slate-700">
-              Bill to {primaryMason.firstName} {primaryMason.lastName} (Mason Attendee - Primary)
-            </span>
-          </label>
-        </div>
+        {/* Only show this option if there's a primary Mason with a name */}
+        {(primaryMason.firstName || primaryMason.lastName) && (
+          <div className="mb-4">
+            <label className="inline-flex items-center">
+              <input
+                type="checkbox"
+                checked={usePrimaryMasonDetailsFlag}
+                onChange={handleTogglePrimaryDetails}
+                className="h-4 w-4 text-primary border-slate-300 rounded focus:ring-primary"
+              />
+              <span className="ml-2 text-sm text-slate-700">
+                Bill to {primaryMason.firstName || ''} {primaryMason.lastName || ''} (Mason Attendee - Primary)
+              </span>
+            </label>
+          </div>
+        )}
         
         {/* Row 1: First Name | Last Name (2 columns) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -349,7 +322,7 @@ const PaymentForm: React.FC<PaymentSectionProps> = ({
               type="text"
               id="firstName"
               name="firstName"
-              value={billingDetails.firstName}
+              value={localBillingDetails.firstName}
               onChange={handleInputChange}
               required
               className={inputClass}
@@ -364,7 +337,7 @@ const PaymentForm: React.FC<PaymentSectionProps> = ({
               type="text"
               id="lastName"
               name="lastName"
-              value={billingDetails.lastName}
+              value={localBillingDetails.lastName}
               onChange={handleInputChange}
               required
               className={inputClass}
@@ -383,26 +356,12 @@ const PaymentForm: React.FC<PaymentSectionProps> = ({
           {/* Column 1: Business Details, Mobile Number, Email Address */}
           <div className="space-y-4 md:pr-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="businessName">
-                Business Name
-              </label>
-              <input
-                type="text"
-                id="businessName"
-                name="businessName"
-                value={billingDetails.businessName}
-                onChange={handleInputChange}
-                className={inputClass}
-              />
-            </div>
-            
-            <div>
               <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="phone">
                 Mobile Number *
               </label>
               <div className="phone-input-container">
                 <PhoneInputWrapper
-                  value={billingDetails.phone}
+                  value={localBillingDetails.phone}
                   onChange={handlePhoneChange}
                   name="phone"
                   required={true}
@@ -422,7 +381,7 @@ const PaymentForm: React.FC<PaymentSectionProps> = ({
                 type="email"
                 id="email"
                 name="email"
-                value={billingDetails.email}
+                value={localBillingDetails.email}
                 onChange={handleInputChange}
                 required
                 className={inputClass}
@@ -440,7 +399,7 @@ const PaymentForm: React.FC<PaymentSectionProps> = ({
                 type="text"
                 id="address"
                 name="address"
-                value={billingDetails.address}
+                value={localBillingDetails.addressLine1}
                 onChange={handleInputChange}
                 required
                 className={inputClass}
@@ -457,7 +416,7 @@ const PaymentForm: React.FC<PaymentSectionProps> = ({
                   type="text"
                   id="suburb"
                   name="suburb"
-                  value={billingDetails.suburb}
+                  value={localBillingDetails.city}
                   onChange={handleInputChange}
                   required
                   className={inputClass}
@@ -472,7 +431,7 @@ const PaymentForm: React.FC<PaymentSectionProps> = ({
                   type="text"
                   id="postCode"
                   name="postCode"
-                  value={billingDetails.postCode}
+                  value={localBillingDetails.postalCode}
                   onChange={handleInputChange}
                   required
                   pattern="[0-9]*"
@@ -491,7 +450,7 @@ const PaymentForm: React.FC<PaymentSectionProps> = ({
                 <select
                   id="state"
                   name="state"
-                  value={billingDetails.state}
+                  value={localBillingDetails.stateProvince}
                   onChange={handleInputChange}
                   required
                   className={inputClass}
@@ -509,13 +468,12 @@ const PaymentForm: React.FC<PaymentSectionProps> = ({
                 <AutocompleteInput
                   id="country"
                   name="country"
-                  value={billingDetails.country}
-                  onChange={(value) => setBillingDetails(prev => ({ ...prev, country: value }))}
-                  onSelect={(country) => handleCountrySelect(country.name)}
+                  value={localBillingDetails.country}
+                  onChange={(value) => handleCountrySelect(value ?? 'Australia')}
+                  onSelect={(country) => handleCountrySelect(country?.name ?? 'Australia')}
                   options={countries}
                   getOptionLabel={(option) => option.name}
                   getOptionValue={(option) => option.id}
-                  placeholder="Search countries..."
                   required
                 />
               </div>

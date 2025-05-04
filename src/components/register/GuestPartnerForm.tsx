@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import 'react-phone-input-2/lib/style.css';
-import { GuestPartnerData, GuestData } from '../../shared/types/register';
+import { AttendeeData as UnifiedAttendeeData } from '../../lib/api/registrations';
 import { HelpCircle, X } from 'lucide-react';
 import PhoneInputWrapper from './PhoneInputWrapper';
 
 interface GuestPartnerFormProps {
-  partner: GuestPartnerData;
+  partner: UnifiedAttendeeData;
   id: string;
   relatedGuestName: string;
-  updateField: (id: string, field: string, value: string | boolean) => void;
-  primaryMasonData?: any;
+  updateField: (attendeeId: string, field: keyof UnifiedAttendeeData, value: any) => void;
+  primaryMasonData?: UnifiedAttendeeData;
   onRemove?: () => void;
 }
 
@@ -23,7 +23,7 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
 }) => {
   const titles = ["Mr", "Mrs", "Ms", "Miss", "Dr", "Rev", "Prof", "Rabbi", "Hon", "Sir", "Madam", "Lady", "Dame"];
   const relationships = ["Wife", "Partner", "Fiancée", "Husband", "Fiancé"];
-  const contactOptions = ["Please Select", "Primary Attendee", "Guest", "Directly", "Provide Later"];
+  const contactOptions = ["Please Select", "PrimaryAttendee", "Guest", "Directly", "ProvideLater"];
 
   const [relationshipInteracted, setRelationshipInteracted] = useState(false);
   const [titleInteracted, setTitleInteracted] = useState(false);
@@ -34,7 +34,7 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
   const [emailInteracted, setEmailInteracted] = useState(false);
 
   const handlePhoneChange = (value: string) => {
-    updateField(id, 'phone', value);
+    updateField(id, 'primaryPhone', value);
   };
 
   const showContactFields = partner.contactPreference === "Directly";
@@ -44,14 +44,14 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
     if (!primaryMasonData) return ""; 
     const primaryFullName = `${primaryMasonData?.firstName ?? 'Primary'} ${primaryMasonData?.lastName ?? 'Attendee'}`;
 
-    if (partner.contactPreference === "Primary Attendee") {
+    if (partner.contactPreference === "PrimaryAttendee") {
       return `I confirm that ${primaryFullName} will be responsible for all communication with this attendee`;
     }
     if (partner.contactPreference === "Guest") {
       const nameToShow = relatedGuestName.trim() ? relatedGuestName : `Guest Attendee`; 
       return `I confirm that ${nameToShow} will be responsible for all communication with this attendee`;
     }
-    if (partner.contactPreference === "Provide Later") {
+    if (partner.contactPreference === "ProvideLater") {
       return `I confirm that ${primaryFullName} will be responsible for all communication with this attendee until their contact details have been updated in their profile`;
     }
     return "";
@@ -86,7 +86,7 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
           <select
             id={`partnerRelationship-${id}`}
             name={`partnerRelationship-${id}`}
-            value={partner.relationship}
+            value={partner.relationship ?? ''}
             onChange={(e) => updateField(id, 'relationship', e.target.value)}
             onBlur={() => setRelationshipInteracted(true)}
             required
@@ -108,7 +108,7 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
           <select
             id={`partnerTitle-${id}`}
             name={`partnerTitle-${id}`}
-            value={partner.title}
+            value={partner.title ?? ''}
             onChange={(e) => updateField(id, 'title', e.target.value)}
             onBlur={() => setTitleInteracted(true)}
             required
@@ -131,7 +131,7 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
             type="text"
             id={`partnerFirstName-${id}`}
             name={`partnerFirstName-${id}`}
-            value={partner.firstName}
+            value={partner.firstName ?? ''}
             onChange={(e) => updateField(id, 'firstName', e.target.value)}
             onBlur={() => setFirstNameInteracted(true)}
             required
@@ -150,7 +150,7 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
             type="text"
             id={`partnerLastName-${id}`}
             name={`partnerLastName-${id}`}
-            value={partner.lastName}
+            value={partner.lastName ?? ''}
             onChange={(e) => updateField(id, 'lastName', e.target.value)}
             onBlur={() => setLastNameInteracted(true)}
             required
@@ -180,7 +180,7 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
             <select
               id={`partnerContactPreference-${id}`}
               name={`partnerContactPreference-${id}`}
-              value={partner.contactPreference}
+              value={partner.contactPreference ?? ''}
               onChange={(e) => updateField(id, 'contactPreference', e.target.value)}
               onBlur={() => setContactPreferenceInteracted(true)}
               required
@@ -200,7 +200,7 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
                 <input
                   type="checkbox"
                   id={`partnerContactConfirmed-${id}`}
-                  checked={partner.contactConfirmed}
+                  checked={partner.contactConfirmed ?? false}
                   onChange={(e) => updateField(id, 'contactConfirmed', e.target.checked)}
                   required
                   className="h-4 w-4 text-primary border-slate-300 rounded focus:ring-primary"
@@ -212,10 +212,8 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
             </div>
           )}
           
-          {/* Contact fields */}
           {showContactFields && !showConfirmation && (
             <>
-              {/* Phone input */}
               <div className="col-span-4">
                 <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerPhone-${id}`}>Mobile Number *</label>
                 <div 
@@ -226,14 +224,13 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
                                focus-within:[&.interacted:invalid]:[&>.custom-phone-input>input]:ring-2 
                                focus-within:[&.interacted:invalid]:[&>.custom-phone-input>input]:ring-offset-0`}
                     onBlur={(e) => {
-                      // Set interacted only if focus moves outside the wrapper
                       if (!e.currentTarget.contains(e.relatedTarget)) {
                         setPhoneInteracted(true);
                       }
                     }}
                  >
                   <PhoneInputWrapper
-                    value={partner.phone}
+                    value={partner.primaryPhone ?? ''}
                     onChange={handlePhoneChange}
                     name={`partnerPhone-${id}`}
                     inputProps={{ id: `partnerPhone-${id}`, name: `partnerPhone-${id}` }}
@@ -242,15 +239,14 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
                 </div>
               </div>
               
-              {/* Email input */}
               <div className="col-span-5">
                 <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`partnerEmail-${id}`}>Email Address *</label>
                 <input
                   type="email"
                   id={`partnerEmail-${id}`}
                   name={`partnerEmail-${id}`}
-                  value={partner.email}
-                  onChange={(e) => updateField(id, 'email', e.target.value)}
+                  value={partner.primaryEmail ?? ''}
+                  onChange={(e) => updateField(id, 'primaryEmail', e.target.value)}
                   onBlur={() => setEmailInteracted(true)}
                   required={showContactFields}
                   placeholder="Email Address"
@@ -274,8 +270,8 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
           type="text"
           id={`partnerDietary-${id}`}
           name={`partnerDietary-${id}`}
-          value={partner.dietary}
-          onChange={(e) => updateField(id, 'dietary', e.target.value)}
+          value={partner.dietaryRequirements ?? ''}
+          onChange={(e) => updateField(id, 'dietaryRequirements', e.target.value)}
           placeholder="E.g., vegetarian, gluten-free, allergies"
           className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
         />
@@ -288,7 +284,7 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
         <textarea
           id={`partnerSpecialNeeds-${id}`}
           name={`partnerSpecialNeeds-${id}`}
-          value={partner.specialNeeds}
+          value={partner.specialNeeds ?? ''}
           onChange={(e) => updateField(id, 'specialNeeds', e.target.value)}
           rows={2}
           className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"

@@ -27,9 +27,12 @@ const EventSelectionList: React.FC<EventSelectionListProps> = ({
     );
   }
 
+  // Ensure all events have an ID as it's now required in the schema
+  const validEvents = events.filter(event => !!event.id);
+
   return (
     <div className="space-y-3">
-      {events.map(event => (
+      {validEvents.map(event => (
         <div 
           key={event.id}
           className={`border rounded-md p-3 cursor-pointer ${
@@ -68,7 +71,8 @@ const EventSelectionList: React.FC<EventSelectionListProps> = ({
             </div>
             <div className="flex items-center">
               <span className="font-bold text-primary mr-2">
-                {event.price ? `$${event.price}` : 'Free'}
+                {/* Price comes from ticket_definitions table - this is a placeholder */}
+                ${event.ticketPrice ? event.ticketPrice.toFixed(2) : '0.00'}
               </span>
               <div className={`w-5 h-5 rounded border flex items-center justify-center ${
                 selectedEvents.includes(event.id)

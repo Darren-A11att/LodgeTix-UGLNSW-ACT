@@ -1,44 +1,32 @@
 import React from 'react';
 import { AttendeeData } from '../../lib/api/registrations';
 import { User, Users, UserCheck, Trash2 } from 'lucide-react'; // Add Trash2 icon
+import { useRegistrationStore } from '../../store/registrationStore';
+import { UnifiedAttendeeData } from '../../store/registrationStore';
+// Import the context hook
+// import { useRegisterForm } from '../../hooks/useRegisterForm';
 
-interface AttendeeSummaryProps {
-  attendees: AttendeeData[];
-  removeMasonById: (id: string) => void;
-  removeGuestById: (id: string) => void;
-  toggleHasLadyPartner: (masonId: string, checked: boolean) => void;
-  toggleGuestHasPartner: (guestId: string, checked: boolean) => void;
-}
-
-const AttendeeSummary: React.FC<AttendeeSummaryProps> = ({
-  attendees,
-  removeMasonById,
-  removeGuestById,
-  toggleHasLadyPartner,
-  toggleGuestHasPartner
-}) => {
+const AttendeeSummary: React.FC = () => {
+  // Access state from the registration store
+  const { attendees, removeAttendee } = useRegistrationStore();
 
   // Create a sorted list that keeps related attendees together
   const sortedAttendees = [...attendees].sort((a, b) => {
     // Primary mason first
-    if (a.attendeeType === 'Mason' && a.isPrimary) return -1;
-    if (b.attendeeType === 'Mason' && b.isPrimary) return 1;
+    if (a.attendeeType === 'mason' && a.isPrimary) return -1;
+    if (b.attendeeType === 'mason' && b.isPrimary) return 1;
 
     // For partners, always keep them right after their related attendee
-    // First, identify if b is a partner of a
-    if ((b.attendeeType === 'LadyPartner' || b.attendeeType === 'GuestPartner') && 
+    if ((b.attendeeType === 'lady_partner' || b.attendeeType === 'guest_partner') && 
         b.relatedAttendeeId === a.attendeeId) {
       return -1; // a should come before b
     }
     
-    // Then, identify if a is a partner of b
-    if ((a.attendeeType === 'LadyPartner' || a.attendeeType === 'GuestPartner') && 
+    if ((a.attendeeType === 'lady_partner' || a.attendeeType === 'guest_partner') && 
         a.relatedAttendeeId === b.attendeeId) {
       return 1; // b should come before a
     }
     
-    // If no direct relationship, maintain original order in the array
-    // This assumes attendees are added to the array in the order they're created
     return (attendees.findIndex(att => att.attendeeId === a.attendeeId)) - 
            (attendees.findIndex(att => att.attendeeId === b.attendeeId));
   });
@@ -60,11 +48,11 @@ const AttendeeSummary: React.FC<AttendeeSummaryProps> = ({
     return null;
   }
 
-  const getAttendeeDisplay = (attendee: AttendeeData): string => {
+  const getAttendeeDisplay = (attendee: UnifiedAttendeeData): string => {
     const hasName = attendee.firstName && attendee.lastName;
     
     switch (attendee.attendeeType) {
-      case 'Mason': {
+      case 'mason': {
         let rankDisplay = '';
         if (attendee.rank === 'GL' && attendee.grandRank) {
           rankDisplay = attendee.grandRank;
@@ -75,17 +63,17 @@ const AttendeeSummary: React.FC<AttendeeSummaryProps> = ({
           ? `${attendee.title} ${attendee.firstName} ${attendee.lastName}${rankDisplay ? ` ${rankDisplay}` : ''}` 
           : `Mason Attendee`;
       }
-      case 'LadyPartner': {
+      case 'lady_partner': {
         return hasName 
           ? `${attendee.title} ${attendee.firstName} ${attendee.lastName}` 
           : `Partner Attendee`;
       }
-      case 'Guest': {
+      case 'guest': {
         return hasName 
           ? `${attendee.title} ${attendee.firstName} ${attendee.lastName}` 
           : `Guest Attendee`;
       }
-      case 'GuestPartner': {
+      case 'guest_partner': {
         return hasName 
           ? `${attendee.title} ${attendee.firstName} ${attendee.lastName}` 
           : `Partner Attendee`;
@@ -96,45 +84,26 @@ const AttendeeSummary: React.FC<AttendeeSummaryProps> = ({
     }
   };
 
-  const getAttendeeIcon = (type: AttendeeData['attendeeType']) => {
+  const getAttendeeIcon = (type: UnifiedAttendeeData['attendeeType']) => {
     switch (type) {
-      case 'Mason': return <User className="w-5 h-5 mr-3 text-primary flex-shrink-0" />;
-      case 'LadyPartner': return <UserCheck className="w-5 h-5 mr-3 text-pink-500 flex-shrink-0" />;
-      case 'Guest': return <Users className="w-5 h-5 mr-3 text-indigo-500 flex-shrink-0" />;
-      case 'GuestPartner': return <Users className="w-5 h-5 mr-3 text-pink-500 flex-shrink-0" />;
+      case 'mason': return <User className="w-5 h-5 mr-3 text-primary flex-shrink-0" />;
+      case 'lady_partner': return <UserCheck className="w-5 h-5 mr-3 text-pink-500 flex-shrink-0" />;
+      case 'guest': return <Users className="w-5 h-5 mr-3 text-indigo-500 flex-shrink-0" />;
+      case 'guest_partner': return <Users className="w-5 h-5 mr-3 text-pink-500 flex-shrink-0" />;
       default: return null;
     }
   };
 
-  const handleRemove = (attendee: AttendeeData) => {
-    const isPrimaryMason = attendee.attendeeType === 'Mason' && attendee.isPrimary;
+  const handleRemove = (attendee: UnifiedAttendeeData) => {
+    const isPrimaryMason = attendee.attendeeType === 'mason' && attendee.isPrimary;
     if (isPrimaryMason) return; // Can't remove primary mason
     
-    switch (attendee.attendeeType) {
-      case 'Mason':
-        removeMasonById(attendee.attendeeId);
-        break;
-      case 'Guest':
-        removeGuestById(attendee.attendeeId);
-        break;
-      case 'LadyPartner':
-        // Find the related mason id
-        if (attendee.relatedAttendeeId) {
-          toggleHasLadyPartner(attendee.relatedAttendeeId, false);
-        }
-        break;
-      case 'GuestPartner':
-        // Find the related guest id
-        if (attendee.relatedAttendeeId) {
-          toggleGuestHasPartner(attendee.relatedAttendeeId, false);
-        }
-        break;
-    }
+    removeAttendee(attendee.attendeeId);
   };
 
   // Find out if this is a partner attendee
-  const isPartnerOf = (attendee: AttendeeData): string | null => {
-    if ((attendee.attendeeType === 'LadyPartner' || attendee.attendeeType === 'GuestPartner') && attendee.relatedAttendeeId) {
+  const isPartnerOf = (attendee: UnifiedAttendeeData): string | null => {
+    if ((attendee.attendeeType === 'lady_partner' || attendee.attendeeType === 'guest_partner') && attendee.relatedAttendeeId) {
       const relatedAttendee = attendees.find(a => a.attendeeId === attendee.relatedAttendeeId);
       if (relatedAttendee && relatedAttendee.firstName && relatedAttendee.lastName) {
         return `Partner of ${relatedAttendee.firstName} ${relatedAttendee.lastName}`;
@@ -148,7 +117,7 @@ const AttendeeSummary: React.FC<AttendeeSummaryProps> = ({
       <h3 className="text-lg font-semibold mb-3 text-slate-800 border-b pb-2">Attendee Summary</h3>
       <ul className="space-y-2">
         {sortedAttendees.map((attendee) => {
-          const isPrimaryMason = attendee.attendeeType === 'Mason' && attendee.isPrimary;
+          const isPrimaryMason = attendee.attendeeType === 'mason' && attendee.isPrimary;
           const partnerInfo = isPartnerOf(attendee);
           
           return (

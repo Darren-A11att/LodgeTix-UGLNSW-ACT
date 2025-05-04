@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { GuestData } from '../../../shared/types/register';
 import { HelpCircle } from 'lucide-react';
 import PhoneInputWrapper from '../PhoneInputWrapper';
+import { AttendeeData as UnifiedAttendeeData } from '../../../lib/api/registrations';
 
 interface GuestBasicInfoProps {
-  guest: GuestData;
+  guest: UnifiedAttendeeData;
   id: string;
-  onChange: (id: string, field: string, value: string) => void;
+  onChange: (attendeeId: string, field: keyof UnifiedAttendeeData, value: any) => void;
   titles: string[];
 }
 
@@ -31,7 +31,7 @@ const GuestBasicInfo: React.FC<GuestBasicInfoProps> = ({
         <select
           id={`guestTitle-${id}`}
           name={`guestTitle-${id}`}
-          value={guest.title}
+          value={guest.title ?? ''}
           onChange={(e) => onChange(id, 'title', e.target.value)}
           onBlur={() => setTitleInteracted(true)}
           required
@@ -55,7 +55,7 @@ const GuestBasicInfo: React.FC<GuestBasicInfoProps> = ({
           type="text"
           id={`guestFirstName-${id}`}
           name={`guestFirstName-${id}`}
-          value={guest.firstName}
+          value={guest.firstName ?? ''}
           onChange={(e) => onChange(id, 'firstName', e.target.value)}
           onBlur={() => setFirstNameInteracted(true)}
           required
@@ -75,7 +75,7 @@ const GuestBasicInfo: React.FC<GuestBasicInfoProps> = ({
           type="text"
           id={`guestLastName-${id}`}
           name={`guestLastName-${id}`}
-          value={guest.lastName}
+          value={guest.lastName ?? ''}
           onChange={(e) => onChange(id, 'lastName', e.target.value)}
           onBlur={() => setLastNameInteracted(true)}
           required

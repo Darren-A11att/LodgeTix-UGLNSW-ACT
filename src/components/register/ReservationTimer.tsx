@@ -11,13 +11,19 @@ const ReservationTimer: React.FC<ReservationTimerProps> = ({
   className = ''
 }) => {
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
+  
+  // Maximum reservation time is 15 minutes (900000ms)
+  const MAX_RESERVATION_TIME = 15 * 60 * 1000;
 
   // Format remaining time for display
   const formatRemainingTime = (ms: number | null): string => {
     if (ms === null) return '';
     
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000);
+    // Ensure we don't display more than 15 minutes
+    const clampedMs = Math.min(ms, MAX_RESERVATION_TIME);
+    
+    const minutes = Math.floor(clampedMs / 60000);
+    const seconds = Math.floor((clampedMs % 60000) / 1000);
     
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
@@ -38,23 +44,27 @@ const ReservationTimer: React.FC<ReservationTimerProps> = ({
     // Make sure we have our no-redirect flag set
     localStorage.setItem('lodgetix_bypass_no_redirect', 'true');
     
-    const intervalId = setInterval(() => {
+    const calculateRemainingTime = () => {
       const now = new Date();
       const timeLeft = expiryTime.getTime() - now.getTime();
       
       if (timeLeft <= 0) {
         setRemainingTime(0);
-        clearInterval(intervalId);
-        
         // Don't reset the reservation or do anything that would cause redirection
         console.log('Reservation timer expired but keeping session active to prevent redirection');
       } else {
-        setRemainingTime(timeLeft);
+        // Ensure we don't show more than MAX_RESERVATION_TIME
+        setRemainingTime(Math.min(timeLeft, MAX_RESERVATION_TIME));
       }
-    }, 1000);
+    };
+    
+    // Calculate immediately
+    calculateRemainingTime();
+    
+    const intervalId = setInterval(calculateRemainingTime, 1000);
     
     return () => clearInterval(intervalId);
-  }, [expiryTime]);
+  }, [expiryTime, MAX_RESERVATION_TIME]);
 
   if (!expiryTime) {
     return null;

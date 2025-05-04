@@ -2,12 +2,105 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Calendar, Clock, MapPin, Users, AlertCircle, Loader2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, AlertCircle, Loader2, TrendingUp } from 'lucide-react';
 import { format, isValid, parseISO } from 'date-fns';
 import EventPaymentCard from '../shared/components/EventPaymentCard';
-import { getEventById, getChildEvents, getRelatedEvents } from '../lib/api/events';
+import { getEventById, getChildEvents, getRelatedEvents, getEventCapacity } from '../lib/api/events';
 import { EventType } from '../shared/types/event';
 import { generateGoogleCalendarUrl, CalendarEventData } from '../lib/calendarUtils';
+
+// Capacity display component to be used in the event details
+const CapacityDisplay: React.FC<{ eventId: string }> = ({ eventId }) => {
+  const [capacityInfo, setCapacityInfo] = useState<{
+    totalCapacity: number;
+    availableCount: number;
+    usagePercentage: number;
+    reservedCount: number;
+    soldCount: number;
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCapacity = async () => {
+      setIsLoading(true);
+      try {
+        const capacity = await getEventCapacity(eventId);
+        setCapacityInfo(capacity);
+      } catch (err) {
+        console.error('Error fetching capacity:', err);
+        setError('Unable to load capacity information');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCapacity();
+  }, [eventId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center text-slate-500">
+        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+        <span>Loading capacity information...</span>
+      </div>
+    );
+  }
+
+  if (error || !capacityInfo) {
+    return <p className="text-slate-700">Limited availability</p>;
+  }
+
+  const { availableCount, totalCapacity, usagePercentage, reservedCount, soldCount } = capacityInfo;
+  const isSoldOut = availableCount === 0;
+  const isHighDemand = usagePercentage >= 80;
+
+  if (isSoldOut) {
+    return (
+      <div className="flex items-start">
+        <AlertCircle className="w-4 h-4 mr-2 mt-0.5 text-red-600 flex-shrink-0" />
+        <div>
+          <div className="flex items-center text-red-600">
+            <span className="font-medium">Sold Out</span>
+          </div>
+          <p className="text-sm text-red-500 mt-1">All {totalCapacity} tickets have been claimed</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isHighDemand) {
+    return (
+      <div className="flex items-start">
+        <TrendingUp className="w-4 h-4 mr-2 mt-0.5 text-amber-600 flex-shrink-0" />
+        <div>
+          <div className="flex items-center text-amber-600">
+            <span className="font-medium">High demand</span>
+          </div>
+          <p className="text-sm text-amber-500 mt-1">
+            Only {availableCount} of {totalCapacity} seats remaining
+            {reservedCount > 0 && ` (${reservedCount} currently reserved)`}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-start">
+      <Users className="w-4 h-4 mr-2 mt-0.5 text-green-600 flex-shrink-0" />
+      <div>
+        <div className="flex items-center text-green-600">
+          <span className="font-medium">Available</span>
+        </div>
+        <p className="text-sm text-green-500 mt-1">
+          {availableCount} of {totalCapacity} seats available
+          {soldCount > 0 && ` (${soldCount} already sold)`}
+        </p>
+      </div>
+    </div>
+  );
+};
 
 const EventDetailsPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -222,16 +315,14 @@ const EventDetailsPage: React.FC = () => {
                     </div>
                   </div>
                   
-                  {/* Capacity Display */}
-                  {event.maxAttendees && (
-                    <div className="flex items-start">
-                      <Users className="w-5 h-5 text-primary mt-1 mr-3" />
-                      <div>
-                        <h3 className="font-bold text-slate-900">Capacity</h3>
-                        <p className="text-slate-700">{event.maxAttendees} attendees maximum</p>
-                      </div>
+                  {/* Capacity Display - Uses event_capacity table */}
+                  <div className="flex items-start">
+                    <Users className="w-5 h-5 text-primary mt-1 mr-3" />
+                    <div>
+                      <h3 className="font-bold text-slate-900">Capacity</h3>
+                      <CapacityDisplay eventId={event.id} />
                     </div>
-                  )}
+                  </div>
                 </div>
                 
                 {/* Display Child Events if they exist */}

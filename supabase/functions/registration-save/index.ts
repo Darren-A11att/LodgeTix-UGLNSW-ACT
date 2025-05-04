@@ -673,13 +673,13 @@ async function getTicketPrice(ticketDefinitionId: string, supabase: SupabaseClie
   // Referenced table name is lowercase 'ticket_definitions'
   const { data, error } = await supabase
     .from('ticket_definitions')
-    .select('price')
+    .select('price, event_id')
     .eq('id', ticketDefinitionId)
     .single(); // Expect exactly one result
 
-  if (error || !data || typeof data.price !== 'number') {
-    console.error(`Could not find price for ticket definition ${ticketDefinitionId}: ${error?.message || 'Not found or price missing'}`);
-    throw new Error(`Invalid or missing price for ticket definition ${ticketDefinitionId}`);
+  if (error || !data || typeof data.price !== 'number' || !data.event_id) {
+    console.error(`Could not find price for ticket definition ${ticketDefinitionId}: ${error?.message || 'Not found or price missing or event_id missing'}`);
+    throw new Error(`Invalid or missing price or event_id for ticket definition ${ticketDefinitionId}`);
   }
 
   return data.price;

@@ -93,6 +93,7 @@ async function handleEvent(event: Stripe.Event) {
           amount_subtotal,
           amount_total,
           currency,
+          metadata,
         } = stripeData as Stripe.Checkout.Session;
 
         // Insert the order into the stripe_orders table
@@ -111,6 +112,44 @@ async function handleEvent(event: Stripe.Event) {
           console.error('Error inserting order:', orderError);
           return;
         }
+        
+        // Check if metadata contains event_ids to update capacity 
+        if (metadata && metadata.event_ids) {
+          try {
+            // Parse the event IDs from metadata
+            const eventIds = JSON.parse(metadata.event_ids as string);
+            
+            // Update capacity for each event using the atomic function confirm_purchase
+            if (Array.isArray(eventIds)) {
+              console.info(`Updating capacity for ${eventIds.length} events`);
+              
+              // Process each event with the confirm_purchase function
+              const confirmPromises = eventIds.map(eventId => 
+                supabase.rpc('confirm_purchase', { event_uuid: eventId })
+              );
+              
+              // Execute all capacity updates in parallel
+              const confirmResults = await Promise.all(confirmPromises);
+              
+              // Check for any failed updates
+              const failedUpdates = confirmResults.filter((result, index) => {
+                if (!result.data) {
+                  console.error(`Error updating capacity for event ${eventIds[index]}:`, result.error);
+                  return true;
+                }
+                console.info(`Successfully updated capacity for event ${eventIds[index]}`);
+                return false;
+              });
+              
+              if (failedUpdates.length > 0) {
+                console.warn(`Failed to update capacity for ${failedUpdates.length} events`);
+              }
+            }
+          } catch (parseError) {
+            console.error('Error parsing event_ids from metadata:', parseError);
+          }
+        }
+        
         console.info(`Successfully processed one-time payment for session: ${checkout_session_id}`);
       } catch (error) {
         console.error('Error processing one-time payment:', error);

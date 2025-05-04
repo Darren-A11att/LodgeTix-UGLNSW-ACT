@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { GuestData } from '../../../shared/types/register';
 import { HelpCircle } from 'lucide-react';
 import PhoneInputWrapper from '../PhoneInputWrapper';
+import { AttendeeData as UnifiedAttendeeData } from '../../../lib/api/registrations';
 
 interface GuestContactInfoProps {
-  guest: GuestData;
+  guest: UnifiedAttendeeData;
   id: string;
-  onChange: (id: string, field: string, value: string | boolean) => void;
+  onChange: (attendeeId: string, field: keyof UnifiedAttendeeData, value: any) => void;
   handlePhoneChange: (value: string) => void;
   contactOptions: string[];
   showContactFields: boolean;
@@ -47,7 +47,7 @@ const GuestContactInfo: React.FC<GuestContactInfoProps> = ({
           <select
             id={`contactPreference-${id}`}
             name={`contactPreference-${id}`}
-            value={guest.contactPreference}
+            value={guest.contactPreference ?? ''}
             onChange={(e) => onChange(id, 'contactPreference', e.target.value)}
             onBlur={() => setContactPreferenceInteracted(true)}
             required
@@ -68,7 +68,7 @@ const GuestContactInfo: React.FC<GuestContactInfoProps> = ({
               <input
                 type="checkbox"
                 id={`contactConfirmed-${id}`}
-                checked={guest.contactConfirmed}
+                checked={guest.contactConfirmed ?? false}
                 onChange={(e) => onChange(id, 'contactConfirmed', e.target.checked)}
                 required
                 className="h-4 w-4 text-primary border-slate-300 rounded focus:ring-primary"
@@ -100,7 +100,7 @@ const GuestContactInfo: React.FC<GuestContactInfoProps> = ({
                     }}
                  >
                   <PhoneInputWrapper
-                    value={guest.phone}
+                    value={guest.primaryPhone ?? ''}
                     onChange={handlePhoneChange}
                     name={`guestPhone-${id}`}
                     inputProps={{ id: `guestPhone-${id}`, name: `guestPhone-${id}` }}
@@ -118,8 +118,8 @@ const GuestContactInfo: React.FC<GuestContactInfoProps> = ({
                   type="email"
                   id={`guestEmail-${id}`}
                   name={`guestEmail-${id}`}
-                  value={guest.email}
-                  onChange={(e) => onChange(id, 'email', e.target.value)}
+                  value={guest.primaryEmail ?? ''}
+                  onChange={(e) => onChange(id, 'primaryEmail', e.target.value)}
                   onBlur={() => setEmailInteracted(true)}
                   required={true}
                   className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 

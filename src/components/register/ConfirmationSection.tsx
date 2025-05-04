@@ -2,17 +2,29 @@ import React, { useRef } from 'react';
 import { CheckCircle, PrinterIcon } from 'lucide-react';
 import { 
   FormState, 
-  MasonData, 
-  GuestData, 
-  LadyPartnerData, 
-  GuestPartnerData,
-  TicketType
+  // Remove old types
+  // MasonData, 
+  // GuestData, 
+  // LadyPartnerData, 
+  // GuestPartnerData,
+  // TicketType
 } from '../../shared/types/register';
-import { events } from '../../shared/data/events';
+// Import UnifiedAttendeeData
+import { AttendeeData as UnifiedAttendeeData } from '../../lib/api/registrations';
+// import { events } from '../../shared/data/events'; // Remove this import
+
+// Define the simplified ticket data type expected
+interface SimpleTicketData {
+  id: string; 
+  title: string; 
+  day: string; 
+  time: string; 
+  price: number; 
+}
 
 interface ConfirmationSectionProps {
   formState: FormState;
-  selectedTicketData: TicketType | undefined;
+  selectedTicketData: SimpleTicketData | undefined;
 }
 
 const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({ 
@@ -20,68 +32,46 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
   selectedTicketData 
 }) => {
   const orderNumber = `GI-2025-${Math.floor(10000 + Math.random() * 90000)}`;
-  const primaryMason = formState.masons[0];
+  // Get primary mason from the unified attendees array
+  const primaryMason = formState.attendees?.find(att => att.attendeeType === 'Mason' && att.isPrimary);
   const printRef = useRef<HTMLDivElement>(null);
   
-  // Helper function to get ticket name
-  const getTicketName = (ticketId: string | undefined): string => {
-    if (!ticketId) return 'No ticket';
-    if (ticketId === 'full') return 'Full Package';
-    if (ticketId === 'ceremony') return 'Ceremony Only';
-    if (ticketId === 'social') return 'Social Events';
+  // Helper function to get ticket name (needs update based on TicketDefinitions eventually)
+  const getTicketName = (ticketDefId: string | undefined): string => {
+    if (!ticketDefId) return 'No ticket';
+    // Placeholder logic - needs update to use Ticket Definitions
+    if (ticketDefId === 'full') return 'Full Package';
+    if (ticketDefId === 'ceremony') return 'Ceremony Only';
+    if (ticketDefId === 'social') return 'Social Events';
     
-    // Check if it's an individual event
-    const event = events.find(e => e.id === ticketId);
-    return event ? event.title : ticketId;
+    // TODO: Look up actual ticket definition name based on ID
+    // Can get this from store or pass down available ticket defs
+    return `Ticket ID: ${ticketDefId}`; 
   };
 
-  // Generate summary of tickets
+  // Generate summary of tickets using the unified attendees array
   const generateTicketSummary = () => {
-    // If using uniform ticketing, return a simple summary
+    const attendees = formState.attendees || [];
+    // If using uniform ticketing, use selectedTicketData
     if (formState.useUniformTicketing) {
-      const ticketName = selectedTicketData?.name ?? getTicketName(formState.selectedTicket);
-      const attendeeCount = formState.masons.length + formState.ladyPartners.length + 
-                           formState.guests.length + formState.guestPartners.length;
-      
+      const ticketName = selectedTicketData?.title ?? getTicketName(formState.selectedTicket);
+      const attendeeCount = attendees.length;
       return `${attendeeCount} × ${ticketName}`;
     }
     
-    // For individual tickets, count by type
+    // For individual tickets, count by ticketDefinitionId
     const ticketCounts: { [key: string]: number } = {};
-    
-    // Count tickets by ID
-    formState.masons.forEach((mason: MasonData) => {
-      const ticketId = mason.ticket?.ticketId ?? '';
-      if (ticketId) {
-        ticketCounts[ticketId] = (ticketCounts[ticketId] || 0) + 1;
-      }
-    });
-    
-    formState.ladyPartners.forEach((partner: LadyPartnerData) => {
-      const ticketId = partner.ticket?.ticketId ?? '';
-      if (ticketId) {
-        ticketCounts[ticketId] = (ticketCounts[ticketId] || 0) + 1;
-      }
-    });
-    
-    formState.guests.forEach((guest: GuestData) => {
-      const ticketId = guest.ticket?.ticketId ?? '';
-      if (ticketId) {
-        ticketCounts[ticketId] = (ticketCounts[ticketId] || 0) + 1;
-      }
-    });
-    
-    formState.guestPartners.forEach((partner: GuestPartnerData) => {
-      const ticketId = partner.ticket?.ticketId ?? '';
-      if (ticketId) {
-        ticketCounts[ticketId] = (ticketCounts[ticketId] || 0) + 1;
+    attendees.forEach((attendee) => {
+      const ticketDefId = attendee.ticket?.ticketDefinitionId;
+      if (ticketDefId) {
+        ticketCounts[ticketDefId] = (ticketCounts[ticketDefId] || 0) + 1;
       }
     });
     
     // Generate text summary
     return Object.entries(ticketCounts)
-      .map(([ticketId, count]) => {
-        const ticketName = getTicketName(ticketId);
+      .map(([ticketDefId, count]) => {
+        const ticketName = getTicketName(ticketDefId);
         return `${count} × ${ticketName}`;
       })
       .join(', ');
@@ -95,146 +85,88 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
     }, 100);
   };
 
+  // Define type for items in orderedAttendeeList (using UnifiedAttendeeData)
+  type AttendeeListItem = {
+    type: UnifiedAttendeeData['attendeeType'];
+    name: string;
+    details: UnifiedAttendeeData;
+    relationshipInfo?: {
+      relatedAttendeeName: string;
+      relationship: string | null;
+    };
+  };
+
   // Generate a list of all attendees in the proper order
-  const getOrderedAttendeeList = () => {
+  const getOrderedAttendeeList = (): AttendeeListItem[] => {
     const orderedList: AttendeeListItem[] = [];
-    
-    // 1. Primary Mason
-    if (formState.masons.length > 0) {
-      const primaryMason = formState.masons[0];
-      orderedList.push({
-        type: 'mason',
-        name: `${primaryMason.title} ${primaryMason.firstName} ${primaryMason.lastName}`,
-        details: primaryMason
-      });
-      
-      // 2. Primary Mason's Lady/Partner (if any)
-      const primaryLadyPartner = formState.ladyPartners.find((lp: LadyPartnerData) => lp.masonIndex === 0);
-      if (primaryLadyPartner) {
-        orderedList.push({
-          type: 'ladyPartner',
-          name: `${primaryLadyPartner.title} ${primaryLadyPartner.firstName} ${primaryLadyPartner.lastName}`,
-          details: primaryLadyPartner,
-          relationshipInfo: {
-            type: 'mason',
-            index: 0,
-            relationship: primaryLadyPartner.relationship
-          }
-        });
+    const attendees = formState.attendees || [];
+    const attendeeMap = new Map(attendees.map(att => [att.attendeeId, att]));
+
+    // Sort: Primary Mason first, then others, keeping partners after their primary
+    const sortedAttendees = [...attendees].sort((a, b) => {
+      if (a.attendeeType === 'Mason' && a.isPrimary) return -1;
+      if (b.attendeeType === 'Mason' && b.isPrimary) return 1;
+      if (a.relatedAttendeeId === b.attendeeId) return 1; 
+      if (b.relatedAttendeeId === a.attendeeId) return -1;
+      return 0; 
+    });
+
+    sortedAttendees.forEach(attendee => {
+      let relationshipInfo: AttendeeListItem['relationshipInfo'] | undefined = undefined;
+      if (attendee.relatedAttendeeId) {
+        const related = attendeeMap.get(attendee.relatedAttendeeId);
+        if (related) {
+          relationshipInfo = {
+            relatedAttendeeName: `${related.title || ''} ${related.firstName || ''} ${related.lastName || ''}`.trim(),
+            relationship: attendee.relationship
+          };
+        }
       }
-    }
-    
-    // 3. Additional Masons and their Lady/Partners
-    for (let i = 1; i < formState.masons.length; i++) {
-      const mason = formState.masons[i];
-      orderedList.push({
-        type: 'mason',
-        name: `${mason.title} ${mason.firstName} ${mason.lastName}`,
-        details: mason
-      });
       
-      // Add Lady/Partner if exists
-      const ladyPartner = formState.ladyPartners.find((lp: LadyPartnerData) => lp.masonIndex === i);
-      if (ladyPartner) {
-        orderedList.push({
-          type: 'ladyPartner',
-          name: `${ladyPartner.title} ${ladyPartner.firstName} ${ladyPartner.lastName}`,
-          details: ladyPartner,
-          relationshipInfo: {
-            type: 'mason',
-            index: i,
-            relationship: ladyPartner.relationship
-          }
-        });
-      }
-    }
-    
-    // 4. Guests
-    for (let i = 0; i < formState.guests.length; i++) {
-      const guest = formState.guests[i];
       orderedList.push({
-        type: 'guest',
-        name: `${guest.title} ${guest.firstName} ${guest.lastName}`,
-        details: guest
+        type: attendee.attendeeType,
+        name: `${attendee.title || ''} ${attendee.firstName || ''} ${attendee.lastName || ''}`.trim() || attendee.attendeeType,
+        details: attendee,
+        relationshipInfo: relationshipInfo
       });
-      
-      // Add Guest Partner if exists
-      const guestPartner = formState.guestPartners.find((gp: GuestPartnerData) => gp.guestIndex === i);
-      if (guestPartner) {
-        orderedList.push({
-          type: 'guestPartner',
-          name: `${guestPartner.title} ${guestPartner.firstName} ${guestPartner.lastName}`,
-          details: guestPartner,
-          relationshipInfo: {
-            type: 'guest',
-            index: i,
-            relationship: guestPartner.relationship
-          }
-        });
-      }
-    }
+    });
     
     return orderedList;
   };
   
-  // Define type for items in orderedAttendeeList
-  type AttendeeListItem = {
-    type: 'mason' | 'ladyPartner' | 'guest' | 'guestPartner';
-    name: string;
-    details: MasonData | LadyPartnerData | GuestData | GuestPartnerData;
-    relationshipInfo?: {
-      type: 'mason' | 'guest';
-      index: number;
-      relationship: string;
-    };
+  // Update helper to accept UnifiedAttendeeData
+  const getMasonLodgeInfo = (mason: UnifiedAttendeeData): string => {
+    if (mason.attendeeType !== 'Mason') return ''; // Ensure it's a Mason
+    
+    // TODO: Need to fetch actual names based on IDs
+    if (mason.rank === 'GL' && mason.grandOfficer === 'Current' && mason.grandOffice) {
+      return `${mason.grandOffice} of Grand Lodge ID: ${'UNKNOWN'}`; // Placeholder
+    }
+    return mason.lodgeId
+      ? `Lodge ID: ${mason.lodgeId} of Grand Lodge ID: ${'UNKNOWN'}` // Placeholder
+      : `Grand Lodge ID: ${'UNKNOWN'}`; // Placeholder
   };
   
-  // Get Mason Grand Lodge display info
-  const getMasonLodgeInfo = (mason: MasonData) => {
-    if (mason.rank === 'GL' && mason.grandOfficer === 'Current') {
-      if (mason.grandOffice === 'Other' && mason.grandOfficeOther) {
-        return `${mason.grandOfficeOther} of ${mason.grandLodge}`;
-      } else if (mason.grandOffice && mason.grandOffice !== 'Please Select') {
-        return `${mason.grandOffice} of ${mason.grandLodge}`;
-      }
-    }
-    
-    // Default to lodge info
-    return mason.lodge ? `${mason.lodge} of ${mason.grandLodge}` : mason.grandLodge;
-  };
-  
-  // Get relationship info display
-  const getRelationshipInfo = (relationshipInfo: AttendeeListItem['relationshipInfo']) => {
-    if (!relationshipInfo) return null;
-    
-    if (relationshipInfo.type === 'mason') {
-      const relatedMason = formState.masons[relationshipInfo.index];
-      return `${relationshipInfo.relationship} of ${relatedMason.title} ${relatedMason.firstName} ${relatedMason.lastName}`;
-    } else if (relationshipInfo.type === 'guest') {
-      const relatedGuest = formState.guests[relationshipInfo.index];
-      return `${relationshipInfo.relationship} of ${relatedGuest.title} ${relatedGuest.firstName} ${relatedGuest.lastName}`;
-    }
-    
-    return null;
-  };
-
-  // Get contact details for display
-  const getContactInfo = (attendee: AttendeeListItem['details']) => {
+  // Update helper to accept UnifiedAttendeeData
+  const getContactInfo = (attendee: UnifiedAttendeeData): string => {
     if (!attendee) return '';
     
     if (attendee.contactPreference === 'Directly') {
-      if ('phone' in attendee && attendee.phone && 'email' in attendee && attendee.email) {
-        return `${attendee.email} | ${attendee.phone.startsWith('61') ? '0' + attendee.phone.substring(2) : attendee.phone}`;
+      const phone = attendee.primaryPhone;
+      const email = attendee.primaryEmail;
+      if (phone && email) {
+        const formattedPhone = phone.startsWith('61') ? '0' + phone.substring(2) : phone;
+        return `${email} | ${formattedPhone}`;
       } else {
         return 'Contact details incomplete';
       }
-    } else if (attendee.contactPreference === 'Primary Attendee') {
+    } else if (attendee.contactPreference === "PrimaryAttendee") {
       return 'Contact via Primary Attendee';
-    } else if (attendee.contactPreference === 'Provide Later') {
+    } else if (attendee.contactPreference === "ProvideLater") {
       return 'Contact details to be provided';
-    } else if (attendee.contactPreference === 'Mason') {
+    } else if (attendee.contactPreference === "Mason") {
       return 'Contact via Mason';
-    } else if (attendee.contactPreference === 'Guest') {
+    } else if (attendee.contactPreference === "Guest") {
       return 'Contact via Guest';
     }
     
@@ -243,6 +175,11 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
   
   // List of ordered attendees
   const orderedAttendeeList = getOrderedAttendeeList();
+
+  // Render check: Ensure primaryMason is not null before accessing properties
+  if (!primaryMason) {
+    return <div>Error: Primary Mason details not found.</div>; // Or some loading/error state
+  }
 
   return (
     <div className="text-center print:font-serif print:text-black print:bg-white">
@@ -263,7 +200,7 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
           </div>
           <div className="grid grid-cols-2 gap-2 mb-2">
             <div className="text-slate-600">Email:</div>
-            <div>{primaryMason.email}</div>
+            <div>{primaryMason.primaryEmail}</div>
           </div>
           <div className="grid grid-cols-2 gap-2 mb-2">
             <div className="text-slate-600">Tickets:</div>
@@ -272,10 +209,19 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
           <div className="grid grid-cols-2 gap-2 mb-2">
             <div className="text-slate-600">Attendees:</div>
             <div>
-              {formState.masons.length} Masons, 
-              {formState.ladyPartners.length > 0 && ` ${formState.ladyPartners.length} Lady & Partners,`} 
-              {formState.guests.length > 0 && ` ${formState.guests.length} Guests`}
-              {formState.guestPartners && formState.guestPartners.length > 0 && `, ${formState.guestPartners.length} Guest Partners`}
+              {(() => {
+                const counts = (formState.attendees || []).reduce((acc, att) => {
+                  acc[att.attendeeType] = (acc[att.attendeeType] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>);
+                
+                const parts: string[] = [];
+                if (counts.Mason) parts.push(`${counts.Mason} Mason(s)`);
+                if (counts.LadyPartner) parts.push(`${counts.LadyPartner} Lady/Partner(s)`);
+                if (counts.Guest) parts.push(`${counts.Guest} Guest(s)`);
+                if (counts.GuestPartner) parts.push(`${counts.GuestPartner} Guest Partner(s)`);
+                return parts.join(', ');
+              })()}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -298,7 +244,7 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
       </div>
       
       <p className="mb-6 text-slate-700">
-        A confirmation email has been sent to <strong>{primaryMason.email}</strong> with all the details.
+        A confirmation email has been sent to <strong>{primaryMason.primaryEmail}</strong> with all the details.
       </p>
       
       {/* Print-friendly section (hidden on screen, visible when printing) */}
@@ -313,11 +259,11 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
           <div className="border-2 border-black p-4 mb-4">
             <h2 className="text-2xl font-bold mb-4 text-center">Attendee Details</h2>
           
-            {orderedAttendeeList.map((attendee: AttendeeListItem, index) => (
-              <div key={`${attendee.type}-${index}`} className="mb-8 border-b border-gray-300 pb-6 last:border-b-0 last:pb-0">
+            {orderedAttendeeList.map((attendeeItem: AttendeeListItem, index) => (
+              <div key={attendeeItem.details.attendeeId} className="mb-8 border-b border-gray-300 pb-6 last:border-b-0 last:pb-0">
                 {/* Header row with name */}
                 <div className="flex items-center">
-                  {attendee.type === 'mason' && (
+                  {attendeeItem.type === 'Mason' && (
                     <div className="mr-2 w-6 h-6 flex-shrink-0">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 600" className="w-full h-full">
                         <path d="M223.88 61.4L345.1 172.5L296.7 183.5L264.2 156.2L264.6 200.7L217.3 217.7L217.6 262.3L171.1 245.1L170.8 200.5L124.3 183.3L123.8 138.7L91.08 166.1L42.59 155.2L223.88 61.4zM44.77 210.1L87.48 219.7L87.89 268.6L148 288.8L147.6 239.8L188.1 252.2L188.4 301.3L246.9 320.1L247.3 271.9L287.8 284.1L289 332.1L340.4 346.2L341.6 385L360.3 367.5L367 403.4L347.1 426.2L223.7 399.9L-0.44 458.6L43.01 405.7V210.1H44.77z"/>
@@ -325,41 +271,41 @@ const ConfirmationSection: React.FC<ConfirmationSectionProps> = ({
                     </div>
                   )}
                   <h3 className="font-bold">
-                    {attendee.name} 
-                    {attendee.type === 'mason' && (attendee.details as MasonData).rank && ` ${(attendee.details as MasonData).rank}`}
-                    {attendee.type === 'mason' && (attendee.details as MasonData).rank === 'GL' && (attendee.details as MasonData).grandRank && ` ${(attendee.details as MasonData).grandRank}`}
+                    {attendeeItem.name} 
+                    {attendeeItem.type === 'Mason' && attendeeItem.details.rank && ` ${attendeeItem.details.rank}`}
+                    {attendeeItem.type === 'Mason' && attendeeItem.details.rank === 'GL' && attendeeItem.details.grandRank && ` ${attendeeItem.details.grandRank}`}
                   </h3>
                 </div>
                 
                 {/* Second row with additional info */}
-                {attendee.type === 'mason' && (
-                  <p className="text-sm mt-1">{getMasonLodgeInfo(attendee.details as MasonData)}</p>
+                {attendeeItem.type === 'Mason' && (
+                  <p className="text-sm mt-1">{getMasonLodgeInfo(attendeeItem.details)}</p>
                 )}
                 
-                {(attendee.type === 'ladyPartner' || attendee.type === 'guestPartner') && attendee.relationshipInfo && (
-                  <p className="text-sm mt-1">{getRelationshipInfo(attendee.relationshipInfo)}</p>
+                {attendeeItem.relationshipInfo && (
+                  <p className="text-sm mt-1">{`${attendeeItem.relationshipInfo.relationship || 'Partner'} of ${attendeeItem.relationshipInfo.relatedAttendeeName}`}</p>
                 )}
                 
                 {/* Third row with contact info */}
-                <p className="text-sm text-gray-600 mt-1">{getContactInfo(attendee.details)}</p>
+                <p className="text-sm text-gray-600 mt-1">{getContactInfo(attendeeItem.details)}</p>
                 
                 {/* Additional details */}
-                {attendee.details.dietary && (
-                  <p className="text-sm mt-2"><span className="font-medium">Dietary Needs:</span> {attendee.details.dietary}</p>
+                {attendeeItem.details.dietaryRequirements && (
+                  <p className="text-sm mt-2"><span className="font-medium">Dietary Needs:</span> {attendeeItem.details.dietaryRequirements}</p>
                 )}
                 
-                {('specialNeeds' in attendee.details && attendee.details.specialNeeds) && (
-                  <p className="text-sm mt-1"><span className="font-medium">Special Needs:</span> {attendee.details.specialNeeds}</p>
+                {attendeeItem.details.specialNeeds && (
+                  <p className="text-sm mt-1"><span className="font-medium">Special Needs:</span> {attendeeItem.details.specialNeeds}</p>
                 )}
                 
                 {/* Ticket information */}
                 <div className="mt-3 pt-3 border-t border-gray-200">
-                  {(() => { // IIFE to calculate ticket name
+                  {(() => { 
                     let ticketName = 'No ticket selected';
                     if (formState.useUniformTicketing) {
-                      ticketName = getTicketName(formState.selectedTicket);
-                    } else if (attendee.details.ticket?.ticketId) {
-                      ticketName = getTicketName(attendee.details.ticket.ticketId);
+                      ticketName = selectedTicketData?.title ?? getTicketName(formState.selectedTicket);
+                    } else if (attendeeItem.details.ticket?.ticketDefinitionId) {
+                      ticketName = getTicketName(attendeeItem.details.ticket.ticketDefinitionId);
                     }
                     return <p className="font-medium">{ticketName}</p>;
                   })()}

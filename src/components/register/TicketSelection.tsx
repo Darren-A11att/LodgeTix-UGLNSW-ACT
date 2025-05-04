@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, Clock, TrendingUp, Users } from 'lucide-react';
-import { TicketType, FormState, MasonData, LadyPartnerData, GuestData, GuestPartnerData } from '../../shared/types/register';
-import { events } from '../../shared/data/events';
+import { TicketType, FormState, MasonData, LadyPartnerData, GuestData, GuestPartnerData, AttendeeType } from '../../shared/types/register';
+import { getEvents } from '../../lib/api/events';
+import { EventType } from '../../shared/types/event';
 import { sortEventsByDate, getEligibleEvents, AttendeeData as EligibilityAttendeeData } from '../../shared/utils/eventEligibility';
 import TicketingModeToggle from './ticket/TicketingModeToggle';
 import UniformTicketing from './ticket/UniformTicketing';
@@ -24,16 +25,13 @@ function generateId() {
 
 interface TicketSelectionProps {
   formState: FormState;
-  tickets?: TicketType[]; // Allow backward compatibility with tickets instead of availableTickets
-  availableTickets?: TicketType[]; // Original prop name for internal use
+  tickets?: TicketType[]; // Allow backward compatibility
+  availableTickets?: TicketType[]; // Use this
   selectedEvent?: { id: string; title: string; day: string; time: string; price: number };
-  selectTicket?: (ticketId: string) => void; // Make optional
-  selectMasonTicket: (masonId: string, ticketId: string, events?: string[]) => void;
-  selectLadyPartnerTicket: (partnerId: string, ticketId: string, events?: string[]) => void;
-  selectGuestTicket: (guestId: string, ticketId: string, events?: string[]) => void;
-  selectGuestPartnerTicket: (partnerId: string, ticketId: string, events?: string[]) => void;
-  toggleUniformTicketing?: (enabled: boolean) => void; // Make optional
-  applyTicketToAllAttendees?: (ticketId: string) => void; // Make optional
+  selectTicket?: (ticketId: string) => void; 
+  selectAttendeeTicket: (attendeeId: string, ticketDefinitionId: string | null) => void;
+  toggleUniformTicketing?: (enabled: boolean) => void; 
+  applyTicketToAllAttendees?: (ticketId: string) => void; 
   nextStep: () => void;
   prevStep: () => void;
 }
@@ -44,18 +42,73 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
   tickets, 
   selectedEvent, 
   selectTicket,
-  selectMasonTicket,
-  selectLadyPartnerTicket,
-  selectGuestTicket,
-  selectGuestPartnerTicket,
+  selectAttendeeTicket,
   toggleUniformTicketing,
   applyTicketToAllAttendees,
   nextStep,
   prevStep
 }) => {
+  // Create state to store loaded event data
+  const [loadedEvent, setLoadedEvent] = useState(selectedEvent);
+  // State for all fetched events
+  const [allEventsData, setAllEventsData] = useState<EventType[]>([]);
+  const [isLoadingAllEvents, setIsLoadingAllEvents] = useState(true);
+  const [allEventsError, setAllEventsError] = useState<string | null>(null);
+  
   // Log the selected event to debug
   console.log('TicketSelection - selectedEvent:', selectedEvent);
   console.log('TicketSelection - formState.selectedEventId:', formState.selectedEventId);
+  
+  // Fetch *all* events when component mounts
+  useEffect(() => {
+    const fetchAllEvents = async () => {
+      setIsLoadingAllEvents(true);
+      setAllEventsError(null);
+      try {
+        const response = await getEvents({}); // Fetch all events (no pagination)
+        setAllEventsData(response.events);
+      } catch (error) {
+        console.error("Error fetching all events:", error);
+        setAllEventsError("Failed to load event list.");
+      } finally {
+        setIsLoadingAllEvents(false);
+      }
+    };
+    fetchAllEvents();
+  }, []); // Run once on mount
+
+  // Load *specific* event details if ID passed but details aren't
+  useEffect(() => {
+    // If we already have event details from props, use those
+    if (selectedEvent) {
+      setLoadedEvent(selectedEvent);
+      return;
+    }
+    
+    // If we have an event ID but no details, fetch them
+    if (formState.selectedEventId && !loadedEvent) {
+      // Ensure selectedEventId is not null before calling API
+      const eventIdToFetch = formState.selectedEventId;
+      if (!eventIdToFetch) return; 
+
+      // Import the getEventById function dynamically
+      import('../../lib/api/events').then(({ getEventById }) => {
+        getEventById(eventIdToFetch).then(eventData => { // Pass non-null ID
+          if (eventData) {
+            // Create a compatible event object
+            const compatibleEvent = {
+              id: eventData.id,
+              title: eventData.title ?? 'Event', // Provide fallback for null title
+              day: new Date(eventData.eventStart).toLocaleDateString(),
+              time: new Date(eventData.eventStart).toLocaleTimeString(),
+              price: 0 // Price is now on ticket definitions, not events
+            };
+            setLoadedEvent(compatibleEvent);
+          }
+        });
+      });
+    }
+  }, [formState.selectedEventId, selectedEvent, loadedEvent]);
   
   // Use tickets prop if availableTickets is not provided (backward compatibility)
   const ticketsToUse = availableTickets || tickets || [];
@@ -87,8 +140,8 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
   // Use the global reservation context
   const { reservation, setReservation } = useReservationContext(); // Get current reservation from context
   
-  // Sort events by date in ascending order
-  const sortedEvents = sortEventsByDate([...events]);
+  // Sort events by date in ascending order - USE FETCHED DATA
+  const sortedEvents = sortEventsByDate([...allEventsData]);
 
   // Get flat list of all attendees for individual ticketing
   // Define the type inline based on the structure EXPECTED BY CHILD COMPONENTS
@@ -149,9 +202,10 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
         case 'LadyPartner':
           mappedData = {
             ...baseData,
+            attendeeType: AttendeeType.LADY_PARTNER, // Add missing type
             relationship: attendee.relationship || '',
-            masonIndex: -1, // Legacy field, set default or find index if necessary
-            masonId: attendee.relatedAttendeeId || '' // Use relatedAttendeeId for masonId, provide fallback
+            masonIndex: -1, 
+            masonId: attendee.relatedAttendeeId || '' 
           } as LadyPartnerData;
           break;
         case 'Guest':
@@ -163,11 +217,10 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
         case 'GuestPartner':
           mappedData = {
             ...baseData,
+            attendeeType: AttendeeType.GUEST_PARTNER, // Add missing type
             relationship: attendee.relationship || '',
-            guestIndex: -1, // Legacy field
-            // Use relatedAttendeeId for guestId, provide fallback
+            guestIndex: -1, 
             guestId: attendee.relatedAttendeeId || '' 
-            // Remove relatedGuestId field from mapping
           } as GuestPartnerData;
           break;
         default:
@@ -241,26 +294,29 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
   // Get ticket price based on selected package or summed individual events
   const getTicketPriceForAttendee = (attendeeType: string, index: string | number): number => {
     const ticketId = getSelectedTicketId(attendeeType, index.toString());
-    const eventIds = getSelectedEvents(attendeeType, index.toString());
+    const eventIds = getSelectedEvents(attendeeType, index.toString()); // This returns [] currently
 
     if (ticketId && isPackage(ticketId)) {
       const ticket = ticketsToUse.find(t => t.id === ticketId);
-      return ticket?.price ?? 0;
+      return ticket?.price ?? 0; // ticketsToUse should have price from the TicketType
     } else if (eventIds.length > 0) {
-      return eventIds.reduce((sum, eventId) => {
-        const event = events.find(e => e.id === eventId);
-        return sum + (event?.price ?? 0);
-      }, 0);
+      // This path is currently unreachable because getSelectedEvents returns []
+      // If individual event selection is re-enabled, this needs pricing logic based on TicketDefinitions
+      return 0; 
     }
     return 0;
+  };
+
+  // Select ticket for an attendee (Updates form state) - SIMPLIFIED
+  const handleSelectTicket = (attendeeId: string, ticketDefId: string | null) => {
+    // Call the unified function passed via props
+    selectAttendeeTicket(attendeeId, ticketDefId);
   };
 
   // Reserve ticket for a *single* attendee (used in individual mode)
   const reserveTicketForAttendee = async (
     eventId: string, 
     ticketDefinitionId: string,
-    attendeeType: string,
-    attendeeIndex: string | number, // Keep for compatibility with selection functions?
     attendeeId: string // Use the actual attendee ID
   ) => {
     setIsReserving(true);
@@ -269,7 +325,7 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
     
     if (!eventIdToUse || !ticketDefinitionId || ticketDefinitionId.trim() === '' || !attendeeId) {
       console.error('Invalid parameters for reserveTicketForAttendee', { eventIdToUse, ticketDefinitionId, attendeeId });
-      setErrorMessage('Internal error: Missing information to reserve ticket.');
+      setErrorMessage('Internal error: Missing required event ID or ticket definition ID.');
       setIsReserving(false);
       return;
     }
@@ -277,13 +333,22 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
     console.log(`Reserving ticket: ${ticketDefinitionId} for event: ${eventIdToUse}, attendee ID: ${attendeeId}`);
     
     try {
-      // Use the reservation hook
+      // Remove availability check as it's not on the bypass hook
+      /*
+      const availability = await reservationApi.getAvailability(eventIdToUse, ticketDefinitionId);
+      if (!availability || !availability.success) {
+        throw new Error(availability?.error || 'Failed to check ticket availability');
+      }
+      if (availability.availableCount <= 0) {
+        throw new Error(`This ticket is sold out. Please select a different ticket or try again later.`);
+      }
+      */
+      
+      // Now try to reserve
       const result = await reservationApi.reserve(eventIdToUse, ticketDefinitionId, 1, attendeeId);
       
       if (result.success && result.data && result.data.length > 0) {
-        // Update the form state with the selected ticket
-        // Pass attendeeId (which is the same as index here based on allAttendees mapping)
-        handleSelectTicket(attendeeType, attendeeId, ticketDefinitionId);
+        handleSelectTicket(attendeeId, ticketDefinitionId);
       } else {
         throw new Error(result.error || 'Failed to reserve ticket via API bypass.');
       }
@@ -296,78 +361,11 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
     }
   };
 
-  // Select ticket for an attendee (Updates form state)
-  const handleSelectTicket = (attendeeType: string, attendeeId: string, ticketId: string) => {
-    // When selecting a package, clear any individual event selections
-    const emptyEvents: string[] = []; // Keep this empty as events aren't stored on ticket
-    
-    // Pass attendeeId directly
-    switch(attendeeType) {
-      case 'mason':
-        selectMasonTicket(attendeeId, ticketId, emptyEvents);
-        break;
-      case 'ladyPartner':
-        selectLadyPartnerTicket(attendeeId, ticketId, emptyEvents);
-        break;
-      case 'guest':
-        selectGuestTicket(attendeeId, ticketId, emptyEvents);
-        break;
-      case 'guestPartner':
-        selectGuestPartnerTicket(attendeeId, ticketId, emptyEvents);
-        break;
-    }
-  };
-
-  // Toggle individual event selection for an attendee
-  const toggleEventSelection = (attendeeType: string, attendeeIndex: string | number, eventId: string) => {
+  // Toggle individual event selection - This needs full rework or removal
+  const toggleEventSelection = (attendeeId: string, eventId: string) => {
     // This function needs rework as AttendeeData.ticket has no .events array
     console.warn("toggleEventSelection called, but attendee ticket structure doesn't support individual events currently.");
-    
-    // const indexStr = typeof attendeeIndex === 'number' ? attendeeIndex.toString() : attendeeIndex;
-    const attendee = allAttendees.find(a => a.id === attendeeIndex); // Use id from mapping which is attendeeId
-    if (!attendee) {
-        console.error("Could not find attendee for event selection toggle", {attendeeType, attendeeIndex});
-        return;
-    }
-    const attendeeId = attendee.id;
-
-    // let currentEvents = getSelectedEvents(attendeeType, attendeeId); // Will return []
-    // let currentTicketId = getSelectedTicketId(attendeeType, attendeeId);
-    
-    // // If a package is currently selected, clear it when selecting an individual event
-    // if (isPackage(currentTicketId)) {
-    //   currentTicketId = '';
-    //   // currentEvents = []; // Already empty
-    // }
-    
-    // // Toggle event in the events array - THIS LOGIC IS INVALID NOW
-    // let updatedEvents: string[];
-    // if (currentEvents.includes(eventId)) {
-    //   // If removing an event, just update the state
-    //   // updatedEvents = currentEvents.filter(id => id !== eventId);
-    //   // TODO: Need logic to *cancel* reservation for this individual event if implemented
-    // } else {
-    //   // For adding a new event, first reserve a ticket for this specific child event
-    //   // Pass the actual attendee ID
-    //   reserveTicketForAttendee(eventId, eventId, attendeeType, attendeeId, attendeeId);
-    //   // updatedEvents = [...currentEvents, eventId];
-    // }
-    
-    // // Update the attendee's ticket - THIS LOGIC IS INVALID NOW
-    // switch(attendeeType) {
-    //   case 'mason':
-    //     selectMasonTicket(attendeeId, currentTicketId, updatedEvents);
-    //     break;
-    //   case 'ladyPartner':
-    //     selectLadyPartnerTicket(attendeeId, currentTicketId, updatedEvents);
-    //     break;
-    //   case 'guest':
-    //     selectGuestTicket(attendeeId, currentTicketId, updatedEvents);
-    //     break;
-    //   case 'guestPartner':
-    //     selectGuestPartnerTicket(attendeeId, currentTicketId, updatedEvents);
-    //     break;
-    // }
+    // The logic here was invalid anyway. We should probably just disable individual event selection for now.
   };
 
   // Toggle expand/collapse for an attendee
@@ -446,8 +444,8 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6">
-        {selectedEvent 
-          ? `Register for ${selectedEvent.title}` 
+        {(selectedEvent || loadedEvent)
+          ? `Register for ${(selectedEvent || loadedEvent)?.title}` 
           : 'Select Your Ticket Package'
         }
       </h2>
@@ -474,21 +472,8 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
             selectTicketSafe('');
             if (formState.attendees) {
               formState.attendees.forEach(attendee => {
-                // Use attendeeId
-                switch (attendee.attendeeType) {
-                  case 'Mason':
-                    selectMasonTicket(attendee.attendeeId, '', []);
-                    break;
-                  case 'LadyPartner':
-                    selectLadyPartnerTicket(attendee.attendeeId, '', []);
-                    break;
-                  case 'Guest':
-                    selectGuestTicket(attendee.attendeeId, '', []);
-                    break;
-                  case 'GuestPartner':
-                    selectGuestPartnerTicket(attendee.attendeeId, '', []);
-                    break;
-                }
+                // Use the unified selectAttendeeTicket
+                selectAttendeeTicket(attendee.attendeeId, null); 
               });
             } 
           }
@@ -618,8 +603,8 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
                             disabled={isCurrentlyReserving}
                             onChange={() => {
                               const eventIdToUse = effectiveEventId || ticket.id;
-                              // Pass attendeeId
-                              reserveTicketForAttendee(eventIdToUse, ticket.id, attendee.type, attendee.id, attendee.id);
+                              // Pass only attendeeId and ticket.id
+                              reserveTicketForAttendee(eventIdToUse, ticket.id, attendee.id);
                             }}
                             className="mr-3 h-4 w-4 text-primary focus:ring-primary border-slate-300"
                           />
@@ -639,11 +624,10 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
 
                     {/* Eligible Event Selection List */}
                     <EventSelectionList 
-                      // Pass attendee.type which is the correct literal union
                       events={getEligibleEventsForAttendee(attendee.type, attendee.data as unknown as EligibilityAttendeeData)}
                       selectedEvents={selectedEvents}
                       isReserving={isCurrentlyReserving}
-                      toggleEvent={(eventId: string) => toggleEventSelection(attendee.type, attendeeId, eventId)}
+                      toggleEvent={(eventId: string) => toggleEventSelection(attendeeId, eventId)}
                     />
                   </div>
                 </AttendeeTicketItem>

@@ -1,29 +1,37 @@
 import React from 'react';
+import { UserPlus, UserMinus } from 'lucide-react';
 
 interface LadyPartnerToggleProps {
-  // hasLadyPartner: boolean; // Keep removed prop comment
-  // onToggle: () => void; // Keep removed prop comment
   onAdd: () => void;
-  // attendeeName: string; // Remove this prop
+  onRemove: () => void;
+  hasPartner: boolean;
 }
 
-const LadyPartnerToggle: React.FC<LadyPartnerToggleProps> = ({
-  // hasLadyPartner, // Keep removed prop comment
-  // onToggle // Keep removed prop comment
-  onAdd,
-  // attendeeName // Remove this prop
-}) => {
+const LadyPartnerToggle: React.FC<LadyPartnerToggleProps> = ({ onAdd, onRemove, hasPartner }) => {
   return (
-    <div className="mb-6 flex justify-center">
-      <button
-        type="button"
-        onClick={onAdd} // Use onAdd
-        // Apply consistent styling for an 'Add' button
-        className="py-2 px-6 rounded-md flex items-center justify-center font-medium transition-colors bg-secondary text-white hover:bg-secondary/90"
-      >
-        {/* Revert button text */}
-        Register Lady or Partner
-      </button>
+    <div className="mt-6 mb-4">
+      <hr className="border-t border-slate-300 mb-4" />
+      <div className="flex justify-end">
+        {hasPartner ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="flex items-center text-sm text-red-600 hover:text-red-800"
+          >
+            <UserMinus className="w-4 h-4 mr-1" />
+            Remove Lady/Partner
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="flex items-center text-sm text-sky-600 hover:text-sky-800"
+          >
+            <UserPlus className="w-4 h-4 mr-1" />
+            Add Lady/Partner
+          </button>
+        )}
+      </div>
     </div>
   );
 };
