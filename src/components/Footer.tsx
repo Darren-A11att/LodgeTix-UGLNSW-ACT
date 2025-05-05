@@ -75,7 +75,7 @@ const Footer: React.FC = () => {
               </li>
               <li>
                 <Link
-                  to="/register"
+                  to="/register/type"
                   className="text-slate-300 hover:text-secondary"
                 >
                   Register
@@ -88,6 +88,42 @@ const Footer: React.FC = () => {
                 >
                   Contact
                 </Link>
+              </li>
+              <li>
+                <Link
+                  to="/register/type"
+                  className="text-slate-300 hover:text-secondary"
+                  onClick={(e) => {
+                    e.preventDefault(); // Prevent default navigation
+                    
+                    // Import and use the registration store
+                    import('../store/registrationStore').then((module) => {
+                      // First, clear the registration state
+                      module.useRegistrationStore.getState().clearRegistration();
+                      
+                      // Then navigate to the type selection page
+                      window.location.href = '/register/type';
+                    });
+                  }}
+                >
+                  New Registration
+                </Link>
+              </li>
+              <li>
+                <a
+                  href={window.location.protocol + "//app." + window.location.hostname.replace("www.", "")}
+                  className="text-slate-300 hover:text-secondary"
+                >
+                  Attendee Portal
+                </a>
+              </li>
+              <li>
+                <a
+                  href={window.location.protocol + "//admin." + window.location.hostname.replace("www.", "")}
+                  className="text-slate-300 hover:text-secondary"
+                >
+                  Admin Portal
+                </a>
               </li>
             </ul>
           </div>

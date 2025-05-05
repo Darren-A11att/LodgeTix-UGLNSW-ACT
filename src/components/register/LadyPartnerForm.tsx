@@ -34,7 +34,7 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
   const relationships = ["Wife", "Partner", "Fiancée", "Husband", "Fiancé"];
 
   // Determine available contact options
-  const contactOptions = ["Please Select", "Directly", "Provide Later", "Mason"];
+  const contactOptions = ["Please Select", "Directly", "PrimaryAttendee", "Mason", "ProvideLater"];
 
   // Interaction states
   const [relationshipInteracted, setRelationshipInteracted] = useState(false);
@@ -52,6 +52,7 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
   const showContactFields = partner.contactPreference === "Directly";
   const showConfirmation =
     partner.contactPreference !== "Directly" &&
+    partner.contactPreference !== "" &&
     partner.contactPreference !== "Please Select";
 
   // Generate dynamic confirmation message
@@ -59,19 +60,22 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
     if (partner.contactPreference === "Mason") {
       return `I confirm that ${relatedMasonName} will be responsible for all communication with this attendee`;
     }
-    if (partner.contactPreference === "Provide Later") {
+    if (partner.contactPreference === "PrimaryAttendee") {
+      return `I confirm that the primary contact will be responsible for all communication with this attendee`;
+    }
+    if (partner.contactPreference === "ProvideLater") {
       return `I confirm that the primary contact will be responsible for all communication with this attendee until their contact details have been updated in their profile`;
     }
     return "";
   };
 
   return (
-    <div className="relative">
+    <div className="border-t border-slate-200 pt-6 mt-6 relative">
       {onRemove && (
         <button
           type="button"
           onClick={onRemove}
-          className="absolute top-0 right-0 text-red-500 hover:text-red-700 flex items-center text-sm"
+          className="absolute top-6 right-0 text-red-500 hover:text-red-700 flex items-center text-sm"
           aria-label="Remove partner"
         >
           <X className="w-4 h-4 mr-1" />
@@ -92,7 +96,7 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
             clipRule="evenodd"
           />
         </svg>
-        Partner Attendee
+        Lady & Partner Details
       </h4>
 
       <div className="grid grid-cols-12 gap-4 mb-4">
@@ -114,7 +118,7 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
                        ${relationshipInteracted ? 'interacted' : ''} 
                        [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
           >
-            <option value="">Please Select</option>
+            <option value="" disabled>Please Select</option>
             {relationships.map((rel) => (
               <option key={rel} value={rel}>
                 {rel}
@@ -141,7 +145,7 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
                        ${titleInteracted ? 'interacted' : ''} 
                        [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
           >
-            <option value="">Please Select</option>
+            <option value="" disabled>Please Select</option>
             {titles.map((title) => (
               <option key={title} value={title}>
                 {title}
@@ -195,9 +199,9 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
         </div>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-3">
         <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-4">
+          <div className="col-span-3">
             <label
               className="block text-sm font-medium text-slate-700 mb-1"
               htmlFor={`contactPreference-${id}`}
@@ -227,7 +231,7 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
                          [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
             >
               {contactOptions.map((option) => (
-                <option key={option} value={option === 'Please Select' ? '' : option}>
+                <option key={option} value={option === 'Please Select' ? '' : option} disabled={option === 'Please Select'}>
                   {option}
                 </option>
               ))}
@@ -291,7 +295,7 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
                    </div>
                 </div>
 
-                <div className="col-span-4">
+                <div className="col-span-5">
                   <label
                     className="block text-sm font-medium text-slate-700 mb-1"
                     htmlFor={`ladyEmail-${id}`}

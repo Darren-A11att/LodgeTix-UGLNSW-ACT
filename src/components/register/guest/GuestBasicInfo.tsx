@@ -39,7 +39,7 @@ const GuestBasicInfo: React.FC<GuestBasicInfoProps> = ({
                      ${titleInteracted ? 'interacted' : ''} 
                      [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
         >
-          <option value="">Please Select</option>
+          <option value="" disabled>Please Select</option>
           {titles.map(title => (
             <option key={title} value={title}>{title}</option>
           ))}

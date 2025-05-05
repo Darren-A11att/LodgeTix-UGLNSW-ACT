@@ -1,13 +1,18 @@
+'use client'
+
 import React, { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Menu, X, Compass, User, LogOut } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
+import { Dialog } from '@headlessui/react';
+import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -29,208 +34,122 @@ const Header: React.FC = () => {
         : "text-slate-700 hover:text-secondary"
     }`;
 
+  // Define your site's navigation structure
+  const navigation = [
+    { name: 'Home', href: '/' },
+    { name: 'About', href: '/about' },
+    { name: 'Events', href: '/events' },
+    { name: 'Contact', href: '/contact' },
+  ];
+
+  // Function to determine active link style
+  const getNavLinkClass = ({ isActive }: { isActive: boolean }) =>
+    isActive ? 'text-primary font-semibold' : 'text-gray-900 font-semibold';
+
   return (
-    <header className="bg-white shadow-sm">
-      <div className="container-custom py-4">
-        <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center space-x-2">
-            <Compass className="w-10 h-10 text-primary" />
-            <div>
-              <div className="text-xl font-bold text-primary">
-                Grand Proclamation
-              </div>
-              <div className="text-xs text-slate-600">
-                United Grand Lodge of NSW & ACT
-              </div>
-            </div>
-          </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-1">
-            <NavLink to="/" className={navLinkClasses} end>
-              Home
-            </NavLink>
-            <NavLink to="/about" className={navLinkClasses}>
-              About
-            </NavLink>
-            <NavLink to="/events" className={navLinkClasses}>
-              Events
-            </NavLink>
-            <NavLink to="/contact" className={navLinkClasses}>
-              Contact
-            </NavLink>
-
-            {user ? (
-              <div className="relative ml-4">
-                <button
-                  onClick={toggleProfileMenu}
-                  className="flex items-center space-x-1 px-3 py-2 rounded-md text-slate-700 hover:text-secondary"
-                >
-                  <User className="h-5 w-5" />
-                  <span className="hidden lg:inline">Account</span>
-                </button>
-
-                {isProfileMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-                    <div className="px-4 py-2 text-sm text-slate-700 border-b border-slate-200">
-                      {user.email}
-                    </div>
-                    <Link
-                      to="/register"
-                      className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
-                      onClick={() => setIsProfileMenuOpen(false)}
-                    >
-                      My Registrations
-                    </Link>
-                    <button
-                      onClick={handleSignOut}
-                      className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
-                    >
-                      <div className="flex items-center">
-                        <LogOut className="h-4 w-4 mr-2" />
-                        Sign Out
-                      </div>
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center ml-4 space-x-2">
-                <Link
-                  to="/login"
-                  className="px-3 py-2 text-slate-700 hover:text-secondary"
-                >
-                  Sign In
-                </Link>
-                <Link to="/register" className="btn-primary">
-                  Register Now
+    <header className="bg-white sticky top-0 z-40 shadow-sm">
+      <nav aria-label="Global" className="container-custom mx-auto flex items-center justify-between p-6 lg:px-8">
+        {/* Logo */}
+        <div className="flex lg:flex-1">
+          <Link to="/" className="-m-1.5 p-1.5 flex items-center gap-2">
+            <span className="sr-only">Grand Proclamation</span>
+            <img
+              alt="Grand Proclamation Logo"
+              src="/favicon.svg" 
+              className="h-8 w-auto"
+            />
+            <span className="font-bold text-gray-900">Grand Proclamation</span>
                 </Link>
               </div>
-            )}
-          </nav>
 
           {/* Mobile Menu Button */}
+        <div className="flex lg:hidden">
           <button
             type="button"
-            className="md:hidden p-2 rounded-md text-primary"
-            onClick={toggleMenu}
-            aria-label="Toggle menu"
+            onClick={() => setMobileMenuOpen(true)}
+            className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-gray-700"
+            aria-label="Open main menu"
           >
-            {isMenuOpen ? (
-              <X className="h-6 w-6" />
-            ) : (
-              <Menu className="h-6 w-6" />
-            )}
+            <span className="sr-only">Open main menu</span>
+            <Bars3Icon aria-hidden="true" className="size-6" />
           </button>
         </div>
 
-        {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <nav className="md:hidden py-4 space-y-2">
-            <NavLink
-              to="/"
-              className={({ isActive }) =>
-                `block px-3 py-2 rounded-md ${
-                  isActive
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-slate-700"
-                }`
-              }
-              onClick={toggleMenu}
-              end
-            >
-              Home
+        {/* Desktop Navigation */}
+        <div className="hidden lg:flex lg:gap-x-12">
+          {navigation.map((item) => (
+            <NavLink key={item.name} to={item.href} className={getNavLinkClass}>
+              {item.name}
             </NavLink>
-            <NavLink
-              to="/about"
-              className={({ isActive }) =>
-                `block px-3 py-2 rounded-md ${
-                  isActive
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-slate-700"
-                }`
-              }
-              onClick={toggleMenu}
-            >
-              About
+          ))}
+        </div>
+        
+        {/* Desktop Account Link */}
+        <div className="hidden lg:flex lg:flex-1 lg:justify-end">
+          <NavLink to="/account" className={getNavLinkClass}>
+            Account <span aria-hidden="true">&rarr;</span>
             </NavLink>
-            <NavLink
-              to="/events"
-              className={({ isActive }) =>
-                `block px-3 py-2 rounded-md ${
-                  isActive
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-slate-700"
-                }`
-              }
-              onClick={toggleMenu}
+        </div>
+      </nav>
+      
+      {/* Mobile Menu Dialog */}
+      <Dialog open={mobileMenuOpen} onClose={setMobileMenuOpen} className="lg:hidden">
+        <div className="fixed inset-0 z-50" /> 
+        <Dialog.Panel className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
+          {/* Mobile Menu Header */}
+          <div className="flex items-center justify-between">
+            <Link to="/" className="-m-1.5 p-1.5" onClick={() => setMobileMenuOpen(false)}>
+              <span className="sr-only">Grand Proclamation</span>
+              <img
+                alt="Grand Proclamation Logo"
+                src="/favicon.svg"
+                className="h-8 w-auto"
+              />
+            </Link>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              className="-m-2.5 rounded-md p-2.5 text-gray-700"
+              aria-label="Close menu"
             >
-              Events
-            </NavLink>
+              <span className="sr-only">Close menu</span>
+              <XMarkIcon aria-hidden="true" className="size-6" />
+            </button>
+          </div>
+          {/* Mobile Menu Body */}
+          <div className="mt-6 flow-root">
+            <div className="-my-6 divide-y divide-gray-500/10">
+              {/* Mobile Navigation Links */}
+              <div className="space-y-2 py-6">
+                {navigation.map((item) => (
             <NavLink
-              to="/contact"
+                    key={item.name}
+                    to={item.href}
               className={({ isActive }) =>
-                `block px-3 py-2 rounded-md ${
-                  isActive
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-slate-700"
-                }`
+                      `-mx-3 block rounded-lg px-3 py-2 text-base/7 font-semibold ${isActive ? 'text-primary bg-gray-50' : 'text-gray-900 hover:bg-gray-50'}`
               }
-              onClick={toggleMenu}
+                    onClick={() => setMobileMenuOpen(false)}
             >
-              Contact
+                    {item.name}
             </NavLink>
-
-            {user ? (
-              <div className="border-t border-slate-200 my-2 pt-2">
-                <div className="px-3 py-1 text-sm text-slate-500">
-                  Signed in as: {user.email}
+                ))}
                 </div>
+              {/* Mobile Account Link */}
+              <div className="py-6">
                 <NavLink
-                  to="/register"
+                  to="/account"
                   className={({ isActive }) =>
-                    `block px-3 py-2 rounded-md ${
-                      isActive
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-slate-700"
-                    }`
+                    `-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold ${isActive ? 'text-primary bg-gray-50' : 'text-gray-900 hover:bg-gray-50'}`
                   }
-                  onClick={toggleMenu}
+                  onClick={() => setMobileMenuOpen(false)}
                 >
-                  My Registrations
+                  Account
                 </NavLink>
-                <button
-                  onClick={() => {
-                    handleSignOut();
-                    toggleMenu();
-                  }}
-                  className="flex items-center w-full text-left px-3 py-2 text-slate-700"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sign Out
-                </button>
               </div>
-            ) : (
-              <div className="border-t border-slate-200 my-2 pt-2 space-y-2">
-                <Link
-                  to="/login"
-                  className="block px-3 py-2 text-slate-700"
-                  onClick={toggleMenu}
-                >
-                  Sign In
-                </Link>
-                <Link
-                  to="/register"
-                  className="block w-full text-center btn-primary"
-                  onClick={toggleMenu}
-                >
-                  Register Now
-                </Link>
               </div>
-            )}
-          </nav>
-        )}
       </div>
+        </Dialog.Panel>
+      </Dialog>
     </header>
   );
 };

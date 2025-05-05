@@ -40,3 +40,6 @@ dist-ssr
 *.sql
 
 supabase/migrations/*
+
+# Local configuration files
+vite.config.local.js

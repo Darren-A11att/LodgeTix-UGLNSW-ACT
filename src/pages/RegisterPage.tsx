@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import { getEvents } from '../lib/api/events';
 import { EventType } from '../shared/types/event';
 import { ReservationProvider } from '../context/ReservationContext';
@@ -121,9 +121,19 @@ const getAttendeeDetailErrors = (attendees: UnifiedAttendeeData[], agreeToTerms:
   return errors;
 };
 
+// Define props for the RegisterForm component
+interface RegisterFormProps {
+  preselectedEventId?: string; // Make it optional
+}
+
 // Component that contains the form logic
-const RegisterForm: React.FC = () => {
+const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { registrationType: routeRegistrationType, pageName } = useParams<{ 
+    registrationType?: string; 
+    pageName?: string;
+  }>();
   
   // State for fetched events
   const [eventsData, setEventsData] = useState<EventType[]>([]);
@@ -153,12 +163,66 @@ const RegisterForm: React.FC = () => {
       setAgreeToTerms
   } = useRegistrationStore();
   
+  // Map page names to step numbers
+  const pageToStepMap: Record<string, number> = {
+    'type': 1,
+    'attendee-details': 2,
+    'tickets': 3,
+    'review-order': 4,
+    'payment': 5,
+    'confirmation': 6
+  };
+
+  // Map step numbers to page names
+  const stepToPageMap: Record<number, string> = {
+    1: 'type',
+    2: 'attendee-details',
+    3: 'tickets',
+    4: 'review-order',
+    5: 'payment',
+    6: 'confirmation'
+  };
+  
+  // Initialize current step based on URL
+  const getInitialStep = (): number => {
+    if (pageName && pageToStepMap[pageName]) {
+      return pageToStepMap[pageName];
+    }
+    return 1; // Default to first step
+  };
+  
   // Local UI state (current step)
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(getInitialStep());
   const [completedSteps, setCompletedSteps] = useState<number[]>([]); 
   // State for draft recovery modal
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [pendingRegistrationType, setPendingRegistrationType] = useState<RegistrationType | null>(null);
+
+  // Handle URL-based navigation
+  useEffect(() => {
+    // If the page name in the URL changes, update the current step
+    if (pageName && pageToStepMap[pageName]) {
+      setCurrentStep(pageToStepMap[pageName]);
+    }
+  }, [pageName]);
+
+  // Redirect to step 1 if trying to access other steps without a registration type
+  useEffect(() => {
+    if (pageName && pageName !== 'type' && !registrationType && !routeRegistrationType) {
+      // If trying to access a step other than 'type' without a registration type, redirect to step 1
+      navigate('/register/type', { replace: true });
+    }
+  }, [pageName, registrationType, routeRegistrationType, navigate]);
+
+  // Sync registration type from URL
+  useEffect(() => {
+    if (routeRegistrationType && !registrationType) {
+      // Only set if it's valid
+      if (['individual', 'lodge', 'delegation'].includes(routeRegistrationType)) {
+        setRegistrationType(routeRegistrationType as RegistrationType);
+      }
+    }
+  }, [routeRegistrationType, registrationType, setRegistrationType]);
 
   // --- Fetch Events --- 
   useEffect(() => {
@@ -179,10 +243,44 @@ const RegisterForm: React.FC = () => {
     fetchEvents();
   }, []); // Empty dependency array ensures this runs only once on mount
 
-  // --- Step Navigation (using local state) --- 
-  const nextStep = useCallback(() => setCurrentStep(prev => prev + 1), []);
-  const prevStep = useCallback(() => setCurrentStep(prev => prev - 1), []);
-  const goToStep = useCallback((step: number) => setCurrentStep(step), []);
+  // --- Step Navigation (update to use URL-based navigation) ---
+  const nextStep = useCallback(() => {
+    const nextStepNumber = currentStep + 1;
+    if (nextStepNumber <= 6) {
+      const nextPage = stepToPageMap[nextStepNumber];
+      // Navigate to the URL for the next step
+      if (registrationType) {
+        navigate(`/register/${registrationType}/${nextPage}`);
+      } else {
+        navigate(`/register/${nextPage}`);
+      }
+    }
+  }, [currentStep, navigate, registrationType]);
+
+  const prevStep = useCallback(() => {
+    const prevStepNumber = currentStep - 1;
+    if (prevStepNumber >= 1) {
+      const prevPage = stepToPageMap[prevStepNumber];
+      // Navigate to the URL for the previous step
+      if (registrationType) {
+        navigate(`/register/${registrationType}/${prevPage}`);
+      } else {
+        navigate(`/register/${prevPage}`);
+      }
+    }
+  }, [currentStep, navigate, registrationType]);
+
+  const goToStep = useCallback((step: number) => {
+    if (step >= 1 && step <= 6) {
+      const page = stepToPageMap[step];
+      // Navigate to the URL for the specified step
+      if (registrationType) {
+        navigate(`/register/${registrationType}/${page}`);
+      } else {
+        navigate(`/register/${page}`);
+      }
+    }
+  }, [navigate, registrationType]);
 
   // --- Update completed steps based on store state --- 
   useEffect(() => {
@@ -206,7 +304,7 @@ const RegisterForm: React.FC = () => {
     setCompletedSteps(completed);
   }, [registrationType, attendees, packages, billingDetails, currentStep, agreeToTerms]);
 
-  // --- Registration Type Selection Handler --- 
+  // --- Registration Type Selection Handler ---
   const handleSetRegistrationType = (type: string) => {
       const regType = type as RegistrationType;
       const validTypes: RegistrationType[] = ['individual', 'lodge', 'delegation'];
@@ -231,9 +329,11 @@ const RegisterForm: React.FC = () => {
           // Do NOT call setRegistrationType here - wait for modal decision
       } else {
           console.log("[RegisterPage] No meaningful draft. Setting registration type without creating draft yet."); // DEBUG
-          // Just set the registration type, but don't create a draft yet - that will happen when entering step 2
+          // Just set the registration type, but don't create a draft yet
           setRegistrationType(regType);
-          nextStep(); // Proceed to the next step
+          
+          // Navigate to the next step with the new type
+          navigate(`/register/${regType}/attendee-details`);
       }
   };
 
@@ -258,8 +358,10 @@ const RegisterForm: React.FC = () => {
     // User wants to continue the existing draft. The state is already loaded.
     console.log(`[RegisterPage] Continuing with existing draft (Type: ${registrationType}).`); // DEBUG
     handleCloseModal();
-    // Just navigate to step 2 - the correct draft data is already in the store.
-    goToStep(2);
+    // Navigate to step 2 with the existing type
+    if (registrationType) {
+      navigate(`/register/${registrationType}/attendee-details`);
+    }
   };
 
   const handleStartNewConfirmed = () => {
@@ -269,8 +371,8 @@ const RegisterForm: React.FC = () => {
         const newDraftId = startNewRegistration(pendingRegistrationType); // Reset state and set type
         console.log("Started new registration:", newDraftId);
         handleCloseModal();
-        // Navigate to step 2 after starting the new registration
-        goToStep(2);
+        // Navigate to step 2 with the new type
+        navigate(`/register/${pendingRegistrationType}/attendee-details`);
     } else {
         console.error("[RegisterPage] Attempted to start new registration without a pending type.");
         handleCloseModal();
@@ -378,7 +480,7 @@ const RegisterForm: React.FC = () => {
 
   // New function to handle going back to registration type selection
   const backToRegistrationType = () => {
-    goToStep(1);
+    navigate('/register/type');
   };
 
   // Create a placeholder FormState for prop compatibility
@@ -622,7 +724,9 @@ const RegisterForm: React.FC = () => {
 
 // Main RegisterPage component that wraps the form with the context provider
 const RegisterPage: React.FC = () => {
-  console.log("[RegisterPage] Main component rendering..."); // DEBUG
+  console.log("[RegisterPage] Rendering RegisterPage");
+
+  // Retrieve preselected event ID from location state if available
   const location = useLocation();
   const preselectedEventId = location.state?.selectedEventId;
   console.log(`[RegisterPage] Preselected Event ID: ${preselectedEventId}`); // DEBUG
@@ -639,9 +743,9 @@ const RegisterPage: React.FC = () => {
       </section>
 
       <section className="py-6 sm:py-12 bg-white">
-        <div id="main-content" className="container-custom max-w-7xl">
+        <div id="main-content" className="container-custom mx-auto px-4 sm:px-6 lg:px-8 py-6 max-w-7xl">
           <ReservationProvider>
-            <RegisterForm />
+            <RegisterForm preselectedEventId={preselectedEventId} />
           </ReservationProvider>
         </div>
       </section>

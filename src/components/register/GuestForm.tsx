@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import 'react-phone-input-2/lib/style.css';
-import { GuestData, GuestPartnerData, MasonData } from '../../shared/types/register';
+import { GuestPartnerData } from '../../shared/types/register';
 import GuestPartnerForm from './GuestPartnerForm';
 import { X } from 'lucide-react';
 import GuestBasicInfo from './guest/GuestBasicInfo';
@@ -21,23 +21,30 @@ const GuestForm: React.FC<GuestFormProps> = ({
   attendeeNumber,
   isPrimary = false, // Default to false
 }) => {
-  // --- Store Data ---
-  const { guest, partnerData, updateAttendee, removeAttendee, addAttendee } = useRegistrationStore(state => {
-      const currentGuest = state.attendees.find(att => att.attendeeId === attendeeId);
-      // Find associated guest partner
-      const partner = state.attendees.find(att => att.relatedAttendeeId === attendeeId && att.attendeeType === 'guest_partner');
-      return {
-          guest: currentGuest,
-          partnerData: partner, // UnifiedAttendeeData | undefined
-          updateAttendee: state.updateAttendee,
-          removeAttendee: state.removeAttendee,
-          addAttendee: state.addAttendee,
-      };
-  });
-
+  // --- Store Actions (these are stable and don't cause re-renders) ---
+  const updateAttendee = useRegistrationStore(state => state.updateAttendee);
+  const removeAttendee = useRegistrationStore(state => state.removeAttendee);
+  const addAttendee = useRegistrationStore(state => state.addAttendee);
+  
+  // --- Store Data (wrapped with stable selector functions) ---
+  // Use a simple identity function for stable referential equality
+  const attendees = useRegistrationStore(state => state.attendees);
+  
+  // Derive values from attendees in a memoized function
+  const guest = useMemo(() => 
+    attendees.find(att => att.attendeeId === attendeeId),
+    [attendees, attendeeId]
+  );
+  
+  const partnerData = useMemo(() => 
+    attendees.find(att => att.relatedAttendeeId === attendeeId && att.attendeeType === 'guest_partner'),
+    [attendees, attendeeId]
+  );
+  
   // Find primary attendee for contact confirmation message
-  const primaryAttendeeData = useRegistrationStore(state => 
-      state.attendees.find(att => att.isPrimary) 
+  const primaryAttendeeData = useMemo(() => 
+    attendees.find(att => att.isPrimary),
+    [attendees]
   );
 
   if (!guest) {
@@ -63,36 +70,43 @@ const GuestForm: React.FC<GuestFormProps> = ({
 
   const handlePartnerToggle = useCallback(() => {
       if (partnerData) {
-          if (window.confirm("Are you sure you want to remove this guest's partner?")) {
-            removeAttendee(partnerData.attendeeId);
-          }
+          // Confirmation removed based on AddRemoveControl design elsewhere
+          removeAttendee(partnerData.attendeeId);
       } else {
-          // Fix addAttendee call: Ensure all required fields from UnifiedAttendeeData are present
           addAttendee({
               attendeeType: 'guest_partner',
               relatedAttendeeId: attendeeId, 
-              registrationId: guest.registrationId, 
-              // Add required fields with defaults
+              registrationId: guest.registrationId,
+              // Provide required defaults
               firstName: '', 
               lastName: '',
-              // Add other potentially required fields from UnifiedAttendeeData with defaults
-              // personId: uuidv4(), // If needed
-              // title: '' // If needed
-              // primaryEmail: '' // If needed
-              // primaryPhone: '' // If needed
-              // contactPreference: 'PrimaryAttendee' // If needed
-          } as Omit<UnifiedAttendeeData, 'attendeeId'>); // Cast might still be needed if defaults aren't exhaustive
+              title: '', // Default
+              suffix: undefined,
+              primaryPhone: undefined,
+              primaryEmail: undefined,
+              dietaryRequirements: undefined,
+              otherDietaryRequirements: undefined,
+              ticket: undefined,
+              partnerId: undefined,
+              relationship: undefined,
+              contactPreference: 'PrimaryAttendee',
+              contactConfirmed: false,
+              grandOffice: undefined,
+              pastGrandOffice: undefined,
+              lodgeNameNumber: undefined, 
+              memberNumber: undefined, 
+              rank: undefined, 
+          } as Omit<UnifiedAttendeeData, 'attendeeId'>);
       }
   }, [partnerData, addAttendee, removeAttendee, attendeeId, guest.registrationId]);
 
   const getConfirmationMessage = useCallback(() => {
-    // Fix comparison: Check against actual values, not 'Please Select'
     if (!primaryAttendeeData) return "";
     const primaryFullName = `${primaryAttendeeData.firstName || ''} ${primaryAttendeeData.lastName || ''}`.trim();
     if (guest.contactPreference === "PrimaryAttendee") { 
         return `I confirm that ${primaryFullName} will be responsible for all communication with this attendee`;
     } else if (guest.contactPreference === "ProvideLater") { 
-        return `I confirm that ${primaryFullName} will be responsible for all communication with this attendee until their contact details have been updated...`; // Shortened
+        return `I confirm that ${primaryFullName} will be responsible for all communication with this attendee until their contact details have been updated in their profile`;
     }
     return "";
   }, [primaryAttendeeData, guest.contactPreference]);
@@ -100,7 +114,6 @@ const GuestForm: React.FC<GuestFormProps> = ({
   // --- Transform Partner Data for Old GuestPartnerForm ---
   const transformedPartnerData = useMemo(() => {
       if (!partnerData) return undefined;
-      // TODO: Map UnifiedAttendeeData (partnerData) to OldGuestPartnerData
       return { 
           id: partnerData.attendeeId,
           title: partnerData.title || '',
@@ -109,27 +122,34 @@ const GuestForm: React.FC<GuestFormProps> = ({
           email: partnerData.primaryEmail || '',
           phone: partnerData.primaryPhone || '',
           dietary: partnerData.dietaryRequirements || '',
-          specialNeeds: partnerData.specialNeeds || '',
+          specialNeeds: partnerData.specialNeeds || '', // Assuming this exists
           relationship: partnerData.relationship || 'Partner',
-          guestId: partnerData.relatedAttendeeId || '', // Check field name
-      } as GuestPartnerData;
+          guestId: partnerData.relatedAttendeeId || '',
+          contactPreference: partnerData.contactPreference || 'Directly',
+          contactConfirmed: !!partnerData.contactConfirmed,
+          attendeeType: 'Guest Partner', // Add attendeeType required by GuestPartnerData
+      };
   }, [partnerData]);
 
   // Expanded titles to include more options
   const titles = ["Mr", "Mrs", "Ms", "Miss", "Dr", "Rev", "Prof", "Rabbi", "Hon", "Sir", "Madam", "Lady", "Dame"];
   const contactOptions = ["Please Select", "PrimaryAttendee", "Directly", "ProvideLater"];
-  
-  const showContactFields = guest.contactPreference === "Directly";
+
   const showConfirmation = guest.contactPreference !== "Directly" && guest.contactPreference !== undefined && guest.contactPreference !== null;
   const hideContactFields = !showConfirmation && guest.contactPreference !== "Directly";
 
   return (
-    <div className="bg-emerald-50 p-6 rounded-lg mb-8 relative">
-      {/* Show Remove button for guests */}
+    <div className="bg-slate-50 border border-slate-200 p-6 rounded-lg mb-8 relative">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-semibold text-gray-700">Guest Attendee #{attendeeNumber}</h3>
-        <button onClick={handleRemoveSelf} className="text-red-500 hover:text-red-700" aria-label={`Remove Guest ${attendeeNumber}`}>
-          <X className="w-4 h-4"/>
+        <h3 className="text-xl font-bold text-slate-800">Guest Attendee {attendeeNumber}</h3>
+        <button 
+          type="button"
+          onClick={handleRemoveSelf}
+          className="text-red-500 hover:text-red-700 transition-colors text-sm flex items-center"
+          aria-label={`Remove Guest Attendee ${attendeeNumber}`}
+        >
+          <X className="w-4 h-4 mr-1" />
+          <span>Remove</span>
         </button>
       </div>
       
@@ -157,30 +177,38 @@ const GuestForm: React.FC<GuestFormProps> = ({
         onChange={handleFieldChange as any}
       />
 
-      {/* Guest Partner Toggle */} 
-      <GuestPartnerToggle 
-          onAdd={handlePartnerToggle}
-      />
+      {!partnerData && (
+        <GuestPartnerToggle 
+          hasPartner={false}
+          onToggle={handlePartnerToggle}
+        />
+      )}
 
       {/* Guest Partner Form */} 
       {partnerData && transformedPartnerData && (
           <GuestPartnerForm
-              partner={transformedPartnerData} // Pass mapped old data
+              partner={transformedPartnerData}
               id={partnerData.attendeeId}
-              // Pass updateField mapping back to store
               updateField={(id, field, value) => {
                   let unifiedField: keyof UnifiedAttendeeData | null = null;
-                  // Map OldGuestPartnerData field to UnifiedAttendeeData field
                   switch (field as keyof GuestPartnerData) {
                        case 'title': unifiedField = 'title'; break;
-                       // ... other field mappings ...
+                       case 'firstName': unifiedField = 'firstName'; break;
+                       case 'lastName': unifiedField = 'lastName'; break;
+                       case 'email': unifiedField = 'primaryEmail'; break;
+                       case 'phone': unifiedField = 'primaryPhone'; break;
+                       case 'dietary': unifiedField = 'dietaryRequirements'; break;
+                       case 'specialNeeds': unifiedField = 'specialNeeds'; break;
+                       case 'relationship': unifiedField = 'relationship'; break;
+                       case 'contactPreference': unifiedField = 'contactPreference'; break;
+                       case 'contactConfirmed': unifiedField = 'contactConfirmed'; break;
                        default: console.warn(`Unhandled GuestPartnerForm field: ${field}`); return;
                   }
                   if (unifiedField) {
                       updateAttendee(id, { [unifiedField]: value });
                   }
               }}
-              onRemove={() => handlePartnerToggle()} // Toggle removes if partner exists
+              onRemove={handlePartnerToggle}
               relatedGuestName={`${guest.firstName || ''} ${guest.lastName || ''}`.trim()}
           />
       )}

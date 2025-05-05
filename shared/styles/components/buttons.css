@@ -1,0 +1,55 @@
+@layer components {
+  /* Primary button */
+  .btn-primary {
+    @apply bg-primary text-white px-6 py-3 rounded-md font-medium hover:bg-primary/90 transition-colors min-h-[48px] min-w-[120px] text-center flex items-center justify-center touch-manipulation;
+  }
+  
+  /* Secondary button */
+  .btn-secondary {
+    @apply bg-secondary text-white px-6 py-3 rounded-md font-medium hover:bg-secondary/90 transition-colors min-h-[48px] min-w-[120px] text-center flex items-center justify-center touch-manipulation;
+  }
+  
+  /* Outline button */
+  .btn-outline {
+    @apply border border-primary text-primary px-6 py-3 rounded-md font-medium hover:bg-primary/10 transition-colors min-h-[48px] min-w-[120px] text-center flex items-center justify-center touch-manipulation;
+  }
+  
+  /* Text button */
+  .btn-text {
+    @apply text-primary px-4 py-2 rounded-md font-medium hover:bg-primary/10 transition-colors text-center;
+  }
+  
+  /* Disabled state for buttons */
+  .btn-primary:disabled,
+  .btn-secondary:disabled,
+  .btn-outline:disabled,
+  .btn-text:disabled {
+    @apply opacity-50 cursor-not-allowed hover:bg-opacity-100;
+  }
+  
+  /* Button with icon */
+  .btn-icon {
+    @apply inline-flex items-center gap-2;
+  }
+  
+  /* Small button variant */
+  .btn-sm {
+    @apply px-4 py-2 text-sm min-h-[36px] min-w-[100px];
+  }
+  
+  /* Large button variant */
+  .btn-lg {
+    @apply px-8 py-4 text-lg min-h-[56px] min-w-[140px];
+  }
+  
+  /* Mobile optimized buttons */
+  @media (max-width: 640px) {
+    .btn-primary, .btn-secondary, .btn-outline {
+      @apply px-5 py-4 text-base w-full;
+    }
+    
+    .btn-fixed-bottom {
+      @apply fixed bottom-0 left-0 right-0 m-0 rounded-none py-4 z-50;
+    }
+  }
+} 

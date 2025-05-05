@@ -14,94 +14,127 @@ const MasonGrandLodgeFields: React.FC<MasonGrandLodgeFieldsProps> = ({
   onChange,
   isPrimary,
 }) => {
-  // Interaction tracking state (optional, keep if needed for validation styling)
+  // Internal definitions for GL options
+  const grandOfficerStatusOptions = ["Current", "Past"]; // For the Officer status dropdown
+  const grandOfficeOptions = [
+    "Grand Master",
+    "Deputy Grand Master",
+    "Assistant Grand Master",
+    "Grand Secretary",
+    "Grand Director of Ceremonies",
+    "Other"
+  ];
+  
+  // Show "Other" input field for Grand Office when "Other" is selected
+  const showOtherGrandOfficeInput = mason.grandOfficer === 'Current' && mason.grandOffice === 'Other';
+
+  // Interaction states
   const [grandRankInteracted, setGrandRankInteracted] = useState(false);
+  const [grandOfficerInteracted, setGrandOfficerInteracted] = useState(false);
   const [grandOfficeInteracted, setGrandOfficeInteracted] = useState(false);
-  const [pastGrandOfficeInteracted, setPastGrandOfficeInteracted] = useState(false);
+  const [grandOfficeOtherInteracted, setGrandOfficeOtherInteracted] = useState(false);
 
   // Combined handler for input/select
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     onChange(id, name as keyof UnifiedAttendeeData, value);
   };
-  
-  // Checkbox handler
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const { name, checked } = e.target;
-      onChange(id, name as keyof UnifiedAttendeeData, checked);
-  };
 
   return (
-    <div className="bg-sky-50 p-4 rounded-md border border-sky-100 my-4">
-      <h4 className="text-md font-semibold text-sky-800 mb-3">Grand Lodge Office Information</h4>
-      {/* Simplified Grid */} 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Grand Rank Field */} 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandRank-${id}`}>
-            Grand Rank {isPrimary && "*"} {/* Keep required based on rank? */}
-          </label>
-          <input // Changed back to input based on previous state? Check definition
-            type="text" 
-            id={`grandRank-${id}`}
-            name="grandRank"
-            value={mason.grandRank || ''}
-            onChange={handleInputChange}
-            onBlur={() => setGrandRankInteracted(true)} // Keep interaction if needed
-            required={isPrimary && mason.rank === "GL"} // Keep required if rank is GL?
-            className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 ${grandRankInteracted ? 'interacted' : ''} [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
-            maxLength={6} // Keep if applicable
-            placeholder="PGRNK" // Keep if applicable
-         />
-        </div>
-
-        {/* Current Grand Office Field */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandOffice-${id}`}>
-            Current Grand Office
-          </label>
-          <input
-            type="text"
-            id={`grandOffice-${id}`}
-            name="grandOffice"
-            value={mason.grandOffice || ''}
-            onChange={handleInputChange}
-            onBlur={() => setGrandOfficeInteracted(true)} // Keep interaction if needed
-            className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 ${grandOfficeInteracted ? 'interacted' : ''}`}
-          />
-        </div>
-
-        {/* Past Grand Office Field */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`pastGrandOffice-${id}`}>
-            Past Grand Office
-          </label>
-          <input
-            type="text"
-            id={`pastGrandOffice-${id}`}
-            name="pastGrandOffice"
-            value={mason.pastGrandOffice || ''}
-            onChange={handleInputChange}
-             onBlur={() => setPastGrandOfficeInteracted(true)} // Keep interaction if needed
-            className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 ${pastGrandOfficeInteracted ? 'interacted' : ''}`}
-          />
-        </div>
-
-        {/* Past Grand Master Checkbox (adjust grid span if needed) */} 
-        <div className="md:col-span-3 flex items-center mt-2">
-          <input
-            type="checkbox"
-            id={`isPastGrandMaster-${id}`}
-            name="isPastGrandMaster"
-            checked={!!mason.isPastGrandMaster}
-            onChange={handleCheckboxChange}
-            className="h-4 w-4 text-sky-600 border-slate-300 rounded focus:ring-sky-500"
-          />
-          <label htmlFor={`isPastGrandMaster-${id}`} className="ml-2 block text-sm text-slate-900">
-            Past Grand Master?
-          </label>
-        </div>
+    <div className="grid grid-cols-12 gap-4 mb-4 bg-primary/5 p-4 rounded-md border border-primary/10">
+      {/* Grand Rank Input */}
+      <div className="col-span-2">
+        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandRank-${id}`}>
+          Grand Rank {isPrimary && "*"}
+        </label>
+        <input
+          type="text"
+          id={`grandRank-${id}`}
+          name="grandRank"
+          value={mason.grandRank || ''}
+          onChange={handleInputChange}
+          onBlur={() => setGrandRankInteracted(true)}
+          required={isPrimary && mason.rank === "GL"}
+          maxLength={6}
+          placeholder="PGRNK"
+          className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                     ${grandRankInteracted ? 'interacted' : ''} 
+                     [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
+                     focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
+        />
       </div>
+      
+      {/* Grand Officer */}
+      <div className="col-span-3">
+        <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandOfficer-${id}`}>
+          Grand Officer {isPrimary && "*"}
+        </label>
+        <select
+          id={`grandOfficer-${id}`}
+          name="grandOfficer"
+          value={mason.grandOfficer || 'Past'}
+          onChange={handleInputChange}
+          onBlur={() => setGrandOfficerInteracted(true)}
+          required={isPrimary && mason.rank === "GL"}
+          className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                     ${grandOfficerInteracted ? 'interacted' : ''} 
+                     [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
+        >
+          {grandOfficerStatusOptions.map(status => (
+            <option key={status} value={status}>{status}</option>
+          ))}
+        </select>
+      </div>
+      
+      {/* Show Grand Office field if Current is selected */}
+      {mason.grandOfficer === 'Current' && (
+        <>
+          <div className={`${showOtherGrandOfficeInput ? 'col-span-3' : 'col-span-3'}`}>
+            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandOffice-${id}`}>
+              Grand Office {isPrimary && "*"}
+            </label>
+            <select
+              id={`grandOffice-${id}`}
+              name="grandOffice"
+              value={mason.grandOffice || ''}
+              onChange={handleInputChange}
+              onBlur={() => setGrandOfficeInteracted(true)}
+              required={isPrimary && mason.rank === "GL" && mason.grandOfficer === 'Current'}
+              className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                         ${grandOfficeInteracted ? 'interacted' : ''} 
+                         [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
+            >
+              <option value="">Please Select</option>
+              {grandOfficeOptions.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Show text field if "Other" is selected */}
+          {showOtherGrandOfficeInput && (
+            <div className="col-span-4">
+              <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandOfficeOther-${id}`}>
+                Other Grand Office {isPrimary && "*"}
+              </label>
+              <input
+                type="text"
+                id={`grandOfficeOther-${id}`}
+                name="grandOfficeOther"
+                value={mason.grandOfficeOther || ''}
+                onChange={handleInputChange}
+                onBlur={() => setGrandOfficeOtherInteracted(true)}
+                placeholder=""
+                required={isPrimary && mason.rank === "GL" && mason.grandOfficer === 'Current' && mason.grandOffice === 'Other'}
+                className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
+                           ${grandOfficeOtherInteracted ? 'interacted' : ''} 
+                           [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
+                           focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
+              />
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 };

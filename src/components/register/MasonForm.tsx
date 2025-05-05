@@ -17,6 +17,7 @@ import { useLocationStore, IpApiData } from '../../store/locationStore';
 import { useRegistrationStore, UnifiedAttendeeData } from '../../store/registrationStore';
 import { v4 as uuidv4 } from 'uuid';
 import { LadyPartnerData as OldLadyPartnerData } from '../../shared/types/register';
+import { Card, CardHeader, CardTitle, CardBody } from '../../../shared/components/catalyst';
 
 interface MasonFormProps {
   attendeeId: string;
@@ -42,14 +43,21 @@ const MasonForm: React.FC<MasonFormProps> = ({
   const searchAllLodgesAction = useLocationStore(state => state.searchAllLodgesAction);
   const createLodge = useLocationStore(state => state.createLodge);
 
-  // Select individual pieces of state for the current mason and partner
-  const mason = useRegistrationStore(state => 
-    state.attendees.find(att => att.attendeeId === attendeeId)
+  // Get all attendees once
+  const attendees = useRegistrationStore(state => state.attendees);
+  
+  // Derive individual attendee data using memoization
+  const mason = useMemo(() => 
+    attendees.find(att => att.attendeeId === attendeeId),
+    [attendees, attendeeId]
   );
-  const ladyPartnerData = useRegistrationStore(state => 
-    state.attendees.find(att => att.relatedAttendeeId === attendeeId && att.attendeeType === 'lady_partner')
+  
+  const ladyPartnerData = useMemo(() => 
+    attendees.find(att => att.relatedAttendeeId === attendeeId && att.attendeeType === 'lady_partner'),
+    [attendees, attendeeId]
   );
-  // Select actions separately
+  
+  // Select actions separately (these are stable)
   const updateAttendee = useRegistrationStore(state => state.updateAttendee);
   const removeAttendee = useRegistrationStore(state => state.removeAttendee);
   const addAttendee = useRegistrationStore(state => state.addAttendee);
@@ -59,8 +67,9 @@ const MasonForm: React.FC<MasonFormProps> = ({
       return null; 
   }
 
-  const primaryMasonData = useRegistrationStore(state => 
-      state.attendees.find(att => att.attendeeType !== 'lady_partner' && att.attendeeType !== 'guest_partner') 
+  const primaryMasonData = useMemo(() => 
+    attendees.find(att => att.isPrimary),
+    [attendees]
   );
   
   // --- Local UI State (like selects, inputs, creation UI) ---
@@ -222,7 +231,6 @@ const MasonForm: React.FC<MasonFormProps> = ({
       }
       if (value && value.trim().length > 0) {
         debouncedLodgeSearch(value.trim());
-      } else {
       }
   }, [debouncedLodgeSearch, selectedLodge, handleLodgeSelect]);
 
@@ -260,9 +268,7 @@ const MasonForm: React.FC<MasonFormProps> = ({
   // --- Lady Partner Handlers ---
   const handleLadyPartnerToggle = useCallback(() => {
       if (ladyPartnerData) {
-          if (window.confirm("Are you sure you want to remove the Lady/Partner?")) {
-            removeAttendee(ladyPartnerData.attendeeId);
-          }
+          removeAttendee(ladyPartnerData.attendeeId);
       } else {
           addAttendee({
               attendeeType: 'lady_partner',
@@ -312,19 +318,24 @@ const MasonForm: React.FC<MasonFormProps> = ({
   }, [ladyPartnerData]);
 
   return (
-    <div className="bg-slate-50 p-6 rounded-lg mb-8 relative">
-       <div className="flex justify-between items-center mb-4">
-         <h3 className="text-xl font-semibold text-gray-700">
-           {isPrimary ? 'Primary Mason Attendee' : `Mason Attendee`}
-         </h3>
-         {!isPrimary && (
-           <button onClick={handleRemoveSelf} className="text-red-500 hover:text-red-700 transition-colors text-sm flex items-center" aria-label={`Remove Mason Attendee`}>
-             <X className="w-4 h-4 mr-1" /> Remove
-           </button>
-         )}
-       </div>
-
-       <MasonBasicInfo 
+    <Card className="mb-8">
+      <CardHeader>
+        <CardTitle>
+          {isPrimary ? 'Mason Attendee - Primary' : `Mason Attendee ${attendeeNumber}`}
+        </CardTitle>
+        {!isPrimary && (
+          <button 
+            onClick={handleRemoveSelf} 
+            className="text-red-500 hover:text-red-700 transition-colors text-sm flex items-center"
+            aria-label={`Remove Mason Attendee ${attendeeNumber}`}
+          >
+            <X className="w-4 h-4 mr-1" /> Remove
+          </button>
+        )}
+      </CardHeader>
+      
+      <CardBody>
+        <MasonBasicInfo 
           mason={mason} 
           id={attendeeId} 
           isPrimary={isPrimary} 
@@ -332,47 +343,47 @@ const MasonForm: React.FC<MasonFormProps> = ({
           handleTitleChange={handleTitleChange}
           titles={titles}
           ranks={ranks}
-       />
-       
-       {mason.rank === 'GL' && (
-         <MasonGrandLodgeFields 
+        />
+        
+        {mason.rank === 'GL' && (
+          <MasonGrandLodgeFields 
             mason={mason} 
             id={attendeeId} 
             onChange={handleFieldChange}
             isPrimary={isPrimary}
-         />
-       )}
+          />
+        )}
 
-       <MasonLodgeInfo 
-           mason={mason}
-           id={attendeeId}
-           isPrimary={isPrimary}
-           grandLodgeOptions={grandLodges} 
-           isLoadingGrandLodges={isLoadingGrandLodges}
-           grandLodgeError={grandLodgeError}
-           selectedGrandLodge={selectedGrandLodge}
-           handleGrandLodgeSelect={handleGrandLodgeSelect}
-           grandLodgeInputValue={grandLodgeInputValue}
-           onGrandLodgeInputChange={handleGrandLodgeInputChange}
-           lodgeOptions={allLodgeSearchResults}
-           isLoadingLodges={isLoadingAllLodges}
-           lodgeError={allLodgesError}
-           selectedLodge={selectedLodge}
-           handleLodgeSelect={handleLodgeSelect}
-           lodgeInputValue={lodgeInputValue}
-           onLodgeInputChange={handleLodgeInputChange}
-           isCreatingLodgeUI={isCreatingLodgeUI}
-           showLodgeNumberInput={isCreatingLodgeUI}
-           handleInitiateLodgeCreation={handleInitiateLodgeCreation}
-           newLodgeName={newLodgeName}
-           setNewLodgeName={setNewLodgeName}
-           newLodgeNumber={newLodgeNumber}
-           handleLodgeNumberChange={handleLodgeNumberChange}
-           handleCancelLodgeCreation={handleCancelLodgeCreation}
-           onConfirmNewLodge={handleConfirmNewLodge}
-       />
+        <MasonLodgeInfo 
+          mason={mason}
+          id={attendeeId}
+          isPrimary={isPrimary}
+          grandLodgeOptions={grandLodges} 
+          isLoadingGrandLodges={isLoadingGrandLodges}
+          grandLodgeError={grandLodgeError}
+          selectedGrandLodge={selectedGrandLodge}
+          handleGrandLodgeSelect={handleGrandLodgeSelect}
+          grandLodgeInputValue={grandLodgeInputValue}
+          onGrandLodgeInputChange={handleGrandLodgeInputChange}
+          lodgeOptions={allLodgeSearchResults}
+          isLoadingLodges={isLoadingAllLodges}
+          lodgeError={allLodgesError}
+          selectedLodge={selectedLodge}
+          handleLodgeSelect={handleLodgeSelect}
+          lodgeInputValue={lodgeInputValue}
+          onLodgeInputChange={handleLodgeInputChange}
+          isCreatingLodgeUI={isCreatingLodgeUI}
+          showLodgeNumberInput={isCreatingLodgeUI}
+          handleInitiateLodgeCreation={handleInitiateLodgeCreation}
+          newLodgeName={newLodgeName}
+          setNewLodgeName={setNewLodgeName}
+          newLodgeNumber={newLodgeNumber}
+          handleLodgeNumberChange={handleLodgeNumberChange}
+          handleCancelLodgeCreation={handleCancelLodgeCreation}
+          onConfirmNewLodge={handleConfirmNewLodge}
+        />
 
-       <MasonContactInfo 
+        <MasonContactInfo 
           mason={mason} 
           id={attendeeId}
           onChange={handleFieldChange}
@@ -381,49 +392,50 @@ const MasonForm: React.FC<MasonFormProps> = ({
           hideContactFields={!isPrimary && mason.contactPreference !== 'Directly'}
           showConfirmation={!isPrimary && (mason.contactPreference === 'PrimaryAttendee' || mason.contactPreference === 'ProvideLater')}
           getConfirmationMessage={getConfirmationMessage} 
-       />
+        />
 
-       <MasonAdditionalInfo 
+        <MasonAdditionalInfo 
           mason={mason} 
           id={attendeeId}
           onChange={handleFieldChange}
-       />
+        />
 
-       {!isPrimary && (
-         <LadyPartnerToggle
-            onAdd={handleLadyPartnerToggle} 
-            onRemove={handleLadyPartnerToggle} 
-            hasPartner={!!ladyPartnerData} 
-         />
-       )}
-       {ladyPartnerData && transformedPartnerData && (
+        {!ladyPartnerData && (
+          <LadyPartnerToggle
+            hasPartner={false}
+            onToggle={handleLadyPartnerToggle}
+          />
+        )}
+
+        {ladyPartnerData && transformedPartnerData && (
           <LadyPartnerForm
             partner={transformedPartnerData}
             id={ladyPartnerData.attendeeId}
             updateField={ (id: string, field: string, value: any) => {
-                let unifiedField: keyof UnifiedAttendeeData | null = null;
-                switch (field as keyof OldLadyPartnerData) {
-                    case 'title': unifiedField = 'title'; break;
-                    case 'firstName': unifiedField = 'firstName'; break;
-                    case 'lastName': unifiedField = 'lastName'; break;
-                    case 'email': unifiedField = 'primaryEmail'; break;
-                    case 'phone': unifiedField = 'primaryPhone'; break;
-                    case 'dietary': unifiedField = 'dietaryRequirements'; break;
-                    case 'specialNeeds': unifiedField = 'specialNeeds'; break;
-                    case 'relationship': unifiedField = 'relationship'; break;
-                    case 'contactPreference': unifiedField = 'contactPreference'; break;
-                    case 'contactConfirmed': unifiedField = 'contactConfirmed'; break;
-                    default: console.warn(`Unhandled LadyPartnerForm field update: ${field}`); return;
-                }
-                if (unifiedField) {
-                    updateAttendee(id, { [unifiedField]: value });
-                }
+              let unifiedField: keyof UnifiedAttendeeData | null = null;
+              switch (field as keyof OldLadyPartnerData) {
+                case 'title': unifiedField = 'title'; break;
+                case 'firstName': unifiedField = 'firstName'; break;
+                case 'lastName': unifiedField = 'lastName'; break;
+                case 'email': unifiedField = 'primaryEmail'; break;
+                case 'phone': unifiedField = 'primaryPhone'; break;
+                case 'dietary': unifiedField = 'dietaryRequirements'; break;
+                case 'specialNeeds': unifiedField = 'specialNeeds'; break;
+                case 'relationship': unifiedField = 'relationship'; break;
+                case 'contactPreference': unifiedField = 'contactPreference'; break;
+                case 'contactConfirmed': unifiedField = 'contactConfirmed'; break;
+                default: console.warn(`Unhandled LadyPartnerForm field update: ${field}`); return;
+              }
+              if (unifiedField) {
+                updateAttendee(id, { [unifiedField]: value });
+              }
             }}
-            onRemove={() => handleLadyPartnerToggle()}
+            onRemove={handleLadyPartnerToggle}
             relatedMasonName={`${mason.firstName || ''} ${mason.lastName || ''}`.trim()}
           />
-       )}
-    </div>
+        )}
+      </CardBody>
+    </Card>
   );
 };
 

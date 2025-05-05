@@ -49,7 +49,7 @@ const MasonBasicInfo: React.FC<MasonBasicInfoProps> = ({
                      ${titleInteracted ? 'interacted' : ''} 
                      [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
         >
-          <option value="">Please Select</option>
+          <option value="" disabled>Please Select</option>
           {titles.map(title => (
             <option key={title} value={title}>{title}</option>
           ))}
@@ -113,7 +113,7 @@ const MasonBasicInfo: React.FC<MasonBasicInfoProps> = ({
                      ${rankInteracted ? 'interacted' : ''} 
                      [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500 ${["VW Bro", "RW Bro", "MW Bro", "W Bro"].includes(mason.title || '') ? 'bg-slate-100 cursor-not-allowed' : ''}`}
         >
-          <option value="">Please Select</option>
+          <option value="" disabled>Please Select</option>
           {ranks.map(rank => (
             <option key={rank.value} value={rank.value}>{rank.label}</option>
           ))}

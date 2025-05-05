@@ -2,9 +2,9 @@ import React from 'react';
 
 const AboutPage: React.FC = () => {
   return (
-    <div>
+    <>
       <section className="bg-primary text-white py-16">
-        <div className="container-custom">
+        <div className="container-custom mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl font-bold mb-6">About The Grand Proclamation</h1>
           <p className="text-xl max-w-3xl">
             Learn about the history, significance, and ceremony of the Grand Proclamation
@@ -14,7 +14,7 @@ const AboutPage: React.FC = () => {
       </section>
 
       <section className="py-12 bg-white">
-        <div className="container-custom">
+        <div className="container-custom mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-3xl font-bold mb-6 text-primary">A Historic Tradition</h2>
@@ -45,7 +45,7 @@ const AboutPage: React.FC = () => {
       </section>
 
       <section className="py-12 bg-slate-50">
-        <div className="container-custom">
+        <div className="container-custom mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="order-2 lg:order-1 rounded-lg overflow-hidden shadow-lg">
               <img 
@@ -76,7 +76,7 @@ const AboutPage: React.FC = () => {
       </section>
 
       <section className="py-12 bg-white">
-        <div className="container-custom">
+        <div className="container-custom mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <h2 className="text-3xl font-bold mb-8 text-center text-primary">Frequently Asked Questions</h2>
           <div className="max-w-3xl mx-auto">
             <div className="mb-6">
@@ -113,7 +113,7 @@ const AboutPage: React.FC = () => {
           </div>
         </div>
       </section>
-    </div>
+    </>
   );
 };
 

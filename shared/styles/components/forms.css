@@ -1,0 +1,103 @@
+@layer components {
+  /* Form layout components */
+  .form-row {
+    @apply grid grid-cols-2 gap-4 mb-4;
+  }
+  
+  .form-section {
+    @apply bg-white p-6 rounded-lg mb-6 border border-slate-200;
+  }
+  
+  .form-section-title {
+    @apply text-xl font-semibold mb-4 pb-2 border-b border-slate-200;
+  }
+  
+  /* Special section for Grand Lodge form fields */
+  .form-section-grand-lodge {
+    @apply bg-blue-50 p-6 rounded-lg mb-6 border border-blue-200;
+  }
+  
+  /* Form control states */
+  .form-control-error {
+    @apply border-red-500 focus:ring-red-500/50 focus:border-red-500;
+  }
+  
+  .form-error-message {
+    @apply text-red-600 text-sm mt-1;
+  }
+  
+  .form-help-text {
+    @apply text-slate-500 text-sm mt-1;
+  }
+  
+  /* Form input groups */
+  .input-group {
+    @apply flex items-center border border-slate-300 rounded-md overflow-hidden bg-white;
+  }
+  
+  .input-group input {
+    @apply border-0 focus:ring-0;
+  }
+  
+  .input-group-text {
+    @apply px-4 py-2 bg-slate-50 text-slate-500 border-r border-slate-300;
+  }
+  
+  /* Checkbox and radio styled wrappers */
+  .checkbox-wrapper {
+    @apply flex items-start gap-2 mb-3;
+  }
+  
+  .checkbox-wrapper input {
+    @apply mt-1;
+  }
+  
+  .checkbox-label {
+    @apply text-base text-slate-800;
+  }
+  
+  /* Toggle switch */
+  .toggle-switch {
+    @apply relative inline-flex items-center cursor-pointer;
+  }
+  
+  .toggle-switch input {
+    @apply sr-only;
+  }
+  
+  .toggle-slider {
+    @apply w-11 h-6 bg-slate-200 rounded-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all;
+  }
+  
+  .toggle-switch input:checked + .toggle-slider {
+    @apply bg-primary;
+  }
+  
+  .toggle-switch input:checked + .toggle-slider:after {
+    @apply translate-x-full border-white;
+  }
+
+  /* Terms and conditions section */
+  .terms-section {
+    @apply bg-slate-50 p-6 rounded-lg mb-6 border border-slate-200;
+  }
+  
+  /* Mobile optimizations */
+  @media (max-width: 640px) {
+    .form-row {
+      @apply grid-cols-1 gap-4;
+    }
+    
+    .form-section {
+      @apply p-4;
+    }
+    
+    .form-section-grand-lodge {
+      @apply p-4;
+    }
+    
+    .form-section-title {
+      @apply text-lg;
+    }
+  }
+} 

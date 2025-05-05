@@ -1,0 +1,105 @@
+/* Mobile Optimizations CSS */
+
+@layer base {
+  body {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+}
+
+@layer components {
+  /* Compact card styles for registration type */
+  .compact-card {
+    @apply flex items-center p-3 border rounded-lg mb-2;
+  }
+  
+  .compact-card-icon {
+    @apply bg-primary/10 p-2 rounded-full flex-shrink-0;
+  }
+  
+  .compact-card-content {
+    @apply ml-3 flex-grow;
+  }
+  
+  .compact-card-action {
+    @apply ml-2 flex-shrink-0;
+  }
+  
+  .compact-bullet {
+    @apply flex items-center mr-3 text-xs;
+  }
+  
+  .compact-bullet-dot {
+    @apply w-1.5 h-1.5 bg-primary rounded-full mr-1 flex-shrink-0;
+  }
+  
+  /* Fixed bottom navigation for forms */
+  .mobile-form-nav {
+    @apply fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 flex justify-between z-30 shadow-lg;
+  }
+  
+  /* Add padding to bottom when fixed nav is present */
+  .has-mobile-nav {
+    @apply pb-20;
+  }
+  
+  /* Card-based layouts for mobile */
+  @media (max-width: 640px) {
+    .mobile-card {
+      @apply bg-white rounded-lg shadow-sm p-4 mb-4 border border-slate-100;
+    }
+    
+    /* Collapse margins on mobile */
+    .container-custom {
+      @apply px-3;
+    }
+    
+    /* Full width buttons */
+    .btn-primary, .btn-secondary, .btn-outline {
+      @apply w-full justify-center;
+    }
+    
+    /* Improved mobile step indicator */
+    .step-indicator-mobile {
+      @apply flex items-center justify-between bg-white sticky top-0 z-20 border-b border-slate-200 px-4 py-3;
+    }
+  }
+  
+  /* Bottom sheet for mobile summary views */
+  .mobile-bottom-sheet {
+    @apply fixed bottom-0 left-0 right-0 bg-white rounded-t-xl shadow-xl z-40 max-h-[70vh] overflow-y-auto transform transition-transform duration-300;
+  }
+  
+  .mobile-bottom-sheet-handle {
+    @apply w-12 h-1 bg-slate-300 rounded-full mx-auto my-3;
+  }
+  
+  .mobile-bottom-sheet-closed {
+    @apply translate-y-full;
+  }
+  
+  /* Floating action button for mobile */
+  .mobile-fab {
+    @apply fixed bottom-20 right-4 w-14 h-14 rounded-full bg-primary text-white flex items-center justify-center shadow-lg z-30;
+  }
+  
+  /* Media queries for different device sizes */
+  @media (min-width: 640px) {
+    /* Switch back to vertical cards on larger screens */
+    .compact-card {
+      @apply block p-4;
+    }
+    
+    .compact-card-icon {
+      @apply mx-auto mb-3 p-3;
+    }
+    
+    .compact-card-content {
+      @apply mx-0 text-center;
+    }
+    
+    .compact-bullet {
+      @apply block my-2;
+    }
+  }
+} 

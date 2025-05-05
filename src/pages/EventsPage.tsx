@@ -14,9 +14,6 @@ const EventsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
-  // Define the specific parent event ID
-  const parentEventId = '307c2d85-72d5-48cf-ac94-082ca2a5d23d'; 
-
   const EVENTS_PER_PAGE = 9;
 
   const [filterType, setFilterType] = useState<string | null>(null);
@@ -31,7 +28,6 @@ const EventsPage: React.FC = () => {
         page: 1,
         limit: EVENTS_PER_PAGE,
         filterType: type,
-        parentEventId: parentEventId,
       });
       
       const { events: fetchedEvents, totalCount: fetchedTotalCount } = eventsResponse;
@@ -57,7 +53,6 @@ const EventsPage: React.FC = () => {
         page: page,
         limit: EVENTS_PER_PAGE,
         filterType: type,
-        parentEventId: parentEventId,
       });
       setEvents(prevEvents => [...prevEvents, ...fetchedEvents]);
       setTotalCount(fetchedTotalCount);
@@ -92,9 +87,11 @@ const EventsPage: React.FC = () => {
   const eventsGroupedAndSortedByDate = useMemo(() => {
     if (!Array.isArray(events)) return [];
 
+    const childEvents = events.filter(event => event.parentEventId !== null);
+
     const grouped: Record<string, { dateObj: Date; events: EventType[] }> = {};
 
-    events.forEach(event => {
+    childEvents.forEach(event => {
       if (event.eventStart) {
         try {
           const dateObj = parseISO(event.eventStart);
@@ -159,9 +156,9 @@ const EventsPage: React.FC = () => {
   }
 
   return (
-    <div>
+    <>
       <section className="bg-primary text-white py-16">
-        <div className="container-custom">
+        <div className="container-custom mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl font-bold mb-6">Events Schedule</h1>
           <p className="text-xl max-w-3xl">
             Browse the complete schedule of events for the Grand Proclamation weekend.
@@ -171,7 +168,7 @@ const EventsPage: React.FC = () => {
       </section>
 
       <section className="py-12 bg-white">
-        <div className="container-custom">
+        <div className="container-custom mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="mb-8 bg-slate-50 p-6 rounded-lg shadow-sm">
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center">
@@ -235,7 +232,7 @@ const EventsPage: React.FC = () => {
           )}
 
           <h2 className="text-2xl font-bold mb-6 text-primary">
-            {loading ? 'Loading...' : `${totalCount ?? 0} ${totalCount === 1 ? 'Event' : 'Events'}`}
+            {loading ? 'Loading...' : `${eventsGroupedAndSortedByDate.flatMap(g => g.events).length} ${eventsGroupedAndSortedByDate.flatMap(g => g.events).length === 1 ? 'Child Event' : 'Child Events'}`}
             {filterType ? ` (${filterType})` : ''}
           </h2>
           
@@ -281,7 +278,7 @@ const EventsPage: React.FC = () => {
           )}
         </div>
       </section>
-    </div>
+    </>
   );
 };
 

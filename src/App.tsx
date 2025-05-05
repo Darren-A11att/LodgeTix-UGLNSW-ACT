@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
@@ -18,11 +18,35 @@ import { AuthProvider } from './context/AuthContext';
 import { useLocationStore } from './store/locationStore';
 import { initMobileFeatures, isMobileDevice } from './lib/mobileUtils';
 import { debugStorageCache } from './lib/cacheDebugger';
+import clsx from 'clsx';
+
+// Helper component to conditionally render header
+const ConditionalHeader: React.FC = () => {
+  const location = useLocation();
+  const hideHeaderPaths: string[] = []; // No paths hidden by default
+
+  // Check if the current path starts with any of the paths to hide on
+  const shouldHideHeader = hideHeaderPaths.some(path => 
+    location.pathname === path || (path !== '/' && location.pathname.startsWith(path))
+  );
+
+  return shouldHideHeader ? null : <Header />;
+};
+
+// Helper component to conditionally render footer
+const ConditionalFooter: React.FC = () => {
+  const location = useLocation();
+  // Hide global footer only on HomePage (which now has its own)
+  const shouldHideFooter = location.pathname === '/'; 
+  return shouldHideFooter ? null : <Footer />;
+};
 
 function App() {
-  // Use individual selectors instead of object destructuring to avoid selector issues
+  const location = useLocation(); // Get location here for main layout
+  // Use individual selectors
   const fetchIpData = useLocationStore(state => state.fetchIpData);
-  const isLoadingIpData = useLocationStore(state => state.isLoading);
+  // Use the correct state property name: isLoadingIpData
+  const isLoadingIpData = useLocationStore(state => state.isLoadingIpData ?? false); 
   const ipData = useLocationStore(state => state.ipData);
   const fetchInitialGrandLodges = useLocationStore(state => state.fetchInitialGrandLodges);
   const preloadGrandLodgesByCountry = useLocationStore(state => state.preloadGrandLodgesByCountry);
@@ -44,43 +68,43 @@ function App() {
   // Depend only on the function references, not on state values
   }, [fetchIpData]); 
 
-  // Separate effect for handling prefetching after IP data loads
+  // Prefetching effect
   useEffect(() => {
-    // Skip if we've already prefetched or don't have country data
-    if (hasPerformedGeoPrefetch.current || !ipData?.country_code) {
+    const currentCountryCode = ipData?.country_code;
+    const currentRegionCode = ipData?.region_code;
+
+    if (hasPerformedGeoPrefetch.current || !currentCountryCode) {
       return;
     }
     
-    // Only proceed if we were previously loading and now we're not
     const wasLoading = prevIsLoadingIpDataRef.current;
     if (wasLoading && !isLoadingIpData) {
       console.log("IP data fetch complete, prefetching location data...");
-      
-      // Mark as done to avoid repeated execution
       hasPerformedGeoPrefetch.current = true;
-      
-      // Perform fetches in sequence with delays
       fetchInitialGrandLodges();
       
-      // Use setTimeout to delay subsequent fetches
-      if (ipData.country_code) {
+      // Use setTimeout with checks for undefined
         setTimeout(() => {
-          preloadGrandLodgesByCountry(ipData.country_code);
+        // Check country code before calling
+        if (currentCountryCode) { 
+          preloadGrandLodgesByCountry(currentCountryCode);
+        }
         
-          if (ipData.region_code) {
+        // Check region code before nested timeout
+        if (currentRegionCode) { 
             setTimeout(() => {
-              preloadGrandLodgesByRegion(ipData.region_code);
-              preloadLodgesByRegion(ipData.region_code);
+            // Check region code again inside timeout
+            if (currentRegionCode) { 
+              preloadGrandLodgesByRegion(currentRegionCode);
+              preloadLodgesByRegion(currentRegionCode);
+            }
             }, 500);
           }
         }, 1000);
-      }
     }
     
-    // Always update the ref to current loading state
     prevIsLoadingIpDataRef.current = isLoadingIpData;
-  // Include all dependencies but use refs to control execution
-  }, [isLoadingIpData, ipData]);
+  }, [isLoadingIpData, ipData, fetchInitialGrandLodges, preloadGrandLodgesByCountry, preloadGrandLodgesByRegion, preloadLodgesByRegion]); // Add functions to dependency array
   
   // Initialize mobile features
   useEffect(() => {
@@ -123,17 +147,25 @@ function App() {
     return () => clearTimeout(timeoutId);
   }, []);
 
+  // Determine if the current page is the HomePage
+  const isHomePage = location.pathname === '/';
+
+  // Determine main tag classes conditionally
+  const mainClasses = "flex-grow"; // Always use flex-grow only
+
   return (
     <AuthProvider>
       <div className="flex flex-col min-h-screen">
-        <Header />
-        <main className="flex-grow">
+        <ConditionalHeader />
+        <main className={mainClasses}>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/events" element={<EventsPage />} />
             <Route path="/events/:slug" element={<EventDetailsPage />} />
             <Route path="/about" element={<AboutPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/register" element={<Navigate to="/register/type" replace />} />
+            <Route path="/register/:registrationType" element={<RegisterPage />} />
+            <Route path="/register/:registrationType/:pageName" element={<RegisterPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
@@ -143,7 +175,7 @@ function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
-        <Footer />
+        <ConditionalFooter />
       </div>
     </AuthProvider>
   );

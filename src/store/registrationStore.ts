@@ -37,7 +37,9 @@ export interface UnifiedAttendeeData {
   grandRank?: string;
   grandLodgeId?: string | null;
   lodgeId?: string | null;
-  grandOffice?: string;
+  grandOfficer?: string; // Current or Past grand officer status
+  grandOffice?: string; // The specific grand office title
+  grandOfficeOther?: string; // For "Other" grand office specification
   pastGrandOffice?: string;
   isPastGrandMaster?: boolean;
   honours?: string;
