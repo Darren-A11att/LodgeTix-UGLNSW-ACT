@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { MasonData } from '../../../shared/types/register';
+// import { MasonData } from '../../../shared/types/register'; // Remove old type
+import { UnifiedAttendeeData } from '../../../store/registrationStore'; // Import correct type
 import { HelpCircle } from 'lucide-react';
 import PhoneInputWrapper from '../PhoneInputWrapper';
 
 interface MasonContactInfoProps {
-  mason: MasonData;
+  // mason: MasonData; // Remove old type
+  mason: Pick<UnifiedAttendeeData, 'primaryPhone' | 'primaryEmail' | 'contactPreference' | 'contactConfirmed'>; // Use relevant fields from UnifiedAttendeeData
   id: string;
-  onChange: (id: string, field: string, value: string | boolean) => void;
+  onChange: (id: string, field: keyof UnifiedAttendeeData, value: string | boolean) => void; // Ensure field is keyof UnifiedAttendeeData
   handlePhoneChange: (value: string) => void;
   isPrimary: boolean;
   hideContactFields: boolean;
@@ -15,7 +17,7 @@ interface MasonContactInfoProps {
 }
 
 const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
-  mason,
+  mason, // Now correctly typed (partially)
   id,
   onChange,
   handlePhoneChange,
@@ -51,7 +53,7 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
               }}
             >
               <PhoneInputWrapper
-                value={mason.phone}
+                value={mason.primaryPhone ?? ''}
                 onChange={(value) => handlePhoneChange(value)}
                 name={`phone-${id}`}
                 inputProps={{
@@ -71,15 +73,15 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
               type="email"
               id={`email-${id}`}
               name={`email-${id}`}
-              value={mason.email}
-              onChange={(e) => onChange(id, 'email', e.target.value)}
+              value={mason.primaryEmail ?? ''}
+              onChange={(e) => onChange(id, 'primaryEmail', e.target.value)}
               onBlur={() => setEmailInteracted(true)}
               required={true}
-              className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
-                         ${emailInteracted ? 'interacted' : ''} 
-                         [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
+              className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50
+                         ${emailInteracted ? 'interacted' : ''}
+                         [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600
                          focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
-              
+
               title="Please enter a valid email address (e.g., user@example.com)"
             />
           </div>
@@ -154,7 +156,7 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
                       }}
                     >
                       <PhoneInputWrapper
-                        value={mason.phone}
+                        value={mason.primaryPhone ?? ''}
                         onChange={(value) => handlePhoneChange(value)}
                         name={`phone-${id}`}
                         inputProps={{
@@ -175,15 +177,15 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
                       type="email"
                       id={`email-${id}`}
                       name={`email-${id}`}
-                      value={mason.email}
-                      onChange={(e) => onChange(id, 'email', e.target.value)}
+                      value={mason.primaryEmail ?? ''}
+                      onChange={(e) => onChange(id, 'primaryEmail', e.target.value)}
                       onBlur={() => setEmailInteracted(true)}
                       required={true}
-                      className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
-                                 ${emailInteracted ? 'interacted' : ''} 
-                                 [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600 
+                      className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50
+                                 ${emailInteracted ? 'interacted' : ''}
+                                 [&.interacted:invalid]:border-red-500 [&.interacted:invalid]:text-red-600
                                  focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
-                      
+
                       title="Please enter a valid email address (e.g., user@example.com)"
                     />
                   </div>

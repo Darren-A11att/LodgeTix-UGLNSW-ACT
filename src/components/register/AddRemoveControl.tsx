@@ -8,6 +8,7 @@ interface AddRemoveControlProps {
   onRemove: () => void;
   min?: number;
   max?: number;
+  removeDisabled?: boolean;
 }
 
 const AddRemoveControl: React.FC<AddRemoveControlProps> = ({
@@ -16,18 +17,19 @@ const AddRemoveControl: React.FC<AddRemoveControlProps> = ({
   onAdd,
   onRemove,
   min = 0,
-  max = Infinity // Default to no upper limit unless specified
+  max = Infinity,
+  removeDisabled = false,
 }) => {
-  const removeDisabled = count <= min;
-  const addDisabled = count >= max;
+  const canRemove = count > min && !removeDisabled;
+  const canAdd = count < max;
 
   return (
     <div className="flex items-center w-full">
       <button
         type="button"
         onClick={onRemove}
-        disabled={removeDisabled}
-        className={`w-10 h-10 flex items-center justify-center bg-white border border-slate-300 text-slate-700 rounded-l-md transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1 ${removeDisabled ? 'opacity-50 cursor-not-allowed hover:bg-white' : ''}`}
+        disabled={!canRemove}
+        className={`w-10 h-10 flex items-center justify-center bg-white border border-slate-300 text-slate-700 rounded-l-md transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1 ${!canRemove ? 'opacity-50 cursor-not-allowed hover:bg-white' : ''}`}
         aria-label={`Remove last ${label}`}
       >
         <Minus className="w-4 h-4" />
@@ -38,8 +40,8 @@ const AddRemoveControl: React.FC<AddRemoveControlProps> = ({
       <button
         type="button"
         onClick={onAdd}
-        disabled={addDisabled}
-        className={`w-10 h-10 flex items-center justify-center bg-white border border-slate-300 text-slate-700 rounded-r-md transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1 ${addDisabled ? 'opacity-50 cursor-not-allowed hover:bg-white' : ''}`}
+        disabled={!canAdd}
+        className={`w-10 h-10 flex items-center justify-center bg-white border border-slate-300 text-slate-700 rounded-r-md transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1 ${!canAdd ? 'opacity-50 cursor-not-allowed hover:bg-white' : ''}`}
         aria-label={`Add ${label}`}
       >
         <Plus className="w-4 h-4" />
