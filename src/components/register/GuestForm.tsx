@@ -63,9 +63,8 @@ const GuestForm: React.FC<GuestFormProps> = ({
   }, [handleFieldChange, attendeeId]);
 
   const handleRemoveSelf = useCallback(() => {
-      if (window.confirm("Are you sure you want to remove this guest?")) {
-          removeAttendee(attendeeId);
-      }
+      // Remove confirmation based on feedback
+      removeAttendee(attendeeId); 
   }, [removeAttendee, attendeeId]);
 
   const handlePartnerToggle = useCallback(() => {
@@ -139,7 +138,7 @@ const GuestForm: React.FC<GuestFormProps> = ({
   const hideContactFields = !showConfirmation && guest.contactPreference !== "Directly";
 
   return (
-    <div className="bg-slate-50 border border-slate-200 p-6 rounded-lg mb-8 relative">
+    <div className="bg-slate-50 p-6 rounded-lg mb-8 relative">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-xl font-bold text-slate-800">Guest Attendee {attendeeNumber}</h3>
         <button 
@@ -178,10 +177,12 @@ const GuestForm: React.FC<GuestFormProps> = ({
       />
 
       {!partnerData && (
+        <div className="mt-6 text-center">
         <GuestPartnerToggle 
           hasPartner={false}
           onToggle={handlePartnerToggle}
         />
+        </div>
       )}
 
       {/* Guest Partner Form */} 

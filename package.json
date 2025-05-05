@@ -11,6 +11,7 @@
     "dev:admin:direct": "vite --config admin/vite.config.ts",
     "dev:admin:local": "vite -c admin/vite.config.local.js --host",
     "dev:admin:https": "vite -c admin/vite.config.ts --https --host",
+    "dev:admin:standalone": "bash admin-dev.sh",
     "build": "tsc && vite build --outDir dist",
     "build:app": "tsc && vite build --outDir dist/app --config vite.config.ts",
     "build:admin": "tsc && vite build --outDir dist/admin --config admin/vite.config.ts",

@@ -17,7 +17,6 @@ import { useLocationStore, IpApiData } from '../../store/locationStore';
 import { useRegistrationStore, UnifiedAttendeeData } from '../../store/registrationStore';
 import { v4 as uuidv4 } from 'uuid';
 import { LadyPartnerData as OldLadyPartnerData } from '../../shared/types/register';
-import { Card, CardHeader, CardTitle, CardBody } from '../../../shared/components/catalyst';
 
 interface MasonFormProps {
   attendeeId: string;
@@ -318,11 +317,11 @@ const MasonForm: React.FC<MasonFormProps> = ({
   }, [ladyPartnerData]);
 
   return (
-    <Card className="mb-8">
-      <CardHeader>
-        <CardTitle>
+    <div className="bg-slate-50 p-6 rounded-lg mb-8 relative">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xl font-bold text-slate-800">
           {isPrimary ? 'Mason Attendee - Primary' : `Mason Attendee ${attendeeNumber}`}
-        </CardTitle>
+        </h3>
         {!isPrimary && (
           <button 
             onClick={handleRemoveSelf} 
@@ -332,110 +331,110 @@ const MasonForm: React.FC<MasonFormProps> = ({
             <X className="w-4 h-4 mr-1" /> Remove
           </button>
         )}
-      </CardHeader>
+      </div>
       
-      <CardBody>
-        <MasonBasicInfo 
+      <MasonBasicInfo 
+        mason={mason} 
+        id={attendeeId} 
+        isPrimary={isPrimary} 
+        onChange={handleFieldChange}
+        handleTitleChange={handleTitleChange}
+        titles={titles}
+        ranks={ranks}
+      />
+      
+      {mason.rank === 'GL' && (
+        <MasonGrandLodgeFields 
           mason={mason} 
           id={attendeeId} 
-          isPrimary={isPrimary} 
           onChange={handleFieldChange}
-          handleTitleChange={handleTitleChange}
-          titles={titles}
-          ranks={ranks}
-        />
-        
-        {mason.rank === 'GL' && (
-          <MasonGrandLodgeFields 
-            mason={mason} 
-            id={attendeeId} 
-            onChange={handleFieldChange}
-            isPrimary={isPrimary}
-          />
-        )}
-
-        <MasonLodgeInfo 
-          mason={mason}
-          id={attendeeId}
           isPrimary={isPrimary}
-          grandLodgeOptions={grandLodges} 
-          isLoadingGrandLodges={isLoadingGrandLodges}
-          grandLodgeError={grandLodgeError}
-          selectedGrandLodge={selectedGrandLodge}
-          handleGrandLodgeSelect={handleGrandLodgeSelect}
-          grandLodgeInputValue={grandLodgeInputValue}
-          onGrandLodgeInputChange={handleGrandLodgeInputChange}
-          lodgeOptions={allLodgeSearchResults}
-          isLoadingLodges={isLoadingAllLodges}
-          lodgeError={allLodgesError}
-          selectedLodge={selectedLodge}
-          handleLodgeSelect={handleLodgeSelect}
-          lodgeInputValue={lodgeInputValue}
-          onLodgeInputChange={handleLodgeInputChange}
-          isCreatingLodgeUI={isCreatingLodgeUI}
-          showLodgeNumberInput={isCreatingLodgeUI}
-          handleInitiateLodgeCreation={handleInitiateLodgeCreation}
-          newLodgeName={newLodgeName}
-          setNewLodgeName={setNewLodgeName}
-          newLodgeNumber={newLodgeNumber}
-          handleLodgeNumberChange={handleLodgeNumberChange}
-          handleCancelLodgeCreation={handleCancelLodgeCreation}
-          onConfirmNewLodge={handleConfirmNewLodge}
         />
+      )}
 
-        <MasonContactInfo 
-          mason={mason} 
-          id={attendeeId}
-          onChange={handleFieldChange}
-          handlePhoneChange={handlePhoneChange} 
-          isPrimary={isPrimary}
-          hideContactFields={!isPrimary && mason.contactPreference !== 'Directly'}
-          showConfirmation={!isPrimary && (mason.contactPreference === 'PrimaryAttendee' || mason.contactPreference === 'ProvideLater')}
-          getConfirmationMessage={getConfirmationMessage} 
-        />
+      <MasonLodgeInfo 
+        mason={mason}
+        id={attendeeId}
+        isPrimary={isPrimary}
+        grandLodgeOptions={grandLodges} 
+        isLoadingGrandLodges={isLoadingGrandLodges}
+        grandLodgeError={grandLodgeError}
+        selectedGrandLodge={selectedGrandLodge}
+        handleGrandLodgeSelect={handleGrandLodgeSelect}
+        grandLodgeInputValue={grandLodgeInputValue}
+        onGrandLodgeInputChange={handleGrandLodgeInputChange}
+        lodgeOptions={allLodgeSearchResults}
+        isLoadingLodges={isLoadingAllLodges}
+        lodgeError={allLodgesError}
+        selectedLodge={selectedLodge}
+        handleLodgeSelect={handleLodgeSelect}
+        lodgeInputValue={lodgeInputValue}
+        onLodgeInputChange={handleLodgeInputChange}
+        isCreatingLodgeUI={isCreatingLodgeUI}
+        showLodgeNumberInput={isCreatingLodgeUI}
+        handleInitiateLodgeCreation={handleInitiateLodgeCreation}
+        newLodgeName={newLodgeName}
+        setNewLodgeName={setNewLodgeName}
+        newLodgeNumber={newLodgeNumber}
+        handleLodgeNumberChange={handleLodgeNumberChange}
+        handleCancelLodgeCreation={handleCancelLodgeCreation}
+        onConfirmNewLodge={handleConfirmNewLodge}
+      />
 
-        <MasonAdditionalInfo 
-          mason={mason} 
-          id={attendeeId}
-          onChange={handleFieldChange}
-        />
+      <MasonContactInfo 
+        mason={mason} 
+        id={attendeeId}
+        onChange={handleFieldChange}
+        handlePhoneChange={handlePhoneChange} 
+        isPrimary={isPrimary}
+        hideContactFields={!isPrimary && mason.contactPreference !== 'Directly'}
+        showConfirmation={!isPrimary && (mason.contactPreference === 'PrimaryAttendee' || mason.contactPreference === 'ProvideLater')}
+        getConfirmationMessage={getConfirmationMessage} 
+      />
 
-        {!ladyPartnerData && (
+      <MasonAdditionalInfo 
+        mason={mason} 
+        id={attendeeId}
+        onChange={handleFieldChange}
+      />
+
+      {!ladyPartnerData && (
+        <div className="mt-6 text-center">
           <LadyPartnerToggle
             hasPartner={false}
             onToggle={handleLadyPartnerToggle}
           />
-        )}
+        </div>
+      )}
 
-        {ladyPartnerData && transformedPartnerData && (
-          <LadyPartnerForm
-            partner={transformedPartnerData}
-            id={ladyPartnerData.attendeeId}
-            updateField={ (id: string, field: string, value: any) => {
-              let unifiedField: keyof UnifiedAttendeeData | null = null;
-              switch (field as keyof OldLadyPartnerData) {
-                case 'title': unifiedField = 'title'; break;
-                case 'firstName': unifiedField = 'firstName'; break;
-                case 'lastName': unifiedField = 'lastName'; break;
-                case 'email': unifiedField = 'primaryEmail'; break;
-                case 'phone': unifiedField = 'primaryPhone'; break;
-                case 'dietary': unifiedField = 'dietaryRequirements'; break;
-                case 'specialNeeds': unifiedField = 'specialNeeds'; break;
-                case 'relationship': unifiedField = 'relationship'; break;
-                case 'contactPreference': unifiedField = 'contactPreference'; break;
-                case 'contactConfirmed': unifiedField = 'contactConfirmed'; break;
-                default: console.warn(`Unhandled LadyPartnerForm field update: ${field}`); return;
-              }
-              if (unifiedField) {
-                updateAttendee(id, { [unifiedField]: value });
-              }
-            }}
-            onRemove={handleLadyPartnerToggle}
-            relatedMasonName={`${mason.firstName || ''} ${mason.lastName || ''}`.trim()}
-          />
-        )}
-      </CardBody>
-    </Card>
+      {ladyPartnerData && transformedPartnerData && (
+        <LadyPartnerForm
+          partner={transformedPartnerData}
+          id={ladyPartnerData.attendeeId}
+          updateField={ (id: string, field: string, value: any) => {
+            let unifiedField: keyof UnifiedAttendeeData | null = null;
+            switch (field as keyof OldLadyPartnerData) {
+              case 'title': unifiedField = 'title'; break;
+              case 'firstName': unifiedField = 'firstName'; break;
+              case 'lastName': unifiedField = 'lastName'; break;
+              case 'email': unifiedField = 'primaryEmail'; break;
+              case 'phone': unifiedField = 'primaryPhone'; break;
+              case 'dietary': unifiedField = 'dietaryRequirements'; break;
+              case 'specialNeeds': unifiedField = 'specialNeeds'; break;
+              case 'relationship': unifiedField = 'relationship'; break;
+              case 'contactPreference': unifiedField = 'contactPreference'; break;
+              case 'contactConfirmed': unifiedField = 'contactConfirmed'; break;
+              default: console.warn(`Unhandled LadyPartnerForm field update: ${field}`); return;
+            }
+            if (unifiedField) {
+              updateAttendee(id, { [unifiedField]: value });
+            }
+          }}
+          onRemove={handleLadyPartnerToggle}
+          relatedMasonName={`${mason.firstName || ''} ${mason.lastName || ''}`.trim()}
+        />
+      )}
+    </div>
   );
 };
 

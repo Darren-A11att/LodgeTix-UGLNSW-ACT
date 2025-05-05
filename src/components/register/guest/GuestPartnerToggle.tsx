@@ -16,8 +16,8 @@ const GuestPartnerToggle: React.FC<GuestPartnerToggleProps> = ({
         onClick={onToggle}
         className={`py-2 px-6 rounded-md flex items-center justify-center font-medium transition-colors ${
           hasPartner 
-            ? 'bg-white border-2 border-secondary text-primary' 
-            : 'bg-secondary text-white'
+            ? 'bg-white border-2 border-secondary text-primary'
+            : 'btn-secondary'
         }`}
       >
         {hasPartner ? 'Remove Partner' : 'Register Partner'}

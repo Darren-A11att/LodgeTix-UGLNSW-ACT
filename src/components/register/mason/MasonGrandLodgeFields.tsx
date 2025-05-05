@@ -1,22 +1,23 @@
 import React, { useState } from 'react';
-import { UnifiedAttendeeData } from '../../../store/registrationStore';
+import { MasonData } from '../../../shared/types/register';
 
 interface MasonGrandLodgeFieldsProps {
-  mason: UnifiedAttendeeData;
+  mason: MasonData;
   id: string;
-  onChange: (attendeeId: string, field: keyof UnifiedAttendeeData, value: any) => void;
-  isPrimary: boolean;
+  onChange: (id: string, field: string, value: string | boolean) => void;
+  isPrimary?: boolean;
 }
 
 const MasonGrandLodgeFields: React.FC<MasonGrandLodgeFieldsProps> = ({
   mason,
   id,
   onChange,
-  isPrimary,
+  isPrimary = false,
 }) => {
   // Internal definitions for GL options
   const grandOfficerStatusOptions = ["Current", "Past"]; // For the Officer status dropdown
   const grandOfficeOptions = [
+    "Please Select",
     "Grand Master",
     "Deputy Grand Master",
     "Assistant Grand Master",
@@ -34,12 +35,6 @@ const MasonGrandLodgeFields: React.FC<MasonGrandLodgeFieldsProps> = ({
   const [grandOfficeInteracted, setGrandOfficeInteracted] = useState(false);
   const [grandOfficeOtherInteracted, setGrandOfficeOtherInteracted] = useState(false);
 
-  // Combined handler for input/select
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    onChange(id, name as keyof UnifiedAttendeeData, value);
-  };
-
   return (
     <div className="grid grid-cols-12 gap-4 mb-4 bg-primary/5 p-4 rounded-md border border-primary/10">
       {/* Grand Rank Input */}
@@ -50,9 +45,9 @@ const MasonGrandLodgeFields: React.FC<MasonGrandLodgeFieldsProps> = ({
         <input
           type="text"
           id={`grandRank-${id}`}
-          name="grandRank"
+          name={`grandRank-${id}`}
           value={mason.grandRank || ''}
-          onChange={handleInputChange}
+          onChange={(e) => onChange(id, 'grandRank', e.target.value)}
           onBlur={() => setGrandRankInteracted(true)}
           required={isPrimary && mason.rank === "GL"}
           maxLength={6}
@@ -65,15 +60,15 @@ const MasonGrandLodgeFields: React.FC<MasonGrandLodgeFieldsProps> = ({
       </div>
       
       {/* Grand Officer */}
-      <div className="col-span-3">
+      <div className="col-span-2">
         <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandOfficer-${id}`}>
           Grand Officer {isPrimary && "*"}
         </label>
         <select
           id={`grandOfficer-${id}`}
-          name="grandOfficer"
+          name={`grandOfficer-${id}`}
           value={mason.grandOfficer || 'Past'}
-          onChange={handleInputChange}
+          onChange={(e) => onChange(id, 'grandOfficer', e.target.value)}
           onBlur={() => setGrandOfficerInteracted(true)}
           required={isPrimary && mason.rank === "GL"}
           className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -89,15 +84,15 @@ const MasonGrandLodgeFields: React.FC<MasonGrandLodgeFieldsProps> = ({
       {/* Show Grand Office field if Current is selected */}
       {mason.grandOfficer === 'Current' && (
         <>
-          <div className={`${showOtherGrandOfficeInput ? 'col-span-3' : 'col-span-3'}`}>
+          <div className={`${showOtherGrandOfficeInput ? 'col-span-4' : 'col-span-4'}`}>
             <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`grandOffice-${id}`}>
               Grand Office {isPrimary && "*"}
             </label>
             <select
               id={`grandOffice-${id}`}
-              name="grandOffice"
-              value={mason.grandOffice || ''}
-              onChange={handleInputChange}
+              name={`grandOffice-${id}`}
+              value={mason.grandOffice || 'Please Select'}
+              onChange={(e) => onChange(id, 'grandOffice', e.target.value)}
               onBlur={() => setGrandOfficeInteracted(true)}
               required={isPrimary && mason.rank === "GL" && mason.grandOfficer === 'Current'}
               className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -120,9 +115,9 @@ const MasonGrandLodgeFields: React.FC<MasonGrandLodgeFieldsProps> = ({
               <input
                 type="text"
                 id={`grandOfficeOther-${id}`}
-                name="grandOfficeOther"
+                name={`grandOfficeOther-${id}`}
                 value={mason.grandOfficeOther || ''}
-                onChange={handleInputChange}
+                onChange={(e) => onChange(id, 'grandOfficeOther', e.target.value)}
                 onBlur={() => setGrandOfficeOtherInteracted(true)}
                 placeholder=""
                 required={isPrimary && mason.rank === "GL" && mason.grandOfficer === 'Current' && mason.grandOffice === 'Other'}

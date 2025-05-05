@@ -1,10 +1,10 @@
 import React from 'react';
-import { AttendeeData as UnifiedAttendeeData } from '../../../lib/api/registrations';
+import { GuestData } from '../../../shared/types/register';
 
 interface GuestAdditionalInfoProps {
-  guest: UnifiedAttendeeData;
+  guest: GuestData;
   id: string;
-  onChange: (attendeeId: string, field: keyof UnifiedAttendeeData, value: any) => void;
+  onChange: (id: string, field: string, value: string | boolean) => void;
 }
 
 const GuestAdditionalInfo: React.FC<GuestAdditionalInfoProps> = ({
@@ -22,8 +22,8 @@ const GuestAdditionalInfo: React.FC<GuestAdditionalInfoProps> = ({
           type="text"
           id={`guestDietary-${id}`}
           name={`guestDietary-${id}`}
-          value={guest.dietaryRequirements ?? ''}
-          onChange={(e) => onChange(id, 'dietaryRequirements', e.target.value)}
+          value={guest.dietary}
+          onChange={(e) => onChange(id, 'dietary', e.target.value)}
           placeholder="E.g., vegetarian, gluten-free, allergies"
           className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
         />
@@ -35,7 +35,7 @@ const GuestAdditionalInfo: React.FC<GuestAdditionalInfoProps> = ({
         <textarea
           id={`guestSpecialNeeds-${id}`}
           name={`guestSpecialNeeds-${id}`}
-          value={guest.specialNeeds ?? ''}
+          value={guest.specialNeeds}
           onChange={(e) => onChange(id, 'specialNeeds', e.target.value)}
           rows={2}
           className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"

@@ -2,11 +2,13 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import AutocompleteInput, { BaseOption } from '../AutocompleteInput';
 import { GrandLodgeRow } from '../../../lib/api/grandLodges';
 import { LodgeRow } from '../../../lib/api/lodges';
-import { UnifiedAttendeeData } from '../../../store/registrationStore';
+import { MasonData } from '../../../shared/types/register';
+import { useLocationStore } from '../../../store/locationStore';
 
 interface MasonLodgeInfoProps {
-  mason: UnifiedAttendeeData;
+  mason: MasonData;
   id: string;
+  onChange: (id: string, field: string, value: string | boolean) => void;
   isPrimary: boolean;
   
   grandLodgeOptions: GrandLodgeRow[];
@@ -39,6 +41,7 @@ interface MasonLodgeInfoProps {
 const MasonLodgeInfo: React.FC<MasonLodgeInfoProps> = ({
   mason,
   id,
+  onChange,
   isPrimary,
   grandLodgeOptions,
   isLoadingGrandLodges,
@@ -64,6 +67,55 @@ const MasonLodgeInfo: React.FC<MasonLodgeInfoProps> = ({
   handleCancelLodgeCreation,
   onConfirmNewLodge
 }) => {
+  // Store IP data and cache info in refs to avoid re-renders
+  const ipDataRef = useRef(useLocationStore.getState().ipData);
+  const lodgeCacheRef = useRef(useLocationStore.getState().lodgeCache);
+  
+  // Subscribe to IP data and lodge cache updates
+  useEffect(() => {
+    return useLocationStore.subscribe(
+      (state) => [state.ipData, state.lodgeCache],
+      ([newIpData, newLodgeCache]) => {
+        ipDataRef.current = newIpData;
+        lodgeCacheRef.current = newLodgeCache;
+      }
+    );
+  }, []);
+  
+  // Use refs to avoid re-renders from store selectors
+  const storeRef = useRef({
+    getLodgesByGrandLodge: useLocationStore.getState().getLodgesByGrandLodge
+  });
+  
+  // Effect to load lodges for initial Grand Lodge - with one-time flag
+  const didInitialLoadRef = useRef(false);
+  
+  useEffect(() => {
+    // Only run once when selectedGrandLodge first becomes available
+    if (selectedGrandLodge?.id && lodgeOptions.length === 0 && !isLoadingLodges) {
+      // Don't use didInitialLoadRef to make sure we load lodges after navigation
+      
+      // This will use the cache if available without triggering state updates in the store
+      const loadInitialLodges = async () => {
+        try {
+          await storeRef.current.getLodgesByGrandLodge(selectedGrandLodge.id);
+          // The parent component handles the lodge options via props
+        } catch (error) {
+          console.error("Error loading initial lodges:", error);
+        }
+      };
+      
+      loadInitialLodges();
+    }
+  }, [selectedGrandLodge?.id, lodgeOptions.length, isLoadingLodges]);
+  
+  // Reset load flag when component unmounts
+  useEffect(() => {
+    return () => {
+      didInitialLoadRef.current = false;
+    };
+  }, []);
+
   const handleGrandLodgeSelectInternal = (option: GrandLodgeRow | null) => {
     handleGrandLodgeSelect(option);
   };
@@ -111,6 +163,41 @@ const MasonLodgeInfo: React.FC<MasonLodgeInfoProps> = ({
     }
   };
 
+  // Get better default placeholder based on user's location from IP
+  // Using plain functions instead of useCallback to avoid circular dependencies
+  const getGrandLodgePlaceholder = () => {
+    const defaultPlaceholder = "Search Grand Lodge by name, country...";
+    
+    // If we have country data, suggest it in the placeholder
+    if (ipDataRef.current?.country_name) {
+      return `Search Grand Lodge in ${ipDataRef.current.country_name} or globally...`;
+    }
+    
+    return defaultPlaceholder;
+  };
+
+  // Get better default placeholder based on lodge cache and user's location
+  // Using plain functions instead of useCallback to avoid circular dependencies
+  const getLodgePlaceholder = () => {
+    if (!selectedGrandLodge) {
+      return "Select Grand Lodge first";
+    }
+    
+    if (!selectedGrandLodge.id) {
+      return "Search Lodge name, number, town...";
+    }
+    
+    // Check if we have cached lodges for this Grand Lodge - safely
+    const cacheForGl = lodgeCacheRef.current?.byGrandLodge?.[selectedGrandLodge.id];
+    const hasCachedLodges = cacheForGl?.data?.length > 0;
+    
+    if (hasCachedLodges) {
+      return "Select from cached lodges or search...";
+    }
+    
+    return "Search Lodge name, number, town...";
+  };
+
   return (
     <div className="mb-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -127,7 +214,7 @@ const MasonLodgeInfo: React.FC<MasonLodgeInfoProps> = ({
             options={grandLodgeOptions}
             getOptionLabel={getGrandLodgeLabel}
             getOptionValue={getGrandLodgeValue}
-            placeholder="Search Grand Lodge by name, country..."
+            placeholder={getGrandLodgePlaceholder()}
             required={isPrimary}
             renderOption={renderGrandLodgeOption}
             isLoading={isLoadingGrandLodges}
@@ -150,7 +237,7 @@ const MasonLodgeInfo: React.FC<MasonLodgeInfoProps> = ({
                options={lodgeOptions}
                getOptionLabel={getLodgeLabelForOption}
                getOptionValue={getLodgeValue}
-               placeholder="Search Lodge Name or Number..."
+               placeholder={getLodgePlaceholder()}
                required={isPrimary && !isCreatingLodgeUI}
                renderOption={renderLodgeOption}
                allowCreate={true}

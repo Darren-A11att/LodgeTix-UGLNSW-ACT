@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
+import { MasonData } from '../../../shared/types/register';
 import { HelpCircle } from 'lucide-react';
 import PhoneInputWrapper from '../PhoneInputWrapper';
-import { UnifiedAttendeeData } from '../../../store/registrationStore';
 
 interface MasonContactInfoProps {
-  mason: UnifiedAttendeeData;
+  mason: MasonData;
   id: string;
-  onChange: (attendeeId: string, field: keyof UnifiedAttendeeData, value: any) => void;
+  onChange: (id: string, field: string, value: string | boolean) => void;
   handlePhoneChange: (value: string) => void;
   isPrimary: boolean;
   hideContactFields: boolean;
@@ -27,16 +27,6 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
   const contactOptions = ["Please Select", "Primary Attendee", "Directly", "Provide Later"];
   const [emailInteracted, setEmailInteracted] = useState(false);
   const [phoneInteracted, setPhoneInteracted] = useState(false);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    onChange(id, name as keyof UnifiedAttendeeData, value);
-  };
-
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    onChange(id, name as keyof UnifiedAttendeeData, checked);
-  };
 
   return (
     <>
@@ -61,7 +51,7 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
               }}
             >
               <PhoneInputWrapper
-                value={mason.primaryPhone ?? ''}
+                value={mason.phone}
                 onChange={(value) => handlePhoneChange(value)}
                 name={`phone-${id}`}
                 inputProps={{
@@ -81,8 +71,8 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
               type="email"
               id={`email-${id}`}
               name={`email-${id}`}
-              value={mason.primaryEmail ?? ''}
-              onChange={(e) => onChange(id, 'primaryEmail', e.target.value)}
+              value={mason.email}
+              onChange={(e) => onChange(id, 'email', e.target.value)}
               onBlur={() => setEmailInteracted(true)}
               required={true}
               className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
@@ -115,7 +105,7 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
                 id={`contactPreference-${id}`}
                 name={`contactPreference-${id}`}
                 value={mason.contactPreference ?? 'Please Select'}
-                onChange={handleInputChange}
+                onChange={(e) => onChange(id, 'contactPreference', e.target.value)}
                 required
                 className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
@@ -133,7 +123,7 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
                     type="checkbox"
                     id={`contactConfirmed-${id}`}
                     checked={mason.contactConfirmed ?? false}
-                    onChange={handleCheckboxChange}
+                    onChange={(e) => onChange(id, 'contactConfirmed', e.target.checked)}
                     required
                     className="h-4 w-4 text-primary border-slate-300 rounded focus:ring-primary"
                   />
@@ -164,7 +154,7 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
                       }}
                     >
                       <PhoneInputWrapper
-                        value={mason.primaryPhone ?? ''}
+                        value={mason.phone}
                         onChange={(value) => handlePhoneChange(value)}
                         name={`phone-${id}`}
                         inputProps={{
@@ -185,8 +175,8 @@ const MasonContactInfo: React.FC<MasonContactInfoProps> = ({
                       type="email"
                       id={`email-${id}`}
                       name={`email-${id}`}
-                      value={mason.primaryEmail ?? ''}
-                      onChange={(e) => onChange(id, 'primaryEmail', e.target.value)}
+                      value={mason.email}
+                      onChange={(e) => onChange(id, 'email', e.target.value)}
                       onBlur={() => setEmailInteracted(true)}
                       required={true}
                       className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 

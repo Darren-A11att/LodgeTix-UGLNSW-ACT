@@ -5,7 +5,8 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/admin/',
+  // When running on localhost:5174, don't append /admin/ to the path
+  base: '/',
   plugins: [react(), sentryVitePlugin({
     org: "mylodgeio",
     project: "uglnsw-lodgetix-admin"

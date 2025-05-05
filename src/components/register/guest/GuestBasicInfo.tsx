@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
+import { GuestData } from '../../../shared/types/register';
 import { HelpCircle } from 'lucide-react';
 import PhoneInputWrapper from '../PhoneInputWrapper';
-import { AttendeeData as UnifiedAttendeeData } from '../../../lib/api/registrations';
 
 interface GuestBasicInfoProps {
-  guest: UnifiedAttendeeData;
+  guest: GuestData;
   id: string;
-  onChange: (attendeeId: string, field: keyof UnifiedAttendeeData, value: any) => void;
+  onChange: (id: string, field: string, value: string) => void;
   titles: string[];
 }
 
@@ -31,7 +31,7 @@ const GuestBasicInfo: React.FC<GuestBasicInfoProps> = ({
         <select
           id={`guestTitle-${id}`}
           name={`guestTitle-${id}`}
-          value={guest.title ?? ''}
+          value={guest.title}
           onChange={(e) => onChange(id, 'title', e.target.value)}
           onBlur={() => setTitleInteracted(true)}
           required
@@ -39,7 +39,7 @@ const GuestBasicInfo: React.FC<GuestBasicInfoProps> = ({
                      ${titleInteracted ? 'interacted' : ''} 
                      [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
         >
-          <option value="" disabled>Please Select</option>
+          <option value="">Please Select</option>
           {titles.map(title => (
             <option key={title} value={title}>{title}</option>
           ))}
@@ -55,7 +55,7 @@ const GuestBasicInfo: React.FC<GuestBasicInfoProps> = ({
           type="text"
           id={`guestFirstName-${id}`}
           name={`guestFirstName-${id}`}
-          value={guest.firstName ?? ''}
+          value={guest.firstName}
           onChange={(e) => onChange(id, 'firstName', e.target.value)}
           onBlur={() => setFirstNameInteracted(true)}
           required
@@ -75,7 +75,7 @@ const GuestBasicInfo: React.FC<GuestBasicInfoProps> = ({
           type="text"
           id={`guestLastName-${id}`}
           name={`guestLastName-${id}`}
-          value={guest.lastName ?? ''}
+          value={guest.lastName}
           onChange={(e) => onChange(id, 'lastName', e.target.value)}
           onBlur={() => setLastNameInteracted(true)}
           required
