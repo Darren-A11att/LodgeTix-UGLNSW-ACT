@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import EventCard from '../shared/components/EventCard';
-import { getEvents } from '../lib/api/events';
+import { getEvents, getParentEvent } from '../lib/api/events';
 import { EventType } from '../shared/types/event';
 import { Filter, Loader2, AlertTriangle, Calendar } from 'lucide-react';
 import { format, parseISO, isValid, compareAsc } from 'date-fns';
@@ -24,10 +24,14 @@ const EventsPage: React.FC = () => {
     setError(null);
     
     try {
+      // Get the parent event first so we can filter child events
+      const parentEvent = await getParentEvent();
+      
       const eventsResponse = await getEvents({
         page: 1,
         limit: EVENTS_PER_PAGE,
         filterType: type,
+        parentEventId: parentEvent?.id || undefined, // Filter for child events of the parent
       });
       
       const { events: fetchedEvents, totalCount: fetchedTotalCount } = eventsResponse;
@@ -49,10 +53,14 @@ const EventsPage: React.FC = () => {
     setIsLoadingMore(true);
     setError(null);
     try {
+      // Get the parent event first so we can filter child events
+      const parentEvent = await getParentEvent();
+      
       const { events: fetchedEvents, totalCount: fetchedTotalCount } = await getEvents({
         page: page,
         limit: EVENTS_PER_PAGE,
         filterType: type,
+        parentEventId: parentEvent?.id || undefined, // Filter for child events of the parent
       });
       setEvents(prevEvents => [...prevEvents, ...fetchedEvents]);
       setTotalCount(fetchedTotalCount);
@@ -87,11 +95,10 @@ const EventsPage: React.FC = () => {
   const eventsGroupedAndSortedByDate = useMemo(() => {
     if (!Array.isArray(events)) return [];
 
-    const childEvents = events.filter(event => event.parentEventId !== null);
-
+    // No need to filter for child events as the API already returns only child events
     const grouped: Record<string, { dateObj: Date; events: EventType[] }> = {};
 
-    childEvents.forEach(event => {
+    events.forEach(event => {
       if (event.eventStart) {
         try {
           const dateObj = parseISO(event.eventStart);
@@ -232,7 +239,7 @@ const EventsPage: React.FC = () => {
           )}
 
           <h2 className="text-2xl font-bold mb-6 text-primary">
-            {loading ? 'Loading...' : `${eventsGroupedAndSortedByDate.flatMap(g => g.events).length} ${eventsGroupedAndSortedByDate.flatMap(g => g.events).length === 1 ? 'Child Event' : 'Child Events'}`}
+            {loading ? 'Loading...' : `${eventsGroupedAndSortedByDate.flatMap(g => g.events).length} ${eventsGroupedAndSortedByDate.flatMap(g => g.events).length === 1 ? 'Event' : 'Events'}`}
             {filterType ? ` (${filterType})` : ''}
           </h2>
           
