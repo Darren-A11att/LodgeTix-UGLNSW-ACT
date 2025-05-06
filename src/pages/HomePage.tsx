@@ -346,7 +346,7 @@ const HomePage: React.FC = () => {
           )}
           
           <div className="text-center mt-12">
-            <Link to="/events" className="btn-outline">
+            <Link to="/events" className="btn-outline inline-block">
               View All Events
             </Link>
           </div>
@@ -363,7 +363,7 @@ const HomePage: React.FC = () => {
           </p>
           <Link 
             to="/register" 
-            className="btn-secondary"
+            className="btn-secondary inline-block"
             state={{ checkForDrafts: true }}
           >
             Register Now

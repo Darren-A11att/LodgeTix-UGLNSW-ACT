@@ -35,10 +35,7 @@ const ConditionalHeader: React.FC = () => {
 
 // Helper component to conditionally render footer
 const ConditionalFooter: React.FC = () => {
-  const location = useLocation();
-  // Hide global footer only on HomePage (which now has its own)
-  const shouldHideFooter = location.pathname === '/'; 
-  return shouldHideFooter ? null : <Footer />;
+  return <Footer />;
 };
 
 function App() {
