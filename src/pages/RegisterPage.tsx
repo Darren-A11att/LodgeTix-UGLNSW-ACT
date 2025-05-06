@@ -87,16 +87,24 @@ const getAttendeeDetailErrors = (attendees: UnifiedAttendeeData[], agreeToTerms:
     // Partner validation
     else if (attendee.attendeeType === 'lady_partner' || attendee.attendeeType === 'guest_partner') { 
       if (!attendee.relationship) errors.push(`Relationship is required for ${desc}.`);
-      if (!attendee.contactPreference) errors.push(`Contact Preference is required for ${desc}.`);
-      else if (attendee.contactPreference === 'Directly') {
+      if (!attendee.title) errors.push(`Title is required for ${desc}.`);
+      
+      // Check Contact Preference exists
+      if (!attendee.contactPreference) errors.push(`Contact Preference is required for ${desc}.`); 
+      // If preference requires confirmation, check it
+      else if (attendee.contactPreference !== 'Directly') { 
+        if (!attendee.contactConfirmed) {
+          errors.push(`Confirmation checkbox must be ticked for ${desc} when Contact Preference is not 'Directly'.`);
+        }
+      } 
+      // If preference is 'Directly', check contact details
+      else { // attendee.contactPreference === 'Directly'
         if (!attendee.primaryPhone) errors.push(`Mobile Number is required for ${desc} when Contact Preference is 'Directly'.`);
         if (!attendee.primaryEmail) {
           errors.push(`Email Address is required for ${desc} when Contact Preference is 'Directly'.`);
         } else if (!isValidEmail(attendee.primaryEmail)) {
           errors.push(`Email Address format is invalid for ${desc} when Contact Preference is 'Directly'.`);
         }
-      } else if (!attendee.contactConfirmed) {
-        errors.push(`Confirmation checkbox must be ticked for ${desc} when Contact Preference is not 'Directly'.`);
       }
     }
     // Guest validation
@@ -528,32 +536,31 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
     // For other steps, use the existing switch logic
     switch (currentStep) {
         case 2:
-            console.log("[RegisterPage] Rendering step 2: AttendeeDetails"); // DEBUG
+            console.log('[RegisterPage] Validating Step 2 (AttendeeDetails) with attendees:', attendees);
+            const step2Errors = getAttendeeDetailErrors(attendees, agreeToTerms);
+            console.log('[RegisterPage] Validation errors for Step 2:', step2Errors); 
             return (
                 <AttendeeDetails
-                    agreeToTerms={agreeToTerms} 
-                    onAgreeToTermsChange={setAgreeToTerms} 
-                    nextStep={nextStep} 
-                    prevStep={prevStep} 
-                    validationErrors={step2ValidationErrors} 
+                    agreeToTerms={agreeToTerms}
+                    onAgreeToTermsChange={setAgreeToTerms}
+                    nextStep={nextStep}
+                    prevStep={prevStep}
+                    validationErrors={step2Errors} // Pass errors down
                 />
             );
         case 3:
-            console.log("[RegisterPage] Rendering step 3: TicketSelection"); // DEBUG
+            // Get errors for step 3 (Tickets)
+            // const step3Errors = getTicketSelectionErrors(attendees, packages);
             return (
                 <TicketSelection
-                    formState={minimalFormState} // Pass placeholder formState
-                    selectAttendeeTicket={dummyAction} // Pass dummy action
+                    // availableTickets={availableTickets} // Use fetched tickets
+                    availableTickets={eventsData} // Temp use eventsData
+                    attendees={attendees}
+                    packages={packages}
+                    updatePackageSelection={updatePackageSelection}
                     nextStep={nextStep}
                     prevStep={prevStep}
-                    availableTickets={availableTickets} 
-                    selectedEvent={selectedEventObj ? {
-                        id: selectedEventObj.id,
-                        title: selectedEventObj.title ?? 'Event Title', 
-                        day: selectedEventObj.day ?? '', 
-                        time: selectedEventObj.time ?? '', 
-                        price: selectedEventObj.price ?? 0 
-                    } : undefined}
+                    // validationErrors={step3Errors} // Pass errors down
                 />
             );
         case 4:

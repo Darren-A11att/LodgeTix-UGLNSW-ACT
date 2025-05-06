@@ -307,7 +307,7 @@ const MasonForm: React.FC<MasonFormProps> = ({
           phone: ladyPartnerData.primaryPhone || '',
           dietary: ladyPartnerData.dietaryRequirements || '',
           specialNeeds: ladyPartnerData.specialNeeds || '',
-          relationship: ladyPartnerData.relationship || 'Partner',
+          relationship: ladyPartnerData.relationship || '',
           masonId: ladyPartnerData.relatedAttendeeId || '',
           contactPreference: ladyPartnerData.contactPreference || 'Directly',
           contactConfirmed: !!ladyPartnerData.contactConfirmed,
@@ -430,6 +430,7 @@ const MasonForm: React.FC<MasonFormProps> = ({
           }}
           onRemove={handleLadyPartnerToggle}
           relatedMasonName={`${mason.firstName || ''} ${mason.lastName || ''}`.trim()}
+          primaryAttendeeData={primaryMasonData}
         />
       )}
     </div>

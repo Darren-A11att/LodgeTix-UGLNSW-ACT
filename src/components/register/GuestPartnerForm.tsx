@@ -24,7 +24,7 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
 }) => {
   const titles = ["Mr", "Mrs", "Ms", "Miss", "Dr", "Rev", "Prof", "Rabbi", "Hon", "Sir", "Madam", "Lady", "Dame"];
   const relationships = ["Wife", "Partner", "Fiancée", "Husband", "Fiancé"];
-  const contactOptions = ["Please Select", "PrimaryAttendee", "Guest", "Directly", "ProvideLater"];
+  const contactOptions = ["Please Select", "Primary Attendee", "Guest", "Directly", "Provide Later"];
 
   const [relationshipInteracted, setRelationshipInteracted] = useState(false);
   const [titleInteracted, setTitleInteracted] = useState(false);
@@ -206,9 +206,12 @@ const GuestPartnerForm: React.FC<GuestPartnerFormProps> = ({
                          ${contactPreferenceInteracted ? 'interacted' : ''} 
                          [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
             >
-              {contactOptions.map(option => (
-                <option key={option} value={option === 'Please Select' ? '' : option} disabled={option === 'Please Select'}>{option}</option>
-              ))}
+              <option value="" disabled>Please Select</option>
+              {contactOptions
+                .filter(option => option !== 'Please Select')
+                .map(option => (
+                  <option key={option} value={option}> {option.replace(/([A-Z])/g, ' $1').trim()} </option>
+                ))}
             </select>
           </div>
           

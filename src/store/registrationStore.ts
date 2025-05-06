@@ -231,6 +231,15 @@ export const useRegistrationStore = create<RegistrationState>(
           // Initialize ticket field
           ticket: { ticketDefinitionId: null, selectedEvents: [] }, 
         };
+
+        // Explicitly set defaults for partners
+        if (newAttendee.attendeeType === 'lady_partner' || newAttendee.attendeeType === 'guest_partner') {
+          newAttendee.title = attendeeData.title ?? ''; // Ensure title is empty string if not provided
+          newAttendee.relationship = attendeeData.relationship ?? ''; // Ensure relationship is empty string if not provided
+          newAttendee.contactPreference = attendeeData.contactPreference ?? undefined; // Use undefined to match type
+        }
+        
+        // Ensure required fields have defaults if somehow missing (defensive)
         if (!newAttendee.firstName) newAttendee.firstName = '';
         if (!newAttendee.lastName) newAttendee.lastName = '';
         
@@ -257,11 +266,26 @@ export const useRegistrationStore = create<RegistrationState>(
 
       removeAttendee: (attendeeId) => {
         set(state => {
+          console.log(`[Store] Attempting to remove attendeeId: ${attendeeId}`); // Log input ID
+          // Also remove any partners related to this attendee
+          const attendeeToRemove = state.attendees.find(att => att.attendeeId === attendeeId);
+          const relatedPartners = state.attendees.filter(att => att.relatedAttendeeId === attendeeId);
+          const idsToRemove = new Set([attendeeId, ...relatedPartners.map(p => p.attendeeId)]);
+
+          const updatedAttendees = state.attendees.filter(att => !idsToRemove.has(att.attendeeId));
+          console.log('[Store] Attendees list AFTER filtering:', updatedAttendees); // Log filtered list
+
+          // Also remove associated package data if it exists separately
           const updatedPackages = { ...state.packages };
-          delete updatedPackages[attendeeId]; // Remove package info too
+          idsToRemove.forEach(id => {
+            delete updatedPackages[id];
+          });
+
+          console.log(`[Store] Removing attendee(s): ${Array.from(idsToRemove).join(', ')}`); // DEBUG
+
           return {
-            attendees: state.attendees.filter(att => att.attendeeId !== attendeeId),
-            packages: updatedPackages,
+            attendees: updatedAttendees,
+            packages: updatedPackages
           };
         });
       },

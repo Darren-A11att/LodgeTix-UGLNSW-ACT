@@ -3,6 +3,7 @@ import "react-phone-input-2/lib/style.css";
 import { LadyPartnerData, MasonData } from "../../shared/types/register";
 import { HelpCircle, X } from "lucide-react";
 import PhoneInputWrapper from "./PhoneInputWrapper";
+import { UnifiedAttendeeData } from '../../store/registrationStore';
 
 interface LadyPartnerFormProps {
   partner: LadyPartnerData;
@@ -10,6 +11,7 @@ interface LadyPartnerFormProps {
   updateField: (id: string, field: string, value: string | boolean) => void;
   relatedMasonName: string;
   onRemove?: () => void;
+  primaryAttendeeData?: UnifiedAttendeeData;
 }
 
 const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
@@ -18,6 +20,7 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
   updateField,
   relatedMasonName,
   onRemove,
+  primaryAttendeeData,
 }) => {
   const titles = [
     "Mrs",
@@ -59,9 +62,6 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
   const getConfirmationMessage = () => {
     if (partner.contactPreference === "Mason") {
       return `I confirm that ${relatedMasonName} will be responsible for all communication with this attendee`;
-    }
-    if (partner.contactPreference === "PrimaryAttendee") {
-      return `I confirm that the primary contact will be responsible for all communication with this attendee`;
     }
     if (partner.contactPreference === "ProvideLater") {
       return `I confirm that the primary contact will be responsible for all communication with this attendee until their contact details have been updated in their profile`;
@@ -201,7 +201,7 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
 
       <div className="mb-3">
         <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-3">
+          <div className="col-span-4">
             <label
               className="block text-sm font-medium text-slate-700 mb-1"
               htmlFor={`contactPreference-${id}`}
@@ -220,7 +220,7 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
             <select
               id={`contactPreference-${id}`}
               name={`contactPreference-${id}`}
-              value={partner.contactPreference}
+              value={partner.contactPreference ?? ''}
               onChange={(e) =>
                 updateField(id, "contactPreference", e.target.value)
               }
@@ -230,11 +230,14 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
                          ${contactPreferenceInteracted ? 'interacted' : ''} 
                          [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
             >
-              {contactOptions.map((option) => (
-                <option key={option} value={option === 'Please Select' ? '' : option} disabled={option === 'Please Select'}>
-                  {option}
-                </option>
-              ))}
+              <option value="" disabled>Please Select</option>
+              {contactOptions
+                .filter(option => option !== 'Please Select')
+                .map((option) => (
+                  <option key={option} value={option}>
+                    {option.replace(/([A-Z])/g, ' $1').trim()}
+                  </option>
+                ))}
             </select>
           </div>
 
@@ -253,9 +256,17 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
                 />
                 <label
                   htmlFor={`contactConfirmed-${id}`}
-                  className="ml-2 text-sm text-slate-700"
+                  className="ml-3 text-sm text-slate-700"
                 >
-                  {getConfirmationMessage()} *
+                  {partner.contactPreference === 'PrimaryAttendee' && primaryAttendeeData ? (
+                    <>
+                      I confirm that <strong>{`${primaryAttendeeData.firstName || ''} ${primaryAttendeeData.lastName || ''}`.trim()}</strong> will be responsible for all communication with this attendee *
+                    </>
+                  ) : (
+                    <>
+                      {getConfirmationMessage()} *
+                    </>
+                  )}
                 </label>
               </div>
             </div>
@@ -295,7 +306,7 @@ const LadyPartnerForm: React.FC<LadyPartnerFormProps> = ({
                    </div>
                 </div>
 
-                <div className="col-span-5">
+                <div className="col-span-4">
                   <label
                     className="block text-sm font-medium text-slate-700 mb-1"
                     htmlFor={`ladyEmail-${id}`}
