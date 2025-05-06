@@ -108,10 +108,9 @@ const MasonBasicInfo: React.FC<MasonBasicInfoProps> = ({
           onChange={handleInputChange}
           onBlur={() => setRankInteracted(true)}
           required={isPrimary}
-          disabled={["VW Bro", "RW Bro", "MW Bro", "W Bro"].includes(mason.title || '')}
           className={`w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 
                      ${rankInteracted ? 'interacted' : ''} 
-                     [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500 ${["VW Bro", "RW Bro", "MW Bro", "W Bro"].includes(mason.title || '') ? 'bg-slate-100 cursor-not-allowed' : ''}`}
+                     [&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:border-red-500 focus:[&.interacted:invalid]:ring-red-500`}
         >
           <option value="" disabled>Please Select</option>
           {ranks.map(rank => (
