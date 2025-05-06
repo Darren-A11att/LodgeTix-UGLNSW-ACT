@@ -227,11 +227,11 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
         </div>
       )}
 
-      <div className="mt-8 flex justify-between items-center">
+      <div className="mt-8 flex justify-between">
         <button
           type="button"
           onClick={prevStep}
-          className="px-4 py-2 border border-slate-300 rounded-md shadow-sm text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+          className="btn-outline"
         >
           Back
         </button>
@@ -239,7 +239,7 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
           type="button"
           disabled={!agreeToTerms || validationErrors.length > 0} // Disable if terms not agreed or errors exist
           onClick={handleContinue}
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Continue to Select Tickets
         </button>
