@@ -261,6 +261,41 @@ export type Database = {
         }
         Relationships: []
       }
+      event_capacity: {
+        Row: {
+          created_at: string
+          event_id: string
+          max_capacity: number
+          reserved_count: number
+          sold_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          max_capacity: number
+          reserved_count?: number
+          sold_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          max_capacity?: number
+          reserved_count?: number
+          sold_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_capacity_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "Events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_fees: {
         Row: {
           applies_to: string
@@ -629,6 +664,7 @@ export type Database = {
           meeting_place: string | null
           name: string
           number: number | null
+          state_region: string | null
         }
         Insert: {
           area_type?: string | null
@@ -640,6 +676,7 @@ export type Database = {
           meeting_place?: string | null
           name: string
           number?: number | null
+          state_region?: string | null
         }
         Update: {
           area_type?: string | null
@@ -651,6 +688,7 @@ export type Database = {
           meeting_place?: string | null
           name?: string
           number?: number | null
+          state_region?: string | null
         }
         Relationships: [
           {
@@ -1415,6 +1453,10 @@ export type Database = {
       }
     }
     Functions: {
+      broadcast_high_demand_event: {
+        Args: { event_id: string }
+        Returns: boolean
+      }
       cancel_reservation: {
         Args: { p_reservation_id: string } | { p_reservation_id: string }
         Returns: number
@@ -1437,13 +1479,46 @@ export type Database = {
         Args: { p_reservation_id: string; p_attendee_id: string }
         Returns: string[]
       }
+      confirm_event_capacity: {
+        Args: { p_event_id: string; p_quantity?: number }
+        Returns: boolean
+      }
+      get_event_availability: {
+        Args: { p_event_id: string }
+        Returns: Json
+      }
       get_ticket_availability: {
+        Args:
+          | { p_event_id: string; p_ticket_definition_id: string }
+          | { p_event_id: string; p_ticket_definition_id: string }
+        Returns: Json
+      }
+      get_ticket_availability_text: {
+        Args: { p_event_id: string; p_ticket_definition_id: string }
+        Returns: Json
+      }
+      get_ticket_availability_uuid: {
         Args: { p_event_id: string; p_ticket_definition_id: string }
         Returns: Json
       }
       hello_tickets: {
         Args: { name: string }
         Returns: string
+      }
+      initialize_event_capacity: {
+        Args: { p_event_id: string; p_max_capacity?: number }
+        Returns: {
+          created_at: string
+          event_id: string
+          max_capacity: number
+          reserved_count: number
+          sold_count: number
+          updated_at: string
+        }
+      }
+      is_event_high_demand: {
+        Args: { p_event_id: string; p_threshold_percent?: number }
+        Returns: boolean
       }
       is_ticket_high_demand: {
         Args: {
@@ -1466,9 +1541,21 @@ export type Database = {
         Args: { old_name: string; new_name: string; success?: boolean }
         Returns: undefined
       }
+      normalize_event_id: {
+        Args: { p_id: string }
+        Returns: string
+      }
       refresh_event_days: {
         Args: { parent_id_uuid: string }
         Returns: undefined
+      }
+      release_event_capacity: {
+        Args: { p_event_id: string; p_quantity?: number }
+        Returns: boolean
+      }
+      reserve_event_capacity: {
+        Args: { p_event_id: string; p_quantity?: number }
+        Returns: boolean
       }
       reserve_tickets: {
         Args: {
@@ -1525,6 +1612,32 @@ export type Database = {
       schedule_reservation_cleanup: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      search_all_lodges: {
+        Args: { search_term: string; result_limit?: number }
+        Returns: {
+          area_type: string | null
+          created_at: string
+          display_name: string | null
+          district: string | null
+          grand_lodge_id: string | null
+          id: string
+          meeting_place: string | null
+          name: string
+          number: number | null
+          state_region: string | null
+        }[]
+      }
+      search_grand_lodges_prioritized: {
+        Args: { search_term: string; user_country: string }
+        Returns: {
+          abbreviation: string | null
+          country: string | null
+          country_code_iso3: string | null
+          created_at: string
+          id: string
+          name: string
+        }[]
       }
       test_reserve_tickets: {
         Args: {

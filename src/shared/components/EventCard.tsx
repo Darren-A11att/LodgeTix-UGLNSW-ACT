@@ -45,12 +45,7 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
             {event.location}
           </div>
           
-          {event.maxAttendees && (
-            <div className="flex items-center text-sm text-slate-600">
-              <Users className="w-4 h-4 mr-2 text-primary" />
-              {event.maxAttendees} attendees max
-            </div>
-          )}
+          {/* Capacity information moved to ticket_definitions table */}
         </div>
         
         <p className="text-slate-700 mb-4">
@@ -60,11 +55,10 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
         </p>
         
         <div className="flex justify-between items-center">
-          {event.price ? (
-            <div className="font-bold text-primary">${event.price}</div>
-          ) : (
-            <div className="text-green-600 font-medium">Free</div>
-          )}
+          <div className="font-bold text-primary">
+            {/* Price info now comes from ticket_definitions table */}
+            <span className="text-slate-600 text-sm">See ticket options</span>
+          </div>
           
           <Link to={`/events/${event.slug}`} className="btn-outline py-2">
             View Details

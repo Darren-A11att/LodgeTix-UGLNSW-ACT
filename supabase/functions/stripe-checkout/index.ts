@@ -38,7 +38,9 @@ Deno.serve(async (req) => {
       return corsResponse({ error: 'Method not allowed' }, 405);
     }
 
-    const { price_id, success_url, cancel_url, mode } = await req.json();
+    // Parse all request parameters
+    const reqBody = await req.json();
+    const { price_id, success_url, cancel_url, mode, event_ids, quantity = 1 } = reqBody;
 
     const error = validateParameters(
       { price_id, success_url, cancel_url, mode },
@@ -172,6 +174,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Use the event_ids and quantity already parsed above
+    
+    // Prepare metadata if event_ids are provided
+    const metadata: { event_ids?: string } = {};
+    if (Array.isArray(event_ids) && event_ids.length > 0) {
+      metadata.event_ids = JSON.stringify(event_ids);
+    }
+    
     // create Checkout Session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -179,12 +189,13 @@ Deno.serve(async (req) => {
       line_items: [
         {
           price: price_id,
-          quantity: 1,
+          quantity: quantity,
         },
       ],
       mode,
       success_url,
       cancel_url,
+      metadata, // Include the metadata with event IDs
     });
 
     console.log(`Created checkout session ${session.id} for customer ${customerId}`);

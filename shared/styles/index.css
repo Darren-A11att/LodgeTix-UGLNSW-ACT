@@ -1,0 +1,27 @@
+/* Base Styles - Fonts, Colors, Reset */
+@import './base/variables.css';
+@import './base/typography.css';
+@import './base/forms.css';
+
+/* Component Styles */
+@import './components/buttons.css';
+@import './components/cards.css';
+@import './components/navigation.css';
+@import './components/forms.css';
+@import './components/phone-input.css';
+
+/* Utility Styles */
+@import './utilities/layout.css';
+@import './utilities/accessibility.css';
+
+/* Mobile Optimizations */
+@import './mobile.css'; 
+
+/* Tailwind Directives - MUST come AFTER imports */ 
+@tailwind base;
+@tailwind components;
+@tailwind utilities; 
+
+/* Main CSS Entry Point */
+
+/* Ensure no other rules or comments are above the imports */ 

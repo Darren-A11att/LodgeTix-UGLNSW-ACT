@@ -1,0 +1,57 @@
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 font-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+  
+  h1 {
+    @apply text-4xl leading-tight font-bold mb-4;
+  }
+  
+  h2 {
+    @apply text-3xl leading-tight font-bold mb-3; 
+  }
+  
+  h3 {
+    @apply text-2xl leading-tight font-semibold mb-2;
+  }
+  
+  h4 {
+    @apply text-xl leading-snug font-medium mb-2;
+  }
+  
+  h5 {
+    @apply text-lg leading-snug font-medium mb-2;
+  }
+  
+  h6 {
+    @apply text-base leading-snug font-medium mb-2;
+  }
+  
+  p {
+    @apply mb-4 text-base leading-relaxed;
+  }
+  
+  a {
+    @apply text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/50;
+  }
+  
+  /* Improved mobile typography */
+  @media (max-width: 640px) {
+    h1 {
+      @apply text-3xl leading-tight;
+    }
+    h2 {
+      @apply text-2xl leading-tight;
+    }
+    h3 {
+      @apply text-xl leading-tight;
+    }
+    p, li {
+      @apply text-base leading-relaxed;
+    }
+  }
+} 

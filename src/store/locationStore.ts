@@ -1,85 +1,48 @@
 import { create, StateCreator } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { getAllGrandLodges, GrandLodgeRow } from '../lib/api/grandLodges';
-import { getLodgesByGrandLodgeId, LodgeRow } from '../lib/api/lodges';
+import { getLodgesByGrandLodgeId, LodgeRow, createLodge as createLodgeApi, searchAllLodges as searchAllLodgesApi, getLodgesByStateRegionCode } from '../lib/api/lodges';
+import { supabase } from '../lib/supabase';
 
-// Constants for localStorage keys
-const GRAND_LODGE_CACHE_KEY = 'lodgetix_grand_lodge_cache';
-const LODGE_CACHE_KEY = 'lodgetix_lodge_cache';
-const CACHE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-// Define the structure of the IP API response data we care about
-interface IpApiData {
+// --- Define Interfaces First ---
+export interface IpApiData {
   ip: string;
-  network: string;
-  version: string;
-  city: string;
-  region: string;
-  region_code: string;
-  country: string;
-  country_name: string;
-  country_code: string; // e.g., 'AU'
-  country_code_iso3: string; // e.g., 'AUS'
-  country_capital: string;
-  country_tld: string;
-  continent_code: string;
-  in_eu: boolean;
-  postal: string;
-  latitude: number;
-  longitude: number;
-  timezone: string;
-  utc_offset: string;
-  country_calling_code: string;
-  currency: string;
-  currency_name: string;
-  languages: string;
-  country_area: number;
-  country_population: number;
-  asn: string;
-  org: string;
+  network?: string;
+  version?: string;
+  city?: string;
+  region?: string;
+  region_code?: string;
+  country?: string;
+  country_code?: string;
+  country_code_iso3?: string;
+  country_name?: string;
+  country_capital?: string;
+  country_tld?: string;
+  continent_code?: string;
+  in_eu?: boolean;
+  postal?: string;
+  latitude?: number;
+  longitude?: number;
+  timezone?: string;
+  utc_offset?: string;
+  country_calling_code?: string;
+  currency?: string;
+  currency_name?: string;
+  languages?: string;
+  country_area?: number;
+  country_population?: number;
+  asn?: string;
+  org?: string;
 }
 
-// Define default location data (e.g., Australia)
-const defaultIpData: IpApiData = {
-  ip: '103.237.136.222',
-  network: '', // Assuming this isn't provided, keep default or leave empty
-  version: 'IPv4', // Assuming IPv4 based on address format
-  city: 'Belrose',
-  region: 'New South Wales',
-  region_code: 'NSW', // Standard abbreviation for New South Wales
-  country: 'Australia',
-  country_name: 'Australia',
-  country_code: 'AU',
-  country_code_iso3: 'AUS',
-  country_capital: 'Canberra',
-  country_tld: '.au',
-  continent_code: 'OC',
-  in_eu: false,
-  postal: '2085',
-  latitude: -33.7266,
-  longitude: 151.2161,
-  timezone: 'Australia/Sydney',
-  utc_offset: '+1000',
-  country_calling_code: '61',
-  currency: 'AUD',
-  currency_name: 'Australian Dollar',
-  languages: 'en-AU',
-  country_area: 7692024, // Keeping the existing country area/population
-  country_population: 25499884,
-  asn: 'AS7474',
-  org: 'SingTel Optus Pty Ltd',
-};
-
-// Cache structure for grand lodges
-interface GrandLodgeCache {
+export interface GrandLodgeCache {
   data: GrandLodgeRow[];
   timestamp: number;
   byCountry: Record<string, GrandLodgeRow[]>;
   byRegion: Record<string, GrandLodgeRow[]>;
 }
 
-// Cache structure for lodges
-interface LodgeCache {
+export interface LodgeCache {
   byGrandLodge: Record<string, {
     data: LodgeRow[];
     timestamp: number;
@@ -90,7 +53,37 @@ interface LodgeCache {
   }>;
 }
 
-// Default empty caches
+// --- Define Defaults Second ---
+const defaultIpData: IpApiData = { 
+  ip: '0.0.0.0',
+  version: 'IPv4', 
+  city: 'Unknown', 
+  region: 'Unknown', 
+  region_code: '', 
+  country: 'AU',
+  country_name: 'Australia',
+  country_code: 'AU',
+  country_code_iso3: 'AUS',
+  latitude: -33.86,
+  longitude: 151.20,
+  network: undefined,
+  country_capital: undefined,
+  country_tld: undefined,
+  continent_code: undefined,
+  in_eu: false,
+  postal: undefined,
+  timezone: undefined,
+  utc_offset: undefined,
+  country_calling_code: undefined,
+  currency: undefined,
+  currency_name: undefined,
+  languages: undefined,
+  country_area: undefined,
+  country_population: undefined,
+  asn: undefined,
+  org: undefined,
+};
+
 const defaultGrandLodgeCache: GrandLodgeCache = {
   data: [],
   timestamp: 0,
@@ -103,631 +96,456 @@ const defaultLodgeCache: LodgeCache = {
   byRegion: {},
 };
 
-// Export the state interface
-export interface LocationState {
-  ipData: IpApiData;
-  isLoading: boolean;
-  error: string | null;
-  fetchIpData: () => Promise<void>;
+const CACHE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-  // Grand Lodge State
-  grandLodges: GrandLodgeRow[];
-  grandLodgeCache: GrandLodgeCache;
-  isLoadingGrandLodges: boolean;
-  grandLodgeError: string | null;
-  fetchInitialGrandLodges: () => Promise<void>;
-  searchGrandLodges: (searchTerm: string) => Promise<void>;
-  preloadGrandLodgesByCountry: (countryCode: string) => Promise<void>;
-  preloadGrandLodgesByRegion: (regionCode: string) => Promise<void>;
-  
-  // Lodge State
-  lodgeCache: LodgeCache;
-  isLoadingLodges: boolean;
-  lodgeError: string | null;
-  getLodgesByGrandLodge: (grandLodgeId: string, searchTerm?: string) => Promise<LodgeRow[]>;
-  preloadLodgesByRegion: (regionCode: string) => Promise<void>;
-  clearCaches: () => void;
-}
-
-// Define the state creator type
-type LocationStateCreator = StateCreator<LocationState>;
-
-// Helper function to check if cache is expired
 const isCacheExpired = (timestamp: number): boolean => {
   return Date.now() - timestamp > CACHE_EXPIRY_MS;
 };
 
-// Create the store with persistence
+// --- Define State Interface Third ---
+export interface LocationState {
+  // --- Persisted State ---
+  ipData: IpApiData;
+  grandLodgeCache: GrandLodgeCache;
+  lodgeCache: LodgeCache;
+  
+  // --- Non-Persisted / Derived State ---
+  isLoadingIpData: boolean; // Renamed from isLoading
+  ipDataError: string | null; // Renamed from error
+  
+  grandLodges: GrandLodgeRow[]; // For display/selection
+  isLoadingGrandLodges: boolean;
+  grandLodgeError: string | null;
+  
+  lodges: LodgeRow[]; // For display/selection (e.g., after selecting GL)
+  isLoadingLodges: boolean;
+  lodgeError: string | null;
+  
+  allLodgeSearchResults: LodgeRow[]; // For global search results
+  isLoadingAllLodges: boolean;
+  allLodgesError: string | null;
+
+  // --- Actions ---
+  fetchIpData: () => Promise<void>;
+  fetchInitialGrandLodges: () => Promise<void>;
+  searchGrandLodges: (searchTerm: string) => Promise<void>;
+  getLodgesByGrandLodge: (grandLodgeId: string, searchTerm?: string) => Promise<void>; // Changed: updates state, returns void
+  searchAllLodgesAction: (term: string) => Promise<void>;
+  createLodge: (lodgeData: Omit<LodgeRow, 'id' | 'created_at' | 'display_name'>) => Promise<LodgeRow | null>; // Keep return for immediate use
+  preloadGrandLodgesByCountry: (countryCode: string) => Promise<void>; // Keep preload actions
+  preloadGrandLodgesByRegion: (regionCode: string) => Promise<void>;
+  preloadLodgesByRegion: (regionCode: string) => Promise<void>;
+  clearCaches: () => void;
+}
+
+// --- Define State Creator Type Fourth ---
+type LocationStateCreator = StateCreator<LocationState>;
+
+// --- Create Store Last ---
 export const useLocationStore = create<LocationState>(
   persist(
     (set, get) => ({
+      // Use the well-defined constant for initial state
       ipData: defaultIpData,
-      isLoading: true,
-      error: null,
-      
-      // Grand Lodge Initial State
-      grandLodges: [],
       grandLodgeCache: defaultGrandLodgeCache,
+      lodgeCache: defaultLodgeCache,
+      isLoadingIpData: true,
+      ipDataError: null,
+      grandLodges: [],
       isLoadingGrandLodges: false,
       grandLodgeError: null,
-      
-      // Lodge Initial State
-      lodgeCache: defaultLodgeCache,
+      lodges: [],
       isLoadingLodges: false,
       lodgeError: null,
+      allLodgeSearchResults: [],
+      isLoadingAllLodges: false,
+      allLodgesError: null,
 
-      // Action to fetch IP data with caching and rate limit protection
+      // --- Actions Implementation ---
       fetchIpData: async () => {
-        // First check localStorage for cached IP data
+        set({ isLoadingIpData: true, ipDataError: null });
+        let dataToStore: IpApiData = { ...defaultIpData }; // Start with defaults
         try {
-          const cachedIpData = localStorage.getItem('lodgetix_ip_data');
-          const cachedTimestamp = localStorage.getItem('lodgetix_ip_data_timestamp');
-          
-          // If we have cached data and it's less than 7 days old, use it
-          if (cachedIpData && cachedTimestamp) {
-            const timestamp = parseInt(cachedTimestamp, 10);
-            const now = Date.now();
-            const cacheAge = now - timestamp;
-            
-            // Cache is valid for 7 days (same as other caches)
-            if (cacheAge < CACHE_EXPIRY_MS) {
-              try {
-                const parsedData = JSON.parse(cachedIpData) as IpApiData;
-                console.log('Using cached IP geolocation data');
-                set({ ipData: parsedData, isLoading: false });
-                
-                // Still trigger preloads based on cached data
-                if (parsedData.country_code) {
-                  setTimeout(() => {
-                    get().preloadGrandLodgesByCountry(parsedData.country_code);
-                    if (parsedData.region_code) {
-                      get().preloadGrandLodgesByRegion(parsedData.region_code);
-                      get().preloadLodgesByRegion(parsedData.region_code);
-                    }
-                  }, 0);
-                }
-                
-                // Return early, no need to fetch again
-                return;
-              } catch (parseError) {
-                console.warn('Error parsing cached IP data:', parseError);
-                // Continue to fetch new data if parsing failed
-              }
-            }
-          }
-          
-          // If we get here, we need to fetch fresh data
-          set({ isLoading: true, error: null });
-          
-          // Set a timeout for the fetch operation
+          const apiUrl = 'https://ipapi.co/json/';
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-          // Use a more reliable approach with fallback to default data
-          let data: IpApiData;
-          try {
-            // Try a different IP API that has better CORS support
-            const apiUrl = 'https://api.ipgeolocation.io/ipgeo?apiKey=2dd0e8e53da4472fa4b26f9a2df24baf';
+          console.log('[LocationStore] Fetching IP data from ipapi.co...');
             
             const response = await fetch(apiUrl, {
               signal: controller.signal,
-              // Add cache control to prevent caching issues
-              headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0'
-              }
+              headers: { 'User-Agent': 'LodgeTix-Registration/1.0' } 
             });
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-              console.warn(`IP API returned status ${response.status}, using default data`);
-              data = defaultIpData;
+            const errorText = await response.text();
+            console.warn(`IP API (ipapi.co) failed (${response.status}): ${errorText}, using default`);
+            set({ ipDataError: `IP detection failed (${response.status})` });
+            // Keep dataToStore as defaults
             } else {
               const ipResponse = await response.json();
-              
-              // Map the response format to our expected IpApiData structure
-              data = {
-                ip: ipResponse.ip || '',
-                network: '',
-                version: '',
-                city: ipResponse.city || '',
-                region: ipResponse.state_prov || '',
-                region_code: ipResponse.state_code || '',
-                country: ipResponse.country_name || '',
-                country_name: ipResponse.country_name || '',
-                country_code: ipResponse.country_code2 || '',
-                country_code_iso3: ipResponse.country_code3 || '',
-                country_capital: ipResponse.country_capital || '',
-                country_tld: ipResponse.country_tld || '',
-                continent_code: ipResponse.continent_code || '',
-                in_eu: false,
-                postal: ipResponse.zipcode || '',
-                latitude: ipResponse.latitude || 0,
-                longitude: ipResponse.longitude || 0,
-                timezone: ipResponse.time_zone?.name || '',
-                utc_offset: ipResponse.time_zone?.offset || '',
-                country_calling_code: ipResponse.calling_code || '',
-                currency: ipResponse.currency?.code || '',
-                currency_name: ipResponse.currency?.name || '',
-                languages: ipResponse.languages || '',
-                country_area: 0,
-                country_population: 0,
-                asn: '',
-                org: ipResponse.organization || ''
-              };
+            console.log('[LocationStore] Received IP data:', ipResponse);
+            
+            // Directly use the response, applying defaults only if necessary
+            // Ensure ipResponse fields match IpApiData structure
+            dataToStore = { 
+              ...defaultIpData, // Start with defaults
+              ...ipResponse,   // Spread the API response, overwriting defaults
+              // Explicitly handle potential type mismatches or missing required fields if any
+              ip: ipResponse.ip || defaultIpData.ip, // Ensure required ip is present
+              // Add other required fields if ipResponse might lack them
+            };
+            console.log('[LocationStore] Mapped IP data:', dataToStore); // DEBUG mapped data
+            set({ ipDataError: null });
             }
-          } catch (fetchError) {
-            console.warn('Error fetching IP data, using default:', fetchError);
-            data = defaultIpData;
-          }
+        } catch (fetchError: any) {
+          console.warn('[LocationStore] Error fetching IP data from ipapi.co, using default:', fetchError);
+          dataToStore = { ...defaultIpData }; // Reset to defaults on error
+          set({ ipDataError: fetchError.name === 'AbortError' ? 'IP detection timed out.' : 'Failed to detect country.' });
+        } finally {
+          console.log('[LocationStore] Setting final IP data state:', dataToStore);
+          set({ ipData: dataToStore, isLoadingIpData: false });
           
-          // Save to cache regardless of source
-          try {
-            localStorage.setItem('lodgetix_ip_data', JSON.stringify(data));
-            localStorage.setItem('lodgetix_ip_data_timestamp', Date.now().toString());
-          } catch (storageError) {
-            console.warn('Failed to cache IP data:', storageError);
-          }
-          
-          // Update state
-          set({ ipData: data, isLoading: false });
-          
-          // Trigger preloads
-          if (data.country_code) {
+          // Trigger preloads using the correct fields from the stored data
+          const finalIpData = get().ipData; // Get the data that was just set
+          if (finalIpData.country_code) { // Use country_code for the cache key still?
             setTimeout(() => {
-              get().preloadGrandLodgesByCountry(data.country_code);
-              if (data.region_code) {
-                get().preloadGrandLodgesByRegion(data.region_code);
-                get().preloadLodgesByRegion(data.region_code);
+              console.log(`[LocationStore] Triggering preloads for country: ${finalIpData.country_name} (Code: ${finalIpData.country_code}), region: ${finalIpData.region_code}`);
+              // Pass country_name for filtering GLs
+              if (finalIpData.country_name) {
+                  get().preloadGrandLodgesByCountry(finalIpData.country_name);
+              }
+              // Pass region_code for filtering Lodges
+              if (finalIpData.region_code) {
+                get().preloadGrandLodgesByRegion(finalIpData.region_code); // Keep using code for region GL cache key?
+                get().preloadLodgesByRegion(finalIpData.region_code);
               }
             }, 0);
           }
-        } catch (error: any) {
-          console.error("Failed in IP data handling:", error);
-          // Fall back to default data in case of any error
-          set({ 
-            ipData: defaultIpData, 
-            isLoading: false,
-            error: error.name === 'AbortError' ? 'IP detection timed out.' : 'Failed to detect country.'
-          }); 
         }
       },
 
-      // Action to fetch initial Grand Lodges with smart location-based caching
       fetchInitialGrandLodges: async () => {
-        // Get current state
         const { grandLodgeCache, ipData } = get();
-        
-        // Check if we have country-specific cache first (preferred)
-        if (ipData?.country_code && 
-            grandLodgeCache.byCountry[ipData.country_code]?.length > 0 && 
-            !isCacheExpired(grandLodgeCache.timestamp)) {
-          console.log(`Using country-specific Grand Lodges cache for ${ipData.country_name}`);
+        const now = Date.now();
+        const globalCacheExpired = isCacheExpired(grandLodgeCache.timestamp);
+
+        console.log(`[LocationStore] Fetching initial GLs. Country: ${ipData.country_code}, Region: ${ipData.region_code}, Global Cache Expired: ${globalCacheExpired}`);
+
+        // --- Prioritize Country-Specific Fetch --- 
+        if (ipData.country_code) {
+          const countryCacheKey = ipData.country_code;
+          const countryCacheEntry = grandLodgeCache.byCountry[countryCacheKey];
           
-          // Use the country-specific cache instead of the full global cache
-          const countryData = grandLodgeCache.byCountry[ipData.country_code];
-          
-          set({
-            grandLodges: countryData,
-            isLoadingGrandLodges: false
-          });
-          return;
-        }
-        
-        // Fall back to general cache if we have it
-        if (grandLodgeCache.data.length > 0 && !isCacheExpired(grandLodgeCache.timestamp)) {
-          console.log('Using global Grand Lodges cache');
-          set({
-            grandLodges: grandLodgeCache.data,
-            isLoadingGrandLodges: false
-          });
-          return;
-        }
-
-        // Prevent re-fetching if already loading
-        if (get().isLoadingGrandLodges) return;
-
-        set({
-          isLoadingGrandLodges: true,
-          grandLodgeError: null,
-        });
-
-        try {
-          // If we have country data, fetch lodges filtered to the user's country
-          if (ipData?.country_code) {
-            console.log(`Fetching Grand Lodges for ${ipData.country_name} (${ipData.country_code})`);
-            const data = await getAllGrandLodges({ searchTerm: ipData.country_code });
-            
-            // Update both state and cache
-            set({
-              grandLodges: data,
-              grandLodgeCache: {
-                ...grandLodgeCache,
-                data, // Still store in main cache
-                byCountry: {
-                  ...grandLodgeCache.byCountry,
-                  [ipData.country_code]: data
-                },
-                timestamp: Date.now()
-              },
-              isLoadingGrandLodges: false,
-            });
-          } else {
-            // Fall back to fetching all grand lodges if no country data available
-            console.log(`Fetching all Grand Lodges (no country data available)`);
-            const data = await getAllGrandLodges();
-            
-            // Update both state and cache
-            set({
-              grandLodges: data,
-              grandLodgeCache: {
-                ...grandLodgeCache,
-                data,
-                timestamp: Date.now()
-              },
-              isLoadingGrandLodges: false,
-            });
+          // Use country cache if it exists and is fresh (using global timestamp as proxy for now)
+          if (countryCacheEntry && !globalCacheExpired) {
+            console.log(`[LocationStore] Using FRESH country cache for ${countryCacheKey}`);
+            set({ grandLodges: countryCacheEntry, isLoadingGrandLodges: false });
+            return; 
           }
+          
+          // Fetch specifically for the country if cache missed or expired
+          if (get().isLoadingGrandLodges) return; // Avoid concurrent fetches
+          console.log(`[LocationStore] Cache miss/stale for country ${countryCacheKey}. Fetching country-specific GLs...`);
+          set({ isLoadingGrandLodges: true, grandLodgeError: null });
+          try {
+            // Use countryName filter with ipData.country_name
+            const countryData = await getAllGrandLodges({ countryName: ipData.country_name });
+            set({ grandLodges: countryData, isLoadingGrandLodges: false }); // Update display state
+            
+            // Update country-specific cache and global cache if necessary
+            set(state => {
+              const updatedCache = { 
+                ...state.grandLodgeCache, 
+                timestamp: now, // Update global timestamp
+                byCountry: { ...state.grandLodgeCache.byCountry, [countryCacheKey]: countryData }
+              };
+              // Prime global cache if empty
+              if (updatedCache.data.length === 0) {
+                updatedCache.data = countryData;
+              }
+              return { grandLodgeCache: updatedCache };
+            });
+            return; // Exit after successful country-specific fetch
+          } catch (error) {
+            console.error(`[LocationStore] Error fetching GLs for country ${countryCacheKey}:`, error);
+            set({ grandLodgeError: "Failed to load Grand Lodges.", isLoadingGrandLodges: false });
+            // Fall through to potentially use global cache or fetch all as last resort
+          }
+        }
+        
+        // --- Fallback to Global Cache or Fetch All --- 
+        // Use global cache if it's not empty and not expired
+        if (grandLodgeCache.data.length > 0 && !globalCacheExpired) {
+          console.log('[LocationStore] Using FRESH global GL cache.');
+          set({ grandLodges: grandLodgeCache.data, isLoadingGrandLodges: false });
+          return;
+        }
+
+        // Fetch all if no country, or country fetch failed, or global cache stale/empty
+        if (get().isLoadingGrandLodges) return; // Avoid concurrent fetches
+        console.log('[LocationStore] Fetching ALL Grand Lodges (fallback or cache expired).');
+        set({ isLoadingGrandLodges: true, grandLodgeError: null });
+        try {
+          const allData = await getAllGrandLodges({});
+          set({ grandLodges: allData, isLoadingGrandLodges: false }); // Update display state
+          // Update global cache
+          set({ grandLodgeCache: { ...get().grandLodgeCache, data: allData, timestamp: now }});
         } catch (error) {
-          console.error(`Error fetching initial grand lodges:`, error);
-          set({
-            grandLodgeError: "Failed to load Grand Lodges.",
-            isLoadingGrandLodges: false,
-          });
+          console.error(`[LocationStore] Error fetching all grand lodges:`, error);
+          set({ grandLodgeError: "Failed to load Grand Lodges.", isLoadingGrandLodges: false });
         }
       },
 
-      // Action to search Grand Lodges with caching consideration
       searchGrandLodges: async (searchTerm: string) => {
-        // Prevent searching if currently loading
-        if (get().isLoadingGrandLodges) {
-          console.log("Skipping search, already loading...");
+         if (get().isLoadingGrandLodges) return;
+         if (!searchTerm || searchTerm.trim() === '') {
+             await get().fetchInitialGrandLodges(); // Fetch initial list if search is cleared
+             return;
+         }
+         set({ isLoadingGrandLodges: true, grandLodgeError: null });
+         try {
+             const data = await getAllGrandLodges({ searchTerm });
+             set({ grandLodges: data, isLoadingGrandLodges: false }); // Update display list
+         } catch (error) {
+             console.error("Error searching grand lodges:", error);
+             set({ grandLodgeError: "Failed to search Grand Lodges.", isLoadingGrandLodges: false });
+         }
+      },
+      
+      getLodgesByGrandLodge: async (grandLodgeId: string, searchTerm?: string): Promise<void> => {
+          const { lodgeCache } = get();
+          const now = Date.now();
+          const cacheEntry = lodgeCache.byGrandLodge?.[grandLodgeId];
+      
+          // If searching, fetch directly and update display state, don't bother caching search results complexly
+          if (searchTerm) {
+              set({ isLoadingLodges: true, lodgeError: null });
+              try {
+                  const data = await getLodgesByGrandLodgeId(grandLodgeId, searchTerm);
+                  set({ lodges: data, isLoadingLodges: false }); // Update display list
+              } catch (error) {
+                  console.error(`Error searching lodges for GL ${grandLodgeId} with term ${searchTerm}:`, error);
+                  set({ isLoadingLodges: false, lodgeError: "Failed to search Lodges.", lodges: [] });
+              }
           return;
         }
 
-        // If search term is empty, use cached data if available
-        if (!searchTerm || searchTerm.trim() === '') {
-          console.log("Search term empty, using cached or fetching initial GLs...");
-          await get().fetchInitialGrandLodges();
+          // Check cache validity for non-search requests
+          if (cacheEntry && !isCacheExpired(cacheEntry.timestamp)) {
+              set({ lodges: cacheEntry.data, isLoadingLodges: false }); // Update display list from cache
           return;
         }
         
-        set({
-          isLoadingGrandLodges: true,
-          grandLodgeError: null,
-        });
-
-        try {
-          console.log(`Searching Grand Lodges for: '${searchTerm}'`);
-          const data = await getAllGrandLodges({ searchTerm });
-          
-          // Update the displayed grand lodges
-          set({
-            grandLodges: data,
-            isLoadingGrandLodges: false,
-          });
-          
-          // Also update the main cache if we got significant results
-          if (data.length > 0) {
-            const { grandLodgeCache } = get();
-            // Only update the main cache if it's empty or has fewer items than our search results
-            if (grandLodgeCache.data.length === 0 || data.length > grandLodgeCache.data.length) {
-              set({
-                grandLodgeCache: {
-                  ...grandLodgeCache,
-                  data,
-                  timestamp: Date.now()
-                }
-              });
-            }
+          // Fetch from API if not cached or expired (non-search)
+          set({ isLoadingLodges: true, lodgeError: null });
+          try {
+              const data = await getLodgesByGrandLodgeId(grandLodgeId);
+              set({ lodges: data, isLoadingLodges: false }); // Update display list
+              // Update cache
+              set(state => ({
+                  lodgeCache: {
+                      ...state.lodgeCache,
+                      byGrandLodge: {
+                          ...state.lodgeCache.byGrandLodge,
+                          [grandLodgeId]: { data: data, timestamp: Date.now() }
+                      }
+                  }
+              }));
+          } catch (error) {
+              console.error(`Error fetching lodges for GL ${grandLodgeId}:`, error);
+              set({ isLoadingLodges: false, lodgeError: "Failed to load Lodges.", lodges: [] });
           }
+      },
+
+      searchAllLodgesAction: async (term: string): Promise<void> => {
+        set({ isLoadingAllLodges: true, allLodgesError: null });
+        try {
+          const data = await searchAllLodgesApi(term);
+          set({ allLodgeSearchResults: data, isLoadingAllLodges: false });
         } catch (error) {
-          console.error("Error searching grand lodges:", error);
-          set({
-            grandLodgeError: "Failed to search Grand Lodges.",
-            isLoadingGrandLodges: false,
-          });
+          console.error('Error searching all lodges:', error);
+          set({ allLodgesError: (error as Error).message, isLoadingAllLodges: false, allLodgeSearchResults: [] });
+        }
+      },
+
+      createLodge: async (lodgeData): Promise<LodgeRow | null> => {
+        try {
+          const newLodge = await createLodgeApi(lodgeData);
+          if (newLodge && newLodge.grand_lodge_id) {
+            const glId = newLodge.grand_lodge_id;
+            set(state => {
+              const currentCache = JSON.parse(JSON.stringify(state.lodgeCache)); 
+              const byGrandLodgeCache = currentCache.byGrandLodge || {};
+              const glCacheEntry = byGrandLodgeCache[glId];
+              if (glCacheEntry && glCacheEntry.data) {
+                const updatedLodges = [...glCacheEntry.data, newLodge].sort((a, b) => (a.display_name || a.name).localeCompare(b.display_name || b.name));
+                byGrandLodgeCache[glId] = { ...glCacheEntry, data: updatedLodges }; 
+              } else {
+                byGrandLodgeCache[glId] = { data: [newLodge], timestamp: Date.now() };
+                }
+              return { lodgeCache: { ...currentCache, byGrandLodge: byGrandLodgeCache } };
+            });
+          }
+          return newLodge; // Return the created lodge or null
+        } catch (error) {
+          console.error('Error creating lodge in store:', error);
+          return null;
         }
       },
       
-      // Preload grand lodges by country and cache them
       preloadGrandLodgesByCountry: async (countryCode: string) => {
+        // This function is keyed by countryCode (e.g., 'AU'), but we need countryName for the API call
+        // We should get the countryName from the ipData state
+        const { ipData } = get();
+        const countryName = ipData.country_name;
+
+        if (!countryCode || !countryName) return;
+        const cacheKey = countryCode; // Still use code for cache key
         const { grandLodgeCache } = get();
-        
-        // Check if we already have cached data for this country
-        if (grandLodgeCache.byCountry[countryCode] && 
-            !isCacheExpired(grandLodgeCache.timestamp)) {
-          console.log(`Using cached Grand Lodges for country: ${countryCode}`);
+        // Check if already cached and not expired
+        if (grandLodgeCache.byCountry[cacheKey] && !isCacheExpired(grandLodgeCache.timestamp)) {
+          console.log(`[LocationStore] GLs for country ${cacheKey} already cached and fresh.`);
           return;
         }
-        
+        console.log(`[LocationStore] Preloading GLs for country: ${countryName} (Code: ${cacheKey})`);
         try {
-          console.log(`Preloading Grand Lodges for country: ${countryCode}`);
-          const data = await getAllGrandLodges({ 
-            searchTerm: countryCode 
-          });
-          
-          // Update the country-specific cache
-          set({
-            grandLodgeCache: {
-              ...grandLodgeCache,
+          // Fetch using countryName filter
+          const data = await getAllGrandLodges({ countryName: countryName });
+          set(state => {
+            const updatedCache = {
+              ...state.grandLodgeCache,
+              timestamp: Date.now(), // Update timestamp on new fetch
               byCountry: {
-                ...grandLodgeCache.byCountry,
-                [countryCode]: data
-              },
-              timestamp: Date.now()
-            }
-          });
-          
-          // If our main data cache is empty, update it too
-          if (grandLodgeCache.data.length === 0) {
-            set({
-              grandLodges: data,
-              grandLodgeCache: {
-                ...get().grandLodgeCache,
-                data,
+                ...state.grandLodgeCache.byCountry,
+                [cacheKey]: data
               }
-            });
-          }
+            };
+            // Also update main data if it's empty or older?
+            if (updatedCache.data.length === 0 || isCacheExpired(state.grandLodgeCache.timestamp)) {
+                updatedCache.data = data;
+            }
+            return { grandLodgeCache: updatedCache };
+          });
         } catch (error) {
-          console.error(`Error preloading Grand Lodges for country ${countryCode}:`, error);
+          console.error(`[LocationStore] Error preloading GLs for country ${countryName}:`, error);
         }
       },
       
-      // Preload grand lodges by region and cache them
       preloadGrandLodgesByRegion: async (regionCode: string) => {
+        if (!regionCode) return;
+        const cacheKey = regionCode;
         const { grandLodgeCache } = get();
-        
-        // Check if we already have cached data for this region
-        if (grandLodgeCache.byRegion[regionCode] && 
-            !isCacheExpired(grandLodgeCache.timestamp)) {
-          console.log(`Using cached Grand Lodges for region: ${regionCode}`);
+        // Check if already cached and not expired
+        if (grandLodgeCache.byRegion[cacheKey] && !isCacheExpired(grandLodgeCache.timestamp)) {
+          console.log(`[LocationStore] GLs for region ${cacheKey} already cached and fresh.`);
           return;
         }
-        
+        console.log(`[LocationStore] Preloading GLs for region: ${cacheKey} (using searchTerm)`);
         try {
-          console.log(`Preloading Grand Lodges for region: ${regionCode}`);
-          const data = await getAllGrandLodges({ 
-            searchTerm: regionCode 
-          });
-          
-          // Update the region-specific cache
-          set({
-            grandLodgeCache: {
-              ...grandLodgeCache,
+          // Using searchTerm for region might work if names are unique or API handles it
+          const data = await getAllGrandLodges({ searchTerm: regionCode });
+          set(state => {
+            const updatedCache = {
+              ...state.grandLodgeCache,
+              timestamp: Date.now(),
               byRegion: {
-                ...grandLodgeCache.byRegion,
-                [regionCode]: data
-              },
-              timestamp: Date.now()
+                ...state.grandLodgeCache.byRegion,
+                [cacheKey]: data
+              }
+            };
+             // Also update main data if it's empty or older?
+             if (updatedCache.data.length === 0 || isCacheExpired(state.grandLodgeCache.timestamp)) {
+                updatedCache.data = data;
             }
+            return { grandLodgeCache: updatedCache };
           });
         } catch (error) {
-          console.error(`Error preloading Grand Lodges for region ${regionCode}:`, error);
+          console.error(`[LocationStore] Error preloading GLs for region ${cacheKey}:`, error);
         }
       },
       
-      // Get lodges by grand lodge ID with caching
-      getLodgesByGrandLodge: async (grandLodgeId: string, searchTerm?: string): Promise<LodgeRow[]> => {
+      preloadLodgesByRegion: async (regionCode: string) => { 
+        if (!regionCode) return;
+        const cacheKey = regionCode;
         const { lodgeCache } = get();
-        
-        // If searching specifically, bypass cache
-        if (searchTerm) {
-          set({ isLoadingLodges: true });
-          try {
-            const data = await getLodgesByGrandLodgeId(grandLodgeId, searchTerm);
-            set({ isLoadingLodges: false });
-            return data;
-          } catch (error) {
-            console.error(`Error fetching lodges for GL ${grandLodgeId} with term ${searchTerm}:`, error);
-            set({ 
-              isLoadingLodges: false,
-              lodgeError: "Failed to search Lodges."
-            });
-            return [];
+         // Check region cache first
+         if (lodgeCache.byRegion[cacheKey] && !isCacheExpired(lodgeCache.byRegion[cacheKey].timestamp)) {
+           console.log(`[LocationStore] Lodges for region ${cacheKey} already cached and fresh (byRegion).`);
+           return; 
           }
-        }
-        
-        // Check if we have cached lodges for this grand lodge
-        const cachedLodges = lodgeCache.byGrandLodge[grandLodgeId];
-        if (cachedLodges && !isCacheExpired(cachedLodges.timestamp)) {
-          console.log(`Using cached Lodges for Grand Lodge: ${grandLodgeId}`);
-          return cachedLodges.data;
-        }
-        
-        // Fetch lodges and update cache
-        set({ isLoadingLodges: true });
+        console.log(`[LocationStore] Preloading lodges for region: ${cacheKey}`);
         try {
-          console.log(`Fetching Lodges for Grand Lodge: ${grandLodgeId}`);
-          const data = await getLodgesByGrandLodgeId(grandLodgeId);
+          // Fetch lodges using the API function
+          const data = await getLodgesByStateRegionCode(regionCode);
           
-          // Update cache
-          set({
-            lodgeCache: {
-              ...lodgeCache,
-              byGrandLodge: {
-                ...lodgeCache.byGrandLodge,
-                [grandLodgeId]: {
-                  data,
-                  timestamp: Date.now()
-                }
+          // Sort lodges (optional)
+          data.sort((a, b) => (a.display_name || a.name).localeCompare(b.display_name || b.name));
+          console.log(`[LocationStore] Successfully fetched ${data.length} lodges for region ${regionCode}.`);
+
+          // Group fetched lodges by Grand Lodge ID
+          const lodgesByGlId: Record<string, LodgeRow[]> = {};
+          data.forEach(lodge => {
+            if (lodge.grand_lodge_id) {
+              if (!lodgesByGlId[lodge.grand_lodge_id]) {
+                lodgesByGlId[lodge.grand_lodge_id] = [];
               }
-            },
-            isLoadingLodges: false
+              lodgesByGlId[lodge.grand_lodge_id].push(lodge);
+            }
           });
-          
-          return data;
+          console.log(`[LocationStore] Grouped preloaded lodges into ${Object.keys(lodgesByGlId).length} GL groups.`);
+            
+          // Store in cache (both byRegion and byGrandLodge)
+          const now = Date.now();
+          set(state => {
+            const updatedLodgeCache = { ...state.lodgeCache };
+              
+            // Update byRegion cache
+            updatedLodgeCache.byRegion = {
+              ...updatedLodgeCache.byRegion,
+              [cacheKey]: { data: data, timestamp: now }
+            };
+              
+            // Update byGrandLodge cache
+            const updatedByGrandLodge = { ...updatedLodgeCache.byGrandLodge };
+            Object.entries(lodgesByGlId).forEach(([glId, lodges]) => {
+              updatedByGrandLodge[glId] = { data: lodges, timestamp: now };
+            });
+            updatedLodgeCache.byGrandLodge = updatedByGrandLodge;
+
+            return { lodgeCache: updatedLodgeCache };
+          });
+          console.log(`[LocationStore] Updated lodge cache for region ${regionCode} and associated GLs.`);
+
         } catch (error) {
-          console.error(`Error fetching lodges for GL ${grandLodgeId}:`, error);
-          set({ 
-            isLoadingLodges: false,
-            lodgeError: "Failed to load Lodges."
-          });
-          return [];
+          console.error(`[LocationStore] Error preloading lodges for region ${cacheKey}:`, error);
+          // Cache empty result on error for the region
+           set(state => ({
+            lodgeCache: { ...state.lodgeCache, byRegion: { ...state.lodgeCache.byRegion, [cacheKey]: { data: [], timestamp: Date.now() } } }
+          }));
         }
       },
       
-      // Preload lodges by region with improved regional focus
-      preloadLodgesByRegion: async (regionCode: string) => {
-        const { lodgeCache, grandLodgeCache, ipData } = get();
-        
-        // Check if we already have cached data for this region
-        if (lodgeCache.byRegion[regionCode] && 
-            !isCacheExpired(lodgeCache.byRegion[regionCode].timestamp)) {
-          console.log(`Using cached Lodges for region: ${regionCode}`);
-          return;
-        }
-        
-        // Optimize for NSW (or other specific regions) with direct mapping
-        // This maps region codes to known Grand Lodge names/IDs for better matching
-        const regionToGrandLodge: Record<string, string> = {
-          'NSW': 'United Grand Lodge of NSW & ACT', // Specific case for NSW
-          'VIC': 'United Grand Lodge of Victoria',
-          'QLD': 'United Grand Lodge of Queensland',
-          'SA': 'Grand Lodge of South Australia',
-          'WA': 'Grand Lodge of Western Australia',
-          'TAS': 'Grand Lodge of Tasmania'
-        };
-        
-        // For Australian regions like NSW, directly search for the specific Grand Lodge
-        if (ipData?.country_code === 'AU' && regionToGrandLodge[regionCode]) {
-          try {
-            console.log(`Looking for specific Grand Lodge for ${regionCode}: ${regionToGrandLodge[regionCode]}`);
-            
-            // Search for this specific Grand Lodge by name
-            const specificGLs = await getAllGrandLodges({ 
-              searchTerm: regionToGrandLodge[regionCode] 
-            });
-            
-            // If found, use the first match (should be exact)
-            if (specificGLs && specificGLs.length > 0) {
-              const targetGL = specificGLs[0];
-              console.log(`Found matching Grand Lodge for ${regionCode}: ${targetGL.name}`);
-              
-              // Fetch lodges for this specific GL
-              console.log(`Preloading Lodges for ${regionCode} using Grand Lodge: ${targetGL.name}`);
-              const data = await getLodgesByGrandLodgeId(targetGL.id);
-              
-              // Update both region & GL cache
-              set({
-                lodgeCache: {
-                  ...lodgeCache,
-                  byRegion: {
-                    ...lodgeCache.byRegion,
-                    [regionCode]: {
-                      data,
-                      timestamp: Date.now()
-                    }
-                  },
-                  byGrandLodge: {
-                    ...lodgeCache.byGrandLodge,
-                    [targetGL.id]: {
-                      data,
-                      timestamp: Date.now()
-                    }
-                  }
-                }
-              });
-              
-              // Also update Grand Lodge cache for this region
-              set({
-                grandLodgeCache: {
-                  ...grandLodgeCache,
-                  byRegion: {
-                    ...grandLodgeCache.byRegion,
-                    [regionCode]: [targetGL] // Only cache the relevant GL for this region
-                  }
-                }
-              });
-              
-              return;
-            }
-          } catch (error) {
-            console.error(`Error with direct Grand Lodge lookup for ${regionCode}:`, error);
-            // Continue with generic region search if direct lookup fails
-          }
-        }
-        
-        // Fall back to the general approach if direct mapping fails
-        // Find Grand Lodges for this region
-        let regionalGrandLodges = grandLodgeCache.byRegion[regionCode];
-        
-        // If we don't have them cached, try to fetch them
-        if (!regionalGrandLodges || regionalGrandLodges.length === 0) {
-          try {
-            regionalGrandLodges = await getAllGrandLodges({ searchTerm: regionCode });
-            
-            // Update the cache
-            set({
-              grandLodgeCache: {
-                ...grandLodgeCache,
-                byRegion: {
-                  ...grandLodgeCache.byRegion,
-                  [regionCode]: regionalGrandLodges
-                }
-              }
-            });
-          } catch (error) {
-            console.error(`Error fetching regional Grand Lodges for ${regionCode}:`, error);
-            return;
-          }
-        }
-        
-        // If we still don't have any Grand Lodges, we can't preload Lodges
-        if (!regionalGrandLodges || regionalGrandLodges.length === 0) {
-          console.log(`No Grand Lodges found for region ${regionCode}, cannot preload Lodges`);
-          return;
-        }
-        
-        // Pick the first Grand Lodge and preload its Lodges
-        const firstRegionalGL = regionalGrandLodges[0];
-        
-        try {
-          console.log(`Preloading Lodges for region ${regionCode} using Grand Lodge: ${firstRegionalGL.name}`);
-          const data = await getLodgesByGrandLodgeId(firstRegionalGL.id);
-          
-          // Update the region-specific cache
-          set({
-            lodgeCache: {
-              ...lodgeCache,
-              byRegion: {
-                ...lodgeCache.byRegion,
-                [regionCode]: {
-                  data,
-                  timestamp: Date.now()
-                }
-              },
-              byGrandLodge: {
-                ...lodgeCache.byGrandLodge,
-                [firstRegionalGL.id]: {
-                  data,
-                  timestamp: Date.now()
-                }
-              }
-            }
-          });
-        } catch (error) {
-          console.error(`Error preloading Lodges for region ${regionCode}:`, error);
-        }
-      },
-      
-      // Clear all caches (useful for debugging or forced refresh)
       clearCaches: () => {
         set({
           grandLodgeCache: defaultGrandLodgeCache,
-          lodgeCache: defaultLodgeCache
+             lodgeCache: defaultLodgeCache, 
+             // Reset display lists too?
+             grandLodges: [],
+             lodges: [],
+             allLodgeSearchResults: [] 
         });
-        console.log('All location caches cleared');
-      }
+         console.log('Location caches cleared');
+      },
     }),
     {
       name: 'lodgetix-location-storage',
+      // Persist only caches and IP data
       partialize: (state) => ({
-        // Only persist the cache data, not the current search results or loading states
+        ipData: state.ipData, 
         grandLodgeCache: state.grandLodgeCache,
-        lodgeCache: state.lodgeCache,
-        ipData: state.ipData
+        lodgeCache: state.lodgeCache 
       }),
     }
   ) as LocationStateCreator

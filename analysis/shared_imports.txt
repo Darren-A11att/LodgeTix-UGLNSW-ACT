@@ -1,0 +1,152 @@
+# Files importing from src/shared/
+
+## Files importing from src/shared/components/AutocompleteInput.tsx
+src/components/register/PaymentSection.tsx:import AutocompleteInput from './AutocompleteInput';
+src/components/register/mason/MasonLodgeInfo.tsx:import AutocompleteInput, { BaseOption } from '../AutocompleteInput';
+
+## Files importing from src/shared/components/EventCard.tsx
+src/pages/EventsPage.tsx:import EventCard from '../shared/components/EventCard';
+src/pages/HomePage.tsx:import EventCard from '../shared/components/EventCard';
+src/pages/EventsPage.tsx:import EventCard from '../shared/components/EventCard';
+src/pages/HomePage.tsx:import EventCard from '../shared/components/EventCard';
+
+## Files importing from src/shared/components/EventPaymentCard.tsx
+src/pages/EventDetailsPage.tsx:import EventPaymentCard from '../shared/components/EventPaymentCard';
+src/pages/EventDetailsPage.tsx:import EventPaymentCard from '../shared/components/EventPaymentCard';
+
+## Files importing from src/shared/components/PhoneInputWrapper.tsx
+src/components/register/PaymentSection.tsx:import PhoneInputWrapper from './PhoneInputWrapper';
+src/components/register/GuestContactInfo.tsx:import PhoneInputWrapper from './PhoneInputWrapper';
+src/components/register/MasonForm.tsx:import PhoneInputWrapper from './PhoneInputWrapper';
+src/components/register/LadyPartnerForm.tsx:import PhoneInputWrapper from "./PhoneInputWrapper";
+src/components/register/GuestForm.tsx:import PhoneInputWrapper from './PhoneInputWrapper';
+src/components/register/mason/MasonContactInfo.tsx:import PhoneInputWrapper from '../PhoneInputWrapper';
+src/components/register/guest/GuestContactInfo.tsx:import PhoneInputWrapper from '../PhoneInputWrapper';
+src/components/register/guest/GuestBasicInfo.tsx:import PhoneInputWrapper from '../PhoneInputWrapper';
+src/components/register/GuestPartnerForm.tsx:import PhoneInputWrapper from './PhoneInputWrapper';
+
+## Files importing from src/shared/data/phoneCountries.ts
+
+## Files importing from src/shared/types/customer.ts
+src/lib/api/customers.ts:import { CustomerProfile } from '../../shared/types/customer'; // Assuming this type exists/will be created
+src/lib/api/customers.ts:import { CustomerProfile } from '../../shared/types/customer'; // Assuming this type exists/will be created
+
+## Files importing from src/shared/types/day.ts
+src/lib/formatters.ts:import { EventDayType } from '../shared/types/day';
+src/lib/formatters.ts:import { EventDayType } from '../shared/types/day';
+
+## Files importing from src/shared/types/event.ts
+src/components/register/TicketSelection.tsx:import { EventType } from '../../shared/types/event';
+src/components/register/ticket/EventSelectionList.tsx:import { EventType } from '../../../shared/types/event';
+src/components/EventPaymentCard.tsx:import { EventType } from '../shared/types/event';
+src/components/EventCard.tsx:import { EventType } from '../shared/types/event';
+src/lib/api/events.ts:import { EventType } from '../../shared/types/event';
+src/lib/api/events.ts:import { EventDayOverviewType } from '../../shared/types/event';
+src/lib/formatters.ts:import { EventType } from '../shared/types/event';
+src/pages/RegisterPage.tsx:import { EventType } from '../shared/types/event';
+src/pages/EventDetailsPage.tsx:import { EventType } from '../shared/types/event';
+src/pages/EventsPage.tsx:import { EventType } from '../shared/types/event';
+src/pages/HomePage.tsx:import { EventType } from '../shared/types/event';
+src/shared/utils/eventEligibility.ts:import { EventType } from '../types/event';
+src/shared/components/EventPaymentCard.tsx:import { EventType } from '../types/event';
+src/shared/components/EventCard.tsx:import { EventType } from '../types/event';
+src/components/register/TicketSelection.tsx:import { EventType } from '../../shared/types/event';
+src/components/register/ticket/EventSelectionList.tsx:import { EventType } from '../../../shared/types/event';
+src/components/EventPaymentCard.tsx:import { EventType } from '../shared/types/event';
+src/components/EventCard.tsx:import { EventType } from '../shared/types/event';
+src/lib/api/events.ts:import { EventType } from '../../shared/types/event';
+src/lib/api/events.ts:import { EventDayOverviewType } from '../../shared/types/event';
+src/lib/formatters.ts:import { EventType } from '../shared/types/event';
+src/pages/RegisterPage.tsx:import { EventType } from '../shared/types/event';
+src/pages/EventDetailsPage.tsx:import { EventType } from '../shared/types/event';
+src/pages/EventsPage.tsx:import { EventType } from '../shared/types/event';
+src/pages/HomePage.tsx:import { EventType } from '../shared/types/event';
+
+## Files importing from src/shared/types/guest.ts
+
+## Files importing from src/shared/types/mason.ts
+
+## Files importing from src/shared/types/register_updated.ts
+
+## Files importing from src/shared/types/register.ts
+src/components/register/PaymentSection.tsx:import type { FormState } from '../../shared/types/register';
+src/components/register/TicketSelection.tsx:import { TicketType, FormState, MasonData, LadyPartnerData, GuestData, GuestPartnerData, AttendeeType } from '../../shared/types/register';
+src/components/register/AttendeeEditModal.tsx:import { FormState } from '../../shared/types/register';
+src/components/register/TicketSelection.noUUID.tsx:import { TicketType, FormState, MasonData, LadyPartnerData, GuestData, GuestPartnerData } from '../../shared/types/register';
+src/components/register/MasonForm.tsx:import { LadyPartnerData as OldLadyPartnerData } from '../../shared/types/register';
+src/components/register/LadyPartnerForm.tsx:import { LadyPartnerData, MasonData } from "../../shared/types/register";
+src/components/register/GuestForm.tsx:import { GuestData, GuestPartnerData, MasonData } from '../../shared/types/register';
+src/components/register/ConfirmationSection.tsx:} from '../../shared/types/register';
+src/components/register/GuestPartnerForm.tsx:import { GuestPartnerData } from '../../shared/types/register';
+src/components/register/ticket/TicketingSummary.tsx:import { FormState, TicketType } from '../../../shared/types/register';
+src/components/register/ticket/AttendeeTicketItem.tsx:import { MasonData, LadyPartnerData, GuestData, GuestPartnerData } from '../../../shared/types/register';
+src/components/register/ticket/UniformTicketing.tsx:import { TicketType, MasonData, LadyPartnerData, GuestData, GuestPartnerData } from '../../../shared/types/register';
+src/components/register/ticket/PackageTicketSection.tsx:import { TicketType } from '../../../shared/types/register';
+src/components/register/OrderSummarySection.tsx:} from "../../shared/types/register";
+src/components/register/TicketSelection.bypass.tsx:import { TicketType, FormState, MasonData, LadyPartnerData, GuestData, GuestPartnerData } from '../../shared/types/register';
+src/components/register/AttendeeDetails.tsx:import { MasonData, GuestData, LadyPartnerData, GuestPartnerData, AttendeeTicket } from '../../shared/types/register';
+src/hooks/useReservation.ts:import { Reservation } from '../shared/types/register';
+src/hooks/useRegistrationProgress.ts:import { FormState } from '../shared/types/register';
+src/lib/registrationProgressTracker.ts:import { FormState } from '../shared/types/register';
+src/pages/RegisterPage.tsx:import { FormState, TicketType } from '../shared/types/register';
+src/store/registrationStore.ts:import { TicketType } from '../shared/types/register';
+src/shared/types/guest.ts:import { AttendeeTicket } from './register';
+src/shared/types/mason.ts:import { AttendeeTicket } from './register'; // Import shared ticket type
+src/components/register/PaymentSection.tsx:import type { FormState } from '../../shared/types/register';
+src/components/register/TicketSelection.tsx:import { TicketType, FormState, MasonData, LadyPartnerData, GuestData, GuestPartnerData, AttendeeType } from '../../shared/types/register';
+src/components/register/AttendeeEditModal.tsx:import { FormState } from '../../shared/types/register';
+src/components/register/GuestContactInfo.tsx:import { GuestData } from '../../types/register';
+src/components/register/TicketSelection.noUUID.tsx:import { TicketType, FormState, MasonData, LadyPartnerData, GuestData, GuestPartnerData } from '../../shared/types/register';
+src/components/register/MasonForm.tsx:import { LadyPartnerData as OldLadyPartnerData } from '../../shared/types/register';
+src/components/register/LadyPartnerForm.tsx:import { LadyPartnerData, MasonData } from "../../shared/types/register";
+src/components/register/GuestForm.tsx:import { GuestData, GuestPartnerData, MasonData } from '../../shared/types/register';
+src/components/register/ConfirmationSection.tsx:} from '../../shared/types/register';
+src/components/register/GuestPartnerForm.tsx:import { GuestPartnerData } from '../../shared/types/register';
+src/components/register/ticket/TicketingSummary.tsx:import { FormState, TicketType } from '../../../shared/types/register';
+src/components/register/ticket/AttendeeTicketItem.tsx:import { MasonData, LadyPartnerData, GuestData, GuestPartnerData } from '../../../shared/types/register';
+src/components/register/ticket/UniformTicketing.tsx:import { TicketType, MasonData, LadyPartnerData, GuestData, GuestPartnerData } from '../../../shared/types/register';
+src/components/register/ticket/PackageTicketSection.tsx:import { TicketType } from '../../../shared/types/register';
+src/components/register/OrderSummarySection.tsx:} from "../../shared/types/register";
+src/components/register/TicketSelection.bypass.tsx:import { TicketType, FormState, MasonData, LadyPartnerData, GuestData, GuestPartnerData } from '../../shared/types/register';
+src/components/register/AttendeeDetails.tsx:import { MasonData, GuestData, LadyPartnerData, GuestPartnerData, AttendeeTicket } from '../../shared/types/register';
+src/hooks/useReservation.ts:import { Reservation } from '../shared/types/register';
+src/hooks/useRegistrationProgress.ts:import { FormState } from '../shared/types/register';
+src/lib/registrationProgressTracker.ts:import { FormState } from '../shared/types/register';
+src/pages/RegisterPage.tsx:import { FormState, TicketType } from '../shared/types/register';
+src/store/registrationStore.ts:import { TicketType } from '../shared/types/register';
+
+## Files importing from src/shared/types/supabase.ts
+src/context/AuthContext.tsx:import { supabase } from '../lib/supabase';
+src/lib/attendeeAccessService.ts:import { supabase } from './supabase';
+src/lib/reservationService.realtime.ts:import { supabase } from './supabase';
+src/lib/reservationService.ts:import { supabase } from './supabase';
+src/lib/packageService.ts:import { supabase } from './supabase';
+src/lib/api/grandLodges.ts:import { supabase } from '../supabase';
+src/lib/api/customers.ts:import { supabase } from '../supabase';
+src/lib/api/registrations.ts:import { supabase } from '../supabase';
+src/lib/api/registrations.ts:import { supabaseTables, supabaseSchemas } from '../supabase'; // Import constants
+src/lib/api/events.ts:import { supabase, table } from '../supabase';
+src/lib/api/lodges.ts:import { supabase } from '../supabase';
+src/lib/cacheDebugger.ts:import { supabase } from './supabase';
+src/lib/vasService.ts:import { supabase } from './supabase';
+src/store/locationStore.ts:import { supabase } from '../lib/supabase';
+
+## Files importing from src/shared/types/ticket.ts
+src/components/register/ticket/TicketingSummary.tsx:import { TicketDefinitionType } from '../../../shared/types/ticket';
+src/components/register/ticket/PackageTicketSection.tsx:import { TicketDefinitionType } from '../../../shared/types/ticket';
+src/lib/api/events.ts:import { TicketDefinitionType } from '../../shared/types/ticket';
+src/lib/formatters.ts:import { TicketDefinitionType } from '../shared/types/ticket';
+src/store/registrationStore.ts:import { TicketDefinitionType } from '../shared/types/ticket';
+src/components/register/ticket/TicketingSummary.tsx:import { TicketDefinitionType } from '../../../shared/types/ticket';
+src/components/register/ticket/PackageTicketSection.tsx:import { TicketDefinitionType } from '../../../shared/types/ticket';
+src/lib/api/events.ts:import { TicketDefinitionType } from '../../shared/types/ticket';
+src/lib/formatters.ts:import { TicketDefinitionType } from '../shared/types/ticket';
+src/store/registrationStore.ts:import { TicketDefinitionType } from '../shared/types/ticket';
+
+## Files importing from src/shared/utils/eventEligibility.ts
+src/components/register/TicketSelection.tsx:import { sortEventsByDate, getEligibleEvents, AttendeeData as EligibilityAttendeeData } from '../../shared/utils/eventEligibility';
+src/components/register/TicketSelection.noUUID.tsx:import { sortEventsByDate, getEligibleEvents, AttendeeData as EligibilityAttendeeData } from '../../shared/utils/eventEligibility';
+src/components/register/TicketSelection.bypass.tsx:import { sortEventsByDate, getEligibleEvents, AttendeeData as EligibilityAttendeeData } from '../../shared/utils/eventEligibility';
+src/components/register/TicketSelection.tsx:import { sortEventsByDate, getEligibleEvents, AttendeeData as EligibilityAttendeeData } from '../../shared/utils/eventEligibility';
+src/components/register/TicketSelection.noUUID.tsx:import { sortEventsByDate, getEligibleEvents, AttendeeData as EligibilityAttendeeData } from '../../shared/utils/eventEligibility';
+src/components/register/TicketSelection.bypass.tsx:import { sortEventsByDate, getEligibleEvents, AttendeeData as EligibilityAttendeeData } from '../../shared/utils/eventEligibility';

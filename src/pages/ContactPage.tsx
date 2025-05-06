@@ -25,9 +25,9 @@ const ContactPage: React.FC = () => {
   };
 
   return (
-    <div>
+    <>
       <section className="bg-primary text-white py-16">
-        <div className="container-custom">
+        <div className="container-custom mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl font-bold mb-6">Contact Us</h1>
           <p className="text-xl max-w-3xl">
             Have questions about the Grand Proclamation? Get in touch with our team.
@@ -36,7 +36,7 @@ const ContactPage: React.FC = () => {
       </section>
 
       <section className="py-12 bg-white">
-        <div className="container-custom">
+        <div className="container-custom mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
             {/* Contact Information */}
             <div className="lg:col-span-1">
@@ -196,7 +196,7 @@ const ContactPage: React.FC = () => {
 
       {/* Map Section */}
       <section className="py-12 bg-slate-50">
-        <div className="container-custom">
+        <div className="container-custom mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <h2 className="text-2xl font-bold mb-6 text-center text-primary">Find Us</h2>
           <div className="h-96 bg-slate-200 rounded-lg overflow-hidden shadow-md">
             {/* In a real application, you would embed a Google Map here */}
@@ -206,7 +206,7 @@ const ContactPage: React.FC = () => {
           </div>
         </div>
       </section>
-    </div>
+    </>
   );
 };
 

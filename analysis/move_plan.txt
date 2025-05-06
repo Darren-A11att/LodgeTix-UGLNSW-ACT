@@ -1,0 +1,57 @@
+# Move Plan for src/shared to shared
+
+This file outlines the plan for moving files from src/shared to shared
+
+
+## Move Commands
+
+mkdir -p shared/components
+cp src/shared/components/AutocompleteInput.tsx shared/components/AutocompleteInput.tsx
+
+mkdir -p shared/components
+cp src/shared/components/EventCard.tsx shared/components/EventCard.tsx
+
+mkdir -p shared/components
+cp src/shared/components/EventPaymentCard.tsx shared/components/EventPaymentCard.tsx
+
+mkdir -p shared/components
+cp src/shared/components/PhoneInputWrapper.tsx shared/components/PhoneInputWrapper.tsx
+
+mkdir -p shared/data
+cp src/shared/data/phoneCountries.ts shared/data/phoneCountries.ts
+
+mkdir -p shared/types
+cp src/shared/types/customer.ts shared/types/customer.ts
+
+mkdir -p shared/types
+cp src/shared/types/day.ts shared/types/day.ts
+
+mkdir -p shared/types
+cp src/shared/types/event.ts shared/types/event.ts
+
+mkdir -p shared/types
+cp src/shared/types/guest.ts shared/types/guest.ts
+
+mkdir -p shared/types
+cp src/shared/types/mason.ts shared/types/mason.ts
+
+mkdir -p shared/types
+cp src/shared/types/register_updated.ts shared/types/register_updated.ts
+
+mkdir -p shared/types
+cp src/shared/types/register.ts shared/types/register.ts
+
+mkdir -p shared/types
+cp src/shared/types/supabase.ts shared/types/supabase.ts
+
+mkdir -p shared/types
+cp src/shared/types/ticket.ts shared/types/ticket.ts
+
+mkdir -p shared/utils
+cp src/shared/utils/eventEligibility.ts shared/utils/eventEligibility.ts
+
+
+## Import Updates Needed
+
+After moving files, update imports using:
+./update_shared_imports.sh

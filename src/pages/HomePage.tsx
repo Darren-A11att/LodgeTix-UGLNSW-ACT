@@ -263,7 +263,8 @@ const HomePage: React.FC = () => {
                 <div>
                   <h3 className="font-bold text-lg mb-2">Attendance</h3>
                   <p className="text-slate-700">
-                    {parentEvent.maxAttendees ? `Expected ${parentEvent.maxAttendees.toLocaleString()}+ attendees` : 'Attendance TBC'}
+                    {/* Capacity information now comes from ticket_definitions table */}
+                    Expected high attendance
                   </p>
                 </div>
               </div>
@@ -345,7 +346,7 @@ const HomePage: React.FC = () => {
           )}
           
           <div className="text-center mt-12">
-            <Link to="/events" className="btn-outline">
+            <Link to="/events" className="btn-outline inline-block">
               View All Events
             </Link>
           </div>
@@ -362,7 +363,7 @@ const HomePage: React.FC = () => {
           </p>
           <Link 
             to="/register" 
-            className="btn-secondary"
+            className="btn-secondary inline-block"
             state={{ checkForDrafts: true }}
           >
             Register Now

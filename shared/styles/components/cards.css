@@ -1,0 +1,104 @@
+@layer components {
+  /* Basic card style */
+  .card {
+    @apply bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden;
+  }
+  
+  .card-body {
+    @apply p-6;
+  }
+  
+  .card-header {
+    @apply border-b border-slate-200 p-4 pb-3 flex justify-between items-center;
+  }
+  
+  .card-title {
+    @apply text-xl font-bold;
+  }
+  
+  .card-footer {
+    @apply border-t border-slate-200 p-4 bg-slate-50;
+  }
+
+  /* Card variations */
+  .card-hover {
+    @apply hover:shadow-md transition-shadow cursor-pointer;
+  }
+  
+  .card-selectable {
+    @apply cursor-pointer border-2 border-slate-200 hover:border-primary/50 transition-colors;
+  }
+  
+  .card-selectable.selected {
+    @apply border-primary bg-primary/5;
+  }
+  
+  /* Event card */
+  .event-card {
+    @apply flex flex-col border border-slate-200 rounded-lg overflow-hidden bg-white h-full;
+  }
+  
+  .event-card-image {
+    @apply w-full h-40 bg-slate-100 object-cover;
+  }
+  
+  .event-card-body {
+    @apply p-4 flex-grow;
+  }
+  
+  .event-card-title {
+    @apply font-bold text-lg mb-1;
+  }
+  
+  .event-card-date {
+    @apply text-slate-600 text-sm mb-3;
+  }
+  
+  .event-card-description {
+    @apply text-slate-700 text-sm mb-4;
+  }
+  
+  .event-card-footer {
+    @apply border-t border-slate-100 p-4 bg-slate-50 flex justify-between items-center;
+  }
+  
+  .event-card-price {
+    @apply font-bold text-lg;
+  }
+  
+  /* Registration type card */
+  .registration-type-card {
+    @apply p-6 border-2 border-slate-200 rounded-lg cursor-pointer bg-white transition-all hover:shadow-md;
+  }
+  
+  .registration-type-card:hover {
+    @apply border-primary/50;
+  }
+  
+  .registration-type-card.selected {
+    @apply border-primary bg-primary/5;
+  }
+  
+  .registration-type-title {
+    @apply text-xl font-bold mb-2;
+  }
+  
+  .registration-type-description {
+    @apply text-slate-600 mb-4;
+  }
+  
+  /* Mobile card styles */
+  @media (max-width: 640px) {
+    .card-body {
+      @apply p-4;
+    }
+    
+    .event-card-image {
+      @apply h-32;
+    }
+    
+    .registration-type-card {
+      @apply p-4;
+    }
+  }
+} 

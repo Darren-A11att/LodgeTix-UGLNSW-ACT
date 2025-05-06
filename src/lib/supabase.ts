@@ -34,14 +34,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Create and export the Supabase client
 // Add a type assertion or check to satisfy TypeScript if needed, 
 // especially if strict null checks are enabled.
-export const supabase: SupabaseClient = createClient(
+export const supabase = createClient(
   supabaseUrl!, 
   supabaseAnonKey!,
   {
-    schema: 'public',
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+    }
     // Important: Supabase API uses the actual table names as defined in the database
     // Our tables are now in PascalCase, but some API calls might still use lowercase
     // This configuration ensures consistent casing

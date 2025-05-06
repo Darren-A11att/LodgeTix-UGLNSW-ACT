@@ -1,0 +1,139 @@
+# LodgeTix Multi-Portal Nginx Configuration Example
+# This shows how to serve all three portals (public, app, admin) using Nginx
+
+# Main domain config for the public website
+server {
+    listen 80;
+    server_name yourdomain.com www.yourdomain.com;
+    
+    # SSL configuration (recommended for production)
+    # listen 443 ssl;
+    # ssl_certificate /path/to/cert.pem;
+    # ssl_certificate_key /path/to/key.pem;
+    
+    # HTTP to HTTPS redirect (uncomment for production)
+    # if ($scheme != "https") {
+    #     return 301 https://$host$request_uri;
+    # }
+    
+    # Root directory for the public site
+    root /var/www/html/dist;
+    
+    # Serve static files
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires max;
+        add_header Cache-Control "public, max-age=31536000";
+    }
+    
+    # Handle SPA routing - send all requests to index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+    
+    # Optional: Add security headers
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-XSS-Protection "1; mode=block";
+    add_header X-Content-Type-Options "nosniff";
+}
+
+# App subdomain configuration for authenticated users
+server {
+    listen 80;
+    server_name app.yourdomain.com;
+    
+    # SSL configuration (recommended for production)
+    # listen 443 ssl;
+    # ssl_certificate /path/to/cert.pem;
+    # ssl_certificate_key /path/to/key.pem;
+    
+    # HTTP to HTTPS redirect (uncomment for production)
+    # if ($scheme != "https") {
+    #     return 301 https://$host$request_uri;
+    # }
+    
+    # Root directory for the app portal
+    root /var/www/html/dist/app;
+    
+    # Serve static files
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires max;
+        add_header Cache-Control "public, max-age=31536000";
+    }
+    
+    # Handle SPA routing - send all requests to index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+    
+    # Optional: Add security headers
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-XSS-Protection "1; mode=block";
+    add_header X-Content-Type-Options "nosniff";
+}
+
+# Admin subdomain configuration for administrators
+server {
+    listen 80;
+    server_name admin.yourdomain.com;
+    
+    # SSL configuration (recommended for production)
+    # listen 443 ssl;
+    # ssl_certificate /path/to/cert.pem;
+    # ssl_certificate_key /path/to/key.pem;
+    
+    # HTTP to HTTPS redirect (uncomment for production)
+    # if ($scheme != "https") {
+    #     return 301 https://$host$request_uri;
+    # }
+    
+    # Root directory for the admin portal
+    root /var/www/html/dist/admin;
+    
+    # Serve static files
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires max;
+        add_header Cache-Control "public, max-age=31536000";
+    }
+    
+    # Handle SPA routing - send all requests to index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+    
+    # Optional: Add security headers and IP restrictions for admin
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-XSS-Protection "1; mode=block";
+    add_header X-Content-Type-Options "nosniff";
+    
+    # Optional: Restrict access by IP (uncomment and configure for production)
+    # allow 192.168.1.0/24;  # Example: Allow your office IP range
+    # deny all;              # Block all other IPs
+}
+
+# Optional: API subdomain for backend services
+# server {
+#     listen 80;
+#     server_name api.yourdomain.com;
+#     
+#     # SSL configuration
+#     # listen 443 ssl;
+#     # ssl_certificate /path/to/cert.pem;
+#     # ssl_certificate_key /path/to/key.pem;
+#     
+#     # Proxy to your API server
+#     location / {
+#         proxy_pass http://localhost:8080;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#     }
+# }
+
+# Redirect all non-www and non-subdomain requests to main domain
+server {
+    listen 80 default_server;
+    server_name _;
+    
+    return 301 https://yourdomain.com$request_uri;
+}

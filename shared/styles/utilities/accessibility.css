@@ -1,0 +1,46 @@
+@layer utilities {
+  /* Visually hidden but accessible to screen readers */
+  .sr-only {
+    @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
+  }
+  
+  /* Remove sr-only on focus */
+  .sr-only-focusable:focus,
+  .sr-only-focusable:active {
+    @apply static w-auto h-auto overflow-visible whitespace-normal;
+  }
+  
+  /* Improve touch targets without visual size change */
+  .touch-target {
+    @apply relative;
+  }
+  
+  .touch-target::before {
+    content: "";
+    @apply absolute -inset-3 z-[-1];
+  }
+  
+  /* Skip to content link for keyboard users */
+  .skip-link {
+    @apply sr-only sr-only-focusable bg-white text-primary px-4 py-2 z-50 rounded-md shadow-md;
+  }
+  
+  .skip-link:focus {
+    @apply fixed top-4 left-4;
+  }
+  
+  /* High contrast focus indicators */
+  .focus-visible {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2;
+  }
+  
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+    }
+  }
+} 

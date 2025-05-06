@@ -171,6 +171,103 @@ export interface RegistrationLoadData {
  * @param supabaseClient - An initialized Supabase client instance.
  * @returns An object containing the fetched and transformed registration data.
  */
+/**
+ * Checks if a ticket for an event is in high demand
+ * Uses the database function is_ticket_high_demand
+ * 
+ * @param eventId The UUID of the event to check
+ * @param ticketDefinitionId The UUID of the ticket definition
+ * @param thresholdPercent Optional custom threshold percentage (default is 80%)
+ * @param supabaseClient Optional custom Supabase client
+ * @returns Whether the ticket is in high demand
+ */
+export async function isTicketHighDemand(
+  eventId: string,
+  ticketDefinitionId: string,
+  thresholdPercent: number = 80,
+  supabaseClient: SupabaseClient = supabase
+): Promise<boolean> {
+  if (!eventId || !ticketDefinitionId) {
+    console.error('Event ID and ticket definition ID are required to check demand');
+    return false;
+  }
+
+  try {
+    const { data, error } = await supabaseClient.rpc('is_ticket_high_demand', {
+      p_event_id: eventId,
+      p_ticket_definition_id: ticketDefinitionId,
+      p_threshold_percent: thresholdPercent
+    });
+    
+    if (error) {
+      console.error('Error checking high demand status:', error.message);
+      return false;
+    }
+    
+    return !!data; // Convert to boolean
+  } catch (error: any) {
+    console.error(`Failed to check high demand for event ${eventId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Gets the capacity information for an event from the event_capacity table
+ * @param eventId The UUID of the event to get capacity for
+ * @param supabaseClient Optional custom Supabase client
+ * @returns Object containing capacity information or null if not found
+ */
+export async function getEventCapacity(
+  eventId: string,
+  supabaseClient: SupabaseClient = supabase
+): Promise<{
+  maxCapacity: number;
+  reservedCount: number;
+  soldCount: number;
+  availableCount: number;
+  usagePercentage: number;
+} | null> {
+  if (!eventId) {
+    console.error('Event ID is required to get capacity');
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('event_capacity')
+      .select('max_capacity, reserved_count, sold_count')
+      .eq('event_id', eventId)
+      .single();
+    
+    if (error) {
+      console.error(`Error fetching capacity for event ${eventId}:`, error.message);
+      return null;
+    }
+    
+    if (!data) {
+      console.warn(`No capacity record found for event ${eventId}`);
+      return null;
+    }
+    
+    // Calculate derived fields
+    const availableCount = Math.max(0, data.max_capacity - (data.reserved_count + data.sold_count));
+    const usagePercentage = data.max_capacity > 0 
+      ? Math.round(((data.reserved_count + data.sold_count) / data.max_capacity) * 100) 
+      : 0;
+    
+    return {
+      maxCapacity: data.max_capacity,
+      reservedCount: data.reserved_count,
+      soldCount: data.sold_count,
+      availableCount,
+      usagePercentage
+    };
+  } catch (error: any) {
+    console.error(`Failed to get capacity for event ${eventId}:`, error);
+    return null;
+  }
+}
+
 export async function getRegistrationLoadData(
   registrationId: string,
   supabaseClient: SupabaseClient = supabase
