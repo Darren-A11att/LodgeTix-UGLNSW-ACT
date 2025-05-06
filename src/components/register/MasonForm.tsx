@@ -137,13 +137,26 @@ const MasonForm: React.FC<MasonFormProps> = ({
       }
   }, [mason.grandLodgeId, grandLodges, selectedGrandLodge]);
 
+  // Keep track of previous lodge name for display purposes
+  const lodgeNameRef = useRef<string | null>(null);
+  const userIsTypingRef = useRef(false);
+  const initialLoadDoneRef = useRef(false);
+  
   useEffect(() => {
+       // Skip if user is actively typing in the field - let them finish their edit
+       if (userIsTypingRef.current) {
+           return;
+       }
+       
        if (mason.lodgeId && !selectedLodge) {
+           // First check if we can find it in the search results
            const foundLodge = allLodgeSearchResults.find(l => l.id === mason.lodgeId);
            if (foundLodge) {
                setSelectedLodge(foundLodge);
                const displayValue = foundLodge.display_name || `${foundLodge.name} No. ${foundLodge.number || 'N/A'}`;
                setLodgeInputValue(displayValue);
+               lodgeNameRef.current = displayValue;
+               
                if (foundLodge.grand_lodge_id && !selectedGrandLodge) {
                     const initialGrandLodge = grandLodges.find(gl => gl.id === foundLodge.grand_lodge_id);
                     if (initialGrandLodge) {
@@ -151,14 +164,49 @@ const MasonForm: React.FC<MasonFormProps> = ({
                         setGrandLodgeInputValue(initialGrandLodge.name);
                     }
                }
+           } else if (mason.lodgeNameNumber) {
+               // If we have a stored display name, use it
+               setLodgeInputValue(mason.lodgeNameNumber);
+               initialLoadDoneRef.current = true;
+               
+               // Try to kick off a search to find the full lodge data - but only once
+               if (!isLoadingAllLodges && !initialLoadDoneRef.current) {
+                   searchAllLodgesAction(mason.lodgeId);
+                   initialLoadDoneRef.current = true;
+               }
+           } else if (lodgeNameRef.current) {
+               // Use cached display name if available
+               setLodgeInputValue(lodgeNameRef.current);
            } else {
-               setLodgeInputValue(`Lodge ID: ${mason.lodgeId}`); 
+               // Only display "looking up" message if we're doing the initial load
+               if (!initialLoadDoneRef.current) {
+                   setLodgeInputValue(`Looking up Lodge...`);
+                   
+                   // Try to fetch the lodge data - but only once on initial load
+                   if (!isLoadingAllLodges) {
+                       const searchWithId = async () => {
+                           try {
+                               await searchAllLodgesAction(mason.lodgeId);
+                               initialLoadDoneRef.current = true;
+                           } catch (err) {
+                               console.error('Error searching for lodge:', err);
+                               setLodgeInputValue(`Lodge: ${mason.lodgeId}`); 
+                               initialLoadDoneRef.current = true;
+                           }
+                       };
+                       searchWithId();
+                   } else {
+                       setLodgeInputValue(`Lodge: ${mason.lodgeId}`);
+                       initialLoadDoneRef.current = true;
+                   }
+               }
            }
        } else if (!mason.lodgeId) {
            setSelectedLodge(null);
            setLodgeInputValue('');
+           lodgeNameRef.current = null;
        }
-  }, [mason.lodgeId, allLodgeSearchResults, selectedLodge, grandLodges, selectedGrandLodge]);
+  }, [mason.lodgeId, mason.lodgeNameNumber, allLodgeSearchResults, selectedLodge, grandLodges, selectedGrandLodge, isLoadingAllLodges, searchAllLodgesAction]);
 
   // --- Handlers for GL/Lodge Selection and Creation --- 
   const resetLodgeCreationUI = useCallback(() => {
@@ -196,42 +244,89 @@ const MasonForm: React.FC<MasonFormProps> = ({
   const debouncedLodgeSearch = useDebouncedCallback(searchAllLodgesAction, 300);
   
   const handleLodgeSelect = useCallback((lodge: LodgeRow | null) => {
+       // Set state based on whether we have a lodge or not
        setSelectedLodge(lodge);
-       const displayValue = lodge ? (lodge.display_name || `${lodge.name} No. ${lodge.number || 'N/A'}`) : '';
-       setLodgeInputValue(displayValue);
-       let updates: Partial<UnifiedAttendeeData> = { lodgeId: lodge ? lodge.id : null };
-
-       if (lodge?.grand_lodge_id) {
-           const associatedGrandLodge = grandLodges.find(gl => gl.id === lodge.grand_lodge_id);
-           if (associatedGrandLodge) {
-               if (selectedGrandLodge?.id !== associatedGrandLodge.id) {
-                   setSelectedGrandLodge(associatedGrandLodge);
-                   setGrandLodgeInputValue(associatedGrandLodge.name);
-                   updates.grandLodgeId = associatedGrandLodge.id;
+       
+       if (lodge) {
+           // Lodge was selected - update to the proper display value
+           const displayValue = lodge.display_name || `${lodge.name} No. ${lodge.number || 'N/A'}`;
+           setLodgeInputValue(displayValue);
+           
+           // Save the display value to the ref for persistence
+           lodgeNameRef.current = displayValue;
+           
+           // When a lodge is selected from the dropdown
+           let updates: Partial<UnifiedAttendeeData> = { 
+               lodgeId: lodge.id,
+               lodgeNameNumber: displayValue // Store the display name in the attendee data
+           };
+           
+           // Handle Grand Lodge association
+           if (lodge.grand_lodge_id) {
+               const associatedGrandLodge = grandLodges.find(gl => gl.id === lodge.grand_lodge_id);
+               if (associatedGrandLodge) {
+                   if (selectedGrandLodge?.id !== associatedGrandLodge.id) {
+                       setSelectedGrandLodge(associatedGrandLodge);
+                       setGrandLodgeInputValue(associatedGrandLodge.name);
+                       updates.grandLodgeId = associatedGrandLodge.id;
+                   }
+               } else {
+                   console.warn(`Grand Lodge ${lodge.grand_lodge_id} for selected lodge ${lodge.id} not found.`);
                }
-           } else {
-               console.warn(`Grand Lodge ${lodge.grand_lodge_id} for selected lodge ${lodge.id} not found.`);
-               setSelectedGrandLodge(null);
-               setGrandLodgeInputValue('');
-               updates.grandLodgeId = null;
            }
+           
+           updateAttendee(attendeeId, updates);
+       } else {
+           // Clear button was clicked or selection was removed
+           setLodgeInputValue('');
+           lodgeNameRef.current = null;
+           
+           // Clear the field values in the attendee data
+           updateAttendee(attendeeId, { 
+               lodgeId: null,
+               lodgeNameNumber: null
+           });
        }
-       updateAttendee(attendeeId, updates);
+       
+       // Always make sure the creation UI is reset
        resetLodgeCreationUI();
    }, [updateAttendee, attendeeId, grandLodges, selectedGrandLodge, resetLodgeCreationUI]);
 
   const handleLodgeInputChange = useCallback((value: string) => {
+      // Set the flag to indicate user is typing
+      userIsTypingRef.current = true;
+      
+      // Update the input field value immediately
       setLodgeInputValue(value);
+      
+      // If the user is typing, clear the selected lodge
       if (selectedLodge) {
           const currentDisplay = selectedLodge.display_name || `${selectedLodge.name} No. ${selectedLodge.number || 'N/A'}`; 
           if (value !== currentDisplay && currentDisplay !== '') { 
+              // User is typing something different - clear the selection but preserve the value
               handleLodgeSelect(null);
+              
+              // Clear cached display value when user is actively changing it
+              lodgeNameRef.current = null;
+              
+              // Clear the form-level value
+              updateAttendee(attendeeId, { 
+                  lodgeId: null,
+                  lodgeNameNumber: null
+              });
           }
       }
+      
+      // Search for lodges matching the input
       if (value && value.trim().length > 0) {
         debouncedLodgeSearch(value.trim());
       }
-  }, [debouncedLodgeSearch, selectedLodge, handleLodgeSelect]);
+      
+      // Clear the typing flag after a short delay to allow input to stabilize
+      setTimeout(() => {
+        userIsTypingRef.current = false;
+      }, 500);
+  }, [debouncedLodgeSearch, selectedLodge, handleLodgeSelect, updateAttendee, attendeeId]);
 
   const handleInitiateLodgeCreation = useCallback((initialLodgeName: string) => {
       if (!selectedGrandLodge) {
