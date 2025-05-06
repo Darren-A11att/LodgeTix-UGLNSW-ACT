@@ -102,10 +102,14 @@ const GuestForm: React.FC<GuestFormProps> = ({
   const getConfirmationMessage = useCallback(() => {
     if (!primaryAttendeeData) return "";
     const primaryFullName = `${primaryAttendeeData.firstName || ''} ${primaryAttendeeData.lastName || ''}`.trim();
+    
     if (guest.contactPreference === "PrimaryAttendee") { 
         return `I confirm that ${primaryFullName} will be responsible for all communication with this attendee`;
     } else if (guest.contactPreference === "ProvideLater") { 
         return `I confirm that ${primaryFullName} will be responsible for all communication with this attendee until their contact details have been updated in their profile`;
+    } else if (guest.contactPreference === "Guest") { 
+        // Added case for 'Guest' preference
+        return `I confirm that ${primaryFullName} will be responsible for all communication with this attendee`;
     }
     return "";
   }, [primaryAttendeeData, guest.contactPreference]);
@@ -122,7 +126,7 @@ const GuestForm: React.FC<GuestFormProps> = ({
           phone: partnerData.primaryPhone || '',
           dietary: partnerData.dietaryRequirements || '',
           specialNeeds: partnerData.specialNeeds || '', // Assuming this exists
-          relationship: partnerData.relationship || 'Partner',
+          relationship: partnerData.relationship || '',
           guestId: partnerData.relatedAttendeeId || '',
           contactPreference: partnerData.contactPreference || 'Directly',
           contactConfirmed: !!partnerData.contactConfirmed,
@@ -132,7 +136,7 @@ const GuestForm: React.FC<GuestFormProps> = ({
 
   // Expanded titles to include more options
   const titles = ["Mr", "Mrs", "Ms", "Miss", "Dr", "Rev", "Prof", "Rabbi", "Hon", "Sir", "Madam", "Lady", "Dame"];
-  const contactOptions = ["Please Select", "PrimaryAttendee", "Directly", "ProvideLater"];
+  const contactOptions = ["Please Select", "Primary Attendee", "Directly", "Provide Later"];
 
   const showConfirmation = guest.contactPreference !== "Directly" && guest.contactPreference !== undefined && guest.contactPreference !== null;
   const hideContactFields = !showConfirmation && guest.contactPreference !== "Directly";
@@ -140,7 +144,7 @@ const GuestForm: React.FC<GuestFormProps> = ({
   return (
     <div className="bg-slate-50 p-6 rounded-lg mb-8 relative">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-bold text-slate-800">Guest Attendee {attendeeNumber}</h3>
+        <h3 className="text-xl font-bold text-slate-800">Guest Attendee</h3>
         <button 
           type="button"
           onClick={handleRemoveSelf}
@@ -211,6 +215,7 @@ const GuestForm: React.FC<GuestFormProps> = ({
               }}
               onRemove={handlePartnerToggle}
               relatedGuestName={`${guest.firstName || ''} ${guest.lastName || ''}`.trim()}
+              primaryMasonData={primaryAttendeeData}
           />
       )}
     </div>
