@@ -1,9 +1,8 @@
-import { supabase, table } from '../supabase';
-import { EventType } from '../../shared/types/event';
-import { formatEventForDisplay } from '../formatters';
-import { Database } from '../../../supabase/supabase.types';
-import { EventDayOverviewType } from '../../shared/types/event';
-import { TicketDefinitionType } from '../../shared/types/ticket';
+import { supabase, table } from '../supabase.ts';
+import * as EventTypes from '../../shared/types/event.ts';
+import { formatEventForDisplay } from '../formatters.ts';
+import * as SupabaseTypes from '../../../supabase/supabase.types.ts';
+import * as TicketTypes from '../../shared/types/ticket.ts';
 
 /**
  * Events API module
@@ -17,12 +16,12 @@ import { TicketDefinitionType } from '../../shared/types/ticket';
  */
 
 // Define DbEvent type here for use in the function
-type DbEvent = Database['public']['Tables']['Events']['Row'];
-type DbTicketDefinition = Database['public']['Tables']['ticket_definitions']['Row'];
+type DbEvent = SupabaseTypes.Database['public']['Tables']['Events']['Row'];
+type DbTicketDefinition = SupabaseTypes.Database['public']['Tables']['ticket_definitions']['Row'];
 
 // Interface for the function's return value
 export interface PaginatedEventsResponse {
-  events: EventType[];
+  events: EventTypes.EventType[];
   totalCount: number | null;
 }
 
@@ -43,23 +42,31 @@ interface GetEventsParams {
  * @param eventId - The UUID of the event
  * @returns Promise resolving to array of ticket definitions
  */
-export async function getTicketDefinitionsForEvent(eventId: string): Promise<TicketDefinitionType[]> {
+export async function getTicketDefinitionsForEvent(eventId: string): Promise<TicketTypes.TicketDefinitionType[]> {
   try {
-    const { data, error } = await table('ticket_definitions')
+    // FIX: Use supabase.from directly to avoid potential case modification by 'table' helper
+    const { data, error } = await supabase
+      .from('ticket_definitions') 
       .select('*')
       .eq('event_id', eventId)
-      .eq('is_active', true)
+      .eq('is_active', true) // Assuming ticket_definitions DOES have is_active
       .order('price', { ascending: true });
     
     if (error) {
+      // Log the specific error for this function
       console.error(`Error fetching ticket definitions for event ${eventId}:`, error);
-      return [];
+      // Check if the error is the 'relation not found' error
+      if (error.code === '42P01') {
+        console.error(`Database Error: Table 'ticket_definitions' might be missing or inaccessible.`);
+      }
+      return []; // Return empty array on error
     }
     
-    return data as unknown as TicketDefinitionType[];
+    // Add null check before type assertion
+    return data ? data as unknown as TicketTypes.TicketDefinitionType[] : [];
   } catch (err) {
-    console.error(`Unexpected error fetching ticket definitions for event ${eventId}:`, err);
-    return [];
+    console.error(`Unexpected error in getTicketDefinitionsForEvent for event ${eventId}:`, err);
+    return []; // Return empty array on unexpected error
   }
 }
 
@@ -196,7 +203,7 @@ export async function getEvents({
  * @param limit Maximum number of events to return
  * @returns Promise resolving to array of formatted featured events
  */
-export async function getFeaturedEvents(limit: number = 3): Promise<EventType[]> {
+export async function getFeaturedEvents(limit: number = 3): Promise<EventTypes.EventType[]> {
   // console.log(`Fetching featured events`);
   try {
     // Skip scope ID lookup entirely - DisplayScopes table may not be set up yet
@@ -241,7 +248,7 @@ export async function getFeaturedEvents(limit: number = 3): Promise<EventType[]>
  * @param scopeName The display scope (defaults to 'anonymous')
  * @returns Promise resolving to array of formatted events of the specified type and scope
  */
-export async function getEventsByType(type: string, scopeName: string = 'anonymous'): Promise<EventType[]> {
+export async function getEventsByType(type: string, scopeName: string = 'anonymous'): Promise<EventTypes.EventType[]> {
   // console.log(`Fetching events of type '${type}' for scope '${scopeName}'`);
   try {
     // Skip scope ID lookup entirely - DisplayScopes table may not be set up yet
@@ -570,7 +577,7 @@ export async function getEventCapacity(eventId: string): Promise<{
  * @param slug The URL-friendly slug of the event to fetch.
  * @returns Promise resolving to the formatted event object or null if not found or error.
  */
-export async function getEventById(slug: string): Promise<EventType | null> {
+export async function getEventById(slug: string): Promise<EventTypes.EventType | null> {
   // console.log(`Fetching event with slug: ${slug}`);
   if (!slug) {
     console.error('getEventById called with no slug.');
@@ -621,7 +628,7 @@ export async function getEventById(slug: string): Promise<EventType | null> {
  * @param parentEventId The UUID of the parent event.
  * @returns Promise resolving to an array of formatted child event objects.
  */
-export async function getChildEvents(parentEventId: string): Promise<EventType[]> {
+export async function getChildEvents(parentEventId: string): Promise<EventTypes.EventType[]> {
   // console.log(`Fetching child events for parent ID: ${parentEventId}`);
   if (!parentEventId) {
     // Keep this error log
@@ -674,7 +681,7 @@ export async function getRelatedEvents(
   eventId: string, 
   eventDate: string, 
   limit: number = 3
-): Promise<EventType[]> {
+): Promise<EventTypes.EventType[]> {
   // console.log(`Fetching related events for event ID: ${eventId} on date: ${eventDate}`);
   if (!eventId || !eventDate) {
     // Keep this error log
@@ -727,7 +734,7 @@ export async function getRelatedEvents(
  * Fetches event day overview data.
  * @returns Promise resolving to array of formatted EventDayOverviewType.
  */
-export async function getEventDaysOverview(): Promise<EventDayOverviewType[]> {
+export async function getEventDaysOverview(): Promise<EventTypes.EventDayOverviewType[]> {
   try {
     const { data, error } = await table('eventDays')
       .select('id, date, name, featuredEventsSummary')
@@ -745,7 +752,7 @@ export async function getEventDaysOverview(): Promise<EventDayOverviewType[]> {
         // formattedDate: format(parseISO(day.date), 'EEEE, MMMM d') 
     }));
 
-    return formattedData as EventDayOverviewType[]; // Type assertion
+    return formattedData as EventTypes.EventDayOverviewType[]; // Type assertion
 
   } catch (err) {
     console.error('Unexpected error fetching event days overview:', err);
@@ -758,7 +765,7 @@ export async function getEventDaysOverview(): Promise<EventDayOverviewType[]> {
  * Selects fields needed for HomePage display.
  * @returns Promise resolving to the formatted parent event object or null if not found.
  */
-export async function getParentEvent(): Promise<EventType | null> {
+export async function getParentEvent(): Promise<EventTypes.EventType | null> {
   // Fetch the parent event quietly - removed noisy logging
   try {
     // Explicitly list each field to ensure correct camelCase column names
@@ -833,10 +840,10 @@ export interface PackageType {
   // e.g., imageUrl, availability_type, etc.
 }
 
-type DbPackage = Database['public']['Tables']['packages']['Row'];
+type DbPackage = SupabaseTypes.Database['public']['Tables']['packages']['Row'];
 // Assume a join table exists for linking packages and ticket definitions
 // LINTER FIX: Removed as it seems unnecessary and caused errors
-// type DbPackageTicketDefinition = Database['public']['Tables']['package_ticket_definitions']['Row'];
+// type DbPackageTicketDefinition = SupabaseTypes.Database['public']['Tables']['package_ticket_definitions']['Row'];
 
 /**
  * Fetches packages associated with a specific event.
@@ -854,14 +861,16 @@ export async function getPackagesForEvent(eventId: string): Promise<PackageType[
 
   try {
     // 1. Fetch packages for the event
-    const { data: packagesData, error: packagesError } = await table('packages')
+    const { data: packagesData, error: packagesError } = await supabase // Use supabase directly
+      .from('packages') // Use correct table name
       .select('*') // Select all columns for now, adjust as needed
-      .eq('event_id', eventId)
-      .eq('is_active', true); // Assuming an 'is_active' flag
+      .eq('parent_event_id', eventId);
+      // FIX: Removed .eq('is_active', true); as the column doesn't exist
 
     if (packagesError) {
       console.error(`Error fetching packages for event ${eventId}:`, packagesError);
-      throw packagesError; // Re-throw to be caught by outer try-catch
+      // Don't re-throw here, let the catch block handle it if needed, return empty array
+      return []; 
     }
 
     if (!packagesData || packagesData.length === 0) {
@@ -869,40 +878,30 @@ export async function getPackagesForEvent(eventId: string): Promise<PackageType[
       return [];
     }
 
+    // FIX: Restore processing logic and return statement
     // 2. Process each package 
-    // LINTER FIX: Simplified includes logic based on lint errors suggesting includes_description is string[]
-    const processedPackages: PackageType[] = packagesData.map((pkg: DbPackage): PackageType => {
-      let includesList: string[] = [];
-
-      // Use includes_description directly if it exists and is an array
-      if (pkg.includes_description && Array.isArray(pkg.includes_description)) {
-        includesList = pkg.includes_description.filter(Boolean); // Filter out any empty strings
-      }
+    const processedPackages: PackageType[] = packagesData.map((pkg: DbPackage) => {
+      // Attempt to use includes_description if it exists and is an array
+      // @ts-ignore - includes_description might not be in generated types yet
+      const includesList = Array.isArray(pkg.includes_description) ? pkg.includes_description : [];
       
-      // If includesList is still empty, add a default
-      if (includesList.length === 0) {
-        includesList.push('Standard package inclusion'); // Default placeholder
-      }
-      
-      // Construct the PackageType object
       return {
         id: pkg.id,
-        // @ts-ignore - Assuming event_id exists despite missing from generated type
-        eventId: pkg.event_id, 
+        // @ts-ignore - Assuming parent_event_id exists based on previous fixes
+        eventId: pkg.parent_event_id || eventId, // Fallback to passed eventId if needed
         name: pkg.name || 'Unnamed Package',
         description: pkg.description || undefined,
-        // @ts-ignore - Assuming price exists despite missing from generated type
-        price: typeof pkg.price === 'number' ? pkg.price : 0, 
+        // @ts-ignore - Assuming price exists
+        price: pkg.price || 0, 
         includes: includesList,
+        // Map other fields as necessary
       };
     });
 
-    return processedPackages;
+    return processedPackages; // Return the processed array
 
   } catch (err) {
-    console.error(`Unexpected error in getPackagesForEvent for event ${eventId}:`, err);
-    return []; // Return empty array on failure
+    console.error(`Unexpected error fetching packages for event ${eventId}:`, err);
+    return []; // Return empty array on unexpected error
   }
 }
-
-// --- NEW FUNCTION END --- 

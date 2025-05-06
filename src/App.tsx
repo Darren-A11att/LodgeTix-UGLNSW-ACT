@@ -14,6 +14,8 @@ import SignupPage from './pages/SignupPage';
 import CheckoutSuccessPage from './pages/CheckoutSuccessPage';
 import CheckoutCanceledPage from './pages/CheckoutCanceledPage';
 import MockCheckoutPage from './pages/MockCheckoutPage';
+import AdminPortalPage from './pages/AdminPortalPage';
+import SimpleProtectedRoute from './components/admin/layout/SimpleProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import { useLocationStore } from './store/locationStore';
 import { initMobileFeatures, isMobileDevice } from './lib/mobileUtils';
@@ -23,7 +25,7 @@ import clsx from 'clsx';
 // Helper component to conditionally render header
 const ConditionalHeader: React.FC = () => {
   const location = useLocation();
-  const hideHeaderPaths: string[] = []; // No paths hidden by default
+  const hideHeaderPaths: string[] = ['/admin']; // Hide header on admin pages
 
   // Check if the current path starts with any of the paths to hide on
   const shouldHideHeader = hideHeaderPaths.some(path => 
@@ -35,7 +37,15 @@ const ConditionalHeader: React.FC = () => {
 
 // Helper component to conditionally render footer
 const ConditionalFooter: React.FC = () => {
-  return <Footer />;
+  const location = useLocation();
+  const hideFooterPaths: string[] = ['/admin']; // Hide footer on admin pages
+
+  // Check if the current path starts with any of the paths to hide on
+  const shouldHideFooter = hideFooterPaths.some(path => 
+    location.pathname === path || (path !== '/' && location.pathname.startsWith(path))
+  );
+
+  return shouldHideFooter ? null : <Footer />;
 };
 
 function App() {
@@ -169,6 +179,12 @@ function App() {
             <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
             <Route path="/checkout/canceled" element={<CheckoutCanceledPage />} />
             <Route path="/mock-checkout" element={<MockCheckoutPage />} />
+            {/* Use admin-portal route to avoid conflict with the /admin folder */}
+            <Route path="/admin-portal/*" element={
+              <SimpleProtectedRoute>
+                <AdminPortalPage />
+              </SimpleProtectedRoute>
+            } />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>

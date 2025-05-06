@@ -256,13 +256,56 @@ export const useRegistrationStore = create<RegistrationState>(
       },
 
       updateAttendee: (attendeeId, updatedData) => {
-        set(state => ({
-          attendees: state.attendees.map(att => 
-            att.attendeeId === attendeeId 
-              ? { ...att, ...updatedData } 
-              : att
-          ),
-        }));
+        set(state => {
+          const attendeeIndex = state.attendees.findIndex(att => att.attendeeId === attendeeId);
+          if (attendeeIndex === -1) {
+            console.warn(`[Store] updateAttendee: Attendee with ID ${attendeeId} not found.`);
+            return state; // Return current state if attendee not found
+          }
+
+          // Deep copy the attendees array for modification
+          const newAttendees = [...state.attendees];
+          const attendeeToUpdate = { ...newAttendees[attendeeIndex] };
+
+          // Initialize ticket object if it doesn't exist
+          if (!attendeeToUpdate.ticket) {
+            attendeeToUpdate.ticket = { ticketDefinitionId: null, selectedEvents: [] };
+          }
+
+          // Handle ticket update specifically
+          if (updatedData.ticket) {
+            const ticketUpdate = updatedData.ticket;
+            const currentTicket = attendeeToUpdate.ticket; // Already initialized
+
+            // Logic for mutual exclusivity: package OR individual definitions
+            if (ticketUpdate.ticketDefinitionId !== undefined) {
+              // If a package ID is being set (even if null), clear individual selections
+              attendeeToUpdate.ticket = {
+                ...currentTicket,
+                ticketDefinitionId: ticketUpdate.ticketDefinitionId, 
+                selectedEvents: [], // Clear individual selections
+              };
+            } else if (ticketUpdate.selectedEvents !== undefined) {
+              // If individual definitions are being set, clear package selection
+              attendeeToUpdate.ticket = {
+                ...currentTicket,
+                ticketDefinitionId: null, // Clear package selection
+                selectedEvents: ticketUpdate.selectedEvents,
+              };
+            } else {
+                 // If updatedData.ticket exists but has neither key (shouldn't happen with current plan)
+                 // Just merge existing ticket? Or log warning? For now, merge.
+                 attendeeToUpdate.ticket = { ...currentTicket, ...ticketUpdate };
+            }
+            // Remove ticket from updatedData to prevent shallow merge override
+            delete updatedData.ticket; 
+          }
+
+          // Merge the rest of the updatedData (excluding ticket)
+          newAttendees[attendeeIndex] = { ...attendeeToUpdate, ...updatedData };
+
+          return { attendees: newAttendees };
+        });
       },
 
       removeAttendee: (attendeeId) => {

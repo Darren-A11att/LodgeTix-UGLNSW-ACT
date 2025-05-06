@@ -68,8 +68,17 @@ const getAttendeeDetailErrors = (attendees: UnifiedAttendeeData[], agreeToTerms:
       const isPrimaryMason = !!attendee.isPrimary;
       if (!attendee.rank) errors.push(`Rank is required for ${desc}.`);
       if (attendee.rank === 'GL') {
-        if (!attendee.grandOffice && !attendee.pastGrandOffice) {
-          errors.push(`Grand Office or Past Grand Office is required for ${desc} with rank GL.`);
+        // Updated Validation Logic:
+        // Require EITHER a grandRank OR a specified grandOffice if 'Current' is selected
+        const hasGrandRank = !!attendee.grandRank;
+        const hasCurrentGrandOffice = attendee.grandOfficer === 'Current' && !!attendee.grandOffice && attendee.grandOffice !== 'Please Select'; // Check if a valid office is selected
+        
+        if (!hasGrandRank && !(attendee.grandOfficer === 'Current' && hasCurrentGrandOffice)) {
+          // Refined error message
+          errors.push(`Either Grand Rank or a specific Grand Office (if Current) is required for ${desc} with rank GL.`);
+        } else if (attendee.grandOfficer === 'Current' && attendee.grandOffice === 'Other' && !attendee.grandOfficeOther) {
+          // Also validate the 'Other' field if selected
+          errors.push(`Please specify the 'Other' Grand Office for ${desc}.`);
         }
       }
       if (isPrimaryMason) { 
@@ -240,6 +249,25 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
       }
     }
   }, [routeRegistrationType, registrationType, setRegistrationType]);
+
+  // --- TEMPORARY TEST EFFECT ---
+  useEffect(() => {
+    const testEventId = '6c12952b-7cf3-4d6a-81bd-1ac3b7ff7076'; // Example child event ID
+    console.log(`[TEST CALL] Attempting to fetch ticket definitions for event: ${testEventId}`);
+    const fetchTestDefs = async () => {
+      try {
+        const definitions = await getTicketDefinitionsForEvent(testEventId);
+        console.log(`[TEST CALL] Result for event ${testEventId}:`, definitions);
+        if (definitions.length === 0) {
+          console.warn(`[TEST CALL] No active ticket definitions found for event ${testEventId}. Check DB data.`);
+        }
+      } catch (error) {
+        console.error(`[TEST CALL] Error fetching definitions for event ${testEventId}:`, error);
+      }
+    };
+    fetchTestDefs();
+  }, []); // Empty dependency array ensures this runs only once on mount
+  // --- END TEMPORARY TEST EFFECT ---
 
   // --- Fetch ALL Events (Initial Load) --- 
   useEffect(() => {
@@ -566,9 +594,27 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
   };
 
   // Placeholder function for TicketSelection prop
-  const handleSelectAttendeeTicket = (attendeeId: string, ticketDefinitionId: string | null) => {
-    console.log(`Selected ticket ${ticketDefinitionId ?? 'None'} for attendee ${attendeeId}`);
-    // TODO: Implement actual logic to update store or state
+  const handleSelectAttendeeTicket = (attendeeId: string, primaryTicketIdOrNull: string | null, individualDefinitionIds?: string[]) => {
+    console.log(`Selected ticket ${primaryTicketIdOrNull ?? 'None'} for attendee ${attendeeId}`);
+    // Construct the update payload for the ticket field
+    let ticketUpdatePayload: Partial<PackageSelectionType>;
+
+    if (primaryTicketIdOrNull !== undefined && primaryTicketIdOrNull !== null) {
+        // A package was selected (or selection cleared via package select)
+        // updateAttendee action will handle clearing selectedEvents
+        ticketUpdatePayload = { ticketDefinitionId: primaryTicketIdOrNull };
+    } else if (individualDefinitionIds !== undefined) {
+        // Individual definitions were selected/toggled
+        // updateAttendee action will handle clearing ticketDefinitionId
+         ticketUpdatePayload = { selectedEvents: individualDefinitionIds };
+    } else {
+        // Invalid state, should not happen if handlers in TicketSelection are correct
+        console.error("Invalid arguments received by selectAttendeeTicket handler in RegisterPage");
+        // Default to clearing selection as safety measure
+         ticketUpdatePayload = { ticketDefinitionId: null }; 
+    }
+    // Call updateAttendee with the correctly structured payload
+    updateAttendee(attendeeId, { ticket: ticketUpdatePayload });
   };
 
   // New function to handle going back to registration type selection
@@ -651,14 +697,35 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
                       title: selectedEvent.title || 'Untitled Event',
                       day: selectedEvent.eventStart ? new Date(selectedEvent.eventStart).toLocaleDateString(undefined, { weekday: 'long' }) : 'N/A', 
                       time: selectedEvent.eventStart ? new Date(selectedEvent.eventStart).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : 'N/A', 
-                      price: 0
+                      price: 0 
                     } : undefined }
-                    selectAttendeeTicket={(attendeeId, ticketId) => updateAttendee(attendeeId, { ticket: { ticketDefinitionId: ticketId, selectedEvents: [] } })}
+                    selectAttendeeTicket={(attendeeId: string, primaryTicketIdOrNull: string | null, individualDefinitionIds?: string[]) => {
+                        // Construct the update payload for the ticket field
+                        let ticketUpdatePayload: Partial<PackageSelectionType>;
+
+                        if (primaryTicketIdOrNull !== undefined && primaryTicketIdOrNull !== null) {
+                            // A package was selected (or selection cleared via package select)
+                            // updateAttendee action will handle clearing selectedEvents
+                            ticketUpdatePayload = { ticketDefinitionId: primaryTicketIdOrNull };
+                        } else if (individualDefinitionIds !== undefined) {
+                            // Individual definitions were selected/toggled
+                            // updateAttendee action will handle clearing ticketDefinitionId
+                             ticketUpdatePayload = { selectedEvents: individualDefinitionIds };
+                        } else {
+                            // Invalid state, should not happen if handlers in TicketSelection are correct
+                            console.error("Invalid arguments received by selectAttendeeTicket handler in RegisterPage");
+                            // Default to clearing selection as safety measure
+                             ticketUpdatePayload = { ticketDefinitionId: null }; 
+                        }
+                        // Call updateAttendee with the correctly structured payload
+                        updateAttendee(attendeeId, { ticket: ticketUpdatePayload });
+                    }}
                     applyTicketToAllAttendees={(ticketId) => { 
-                      attendees.forEach(att => updateAttendee(att.attendeeId, { ticket: { ticketDefinitionId: ticketId, selectedEvents: [] } }));
+                      attendees.forEach(att => updateAttendee(att.attendeeId, { ticket: { ticketDefinitionId: ticketId } }));
                     }}
                     toggleUniformTicketing={(enabled) => { 
                       console.log('Uniform ticketing toggled:', enabled);
+                      // Might need state update logic here if uniform mode affects attendee state
                     }}
                     nextStep={() => setCurrentStep(4)}
                     prevStep={() => setCurrentStep(2)}

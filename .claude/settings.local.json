@@ -22,7 +22,9 @@
       "Bash(npm run dev:*)",
       "Bash(find:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(./scripts/fix-supabase-imports.sh:*)",
+      "mcp__supabase__list_tables"
     ],
     "deny": []
   }

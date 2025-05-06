@@ -48,12 +48,6 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
     return masonCount === 0 ? 'Add Primary Mason' : 'Add Additional Mason';
   }, [attendees]);
 
-  // Ensure primary attendee exists on mount if needed
-  const addPrimaryAttendee = useRegistrationStore((state: RegistrationState) => state.addPrimaryAttendee);
-  useEffect(() => {
-      addPrimaryAttendee();
-  }, [addPrimaryAttendee]);
-
   const handleAddMason = () => {
     // Determine correct type based on registration
     const typeToAdd = registrationType === 'lodge' ? 'lodge_contact' :
@@ -136,13 +130,18 @@ const AttendeeDetails: React.FC<AttendeeDetailsProps> = ({
     }
   };
 
-  // Ensure primary attendee exists if attendees list is empty
+  // Restore the useEffect that correctly adds the initial primary attendee
   useEffect(() => {
     if (attendees.length === 0) {
       console.log("[AttendeeDetails] Adding initial primary attendee");
-      addPrimaryAttendee();
+      // Ensure addPrimaryAttendee is available before calling
+      const addPrimaryAttendeeAction = useRegistrationStore.getState().addPrimaryAttendee;
+      if (addPrimaryAttendeeAction) {
+         addPrimaryAttendeeAction();
+      }
     }
-  }, [attendees, addPrimaryAttendee]);
+    // Depend only on attendees length, as addPrimaryAttendee action should be stable
+  }, [attendees]); 
 
   return (
     <div className="">

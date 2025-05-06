@@ -1,12 +1,17 @@
 import React from 'react';
-import AdminLayout from '../components/layout/AdminLayout';
 
-export default function AdminDashboardPage() {
+export default function AdminDashboard() {
   return (
-    <AdminLayout 
-      title="Dashboard" 
-      description="Overview of your system statistics and activities"
-    >
+    <div className="px-4 sm:px-6 lg:px-8">
+      <div className="sm:flex sm:items-center mb-8">
+        <div className="sm:flex-auto">
+          <h1 className="text-base font-semibold leading-6 text-gray-900">Dashboard</h1>
+          <p className="mt-2 text-sm text-gray-700">
+            Overview of your system statistics and activities
+          </p>
+        </div>
+      </div>
+      
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <div className="bg-white overflow-hidden shadow rounded-lg divide-y divide-gray-200">
           <div className="px-4 py-5 sm:px-6">
@@ -70,6 +75,6 @@ export default function AdminDashboardPage() {
           </ul>
         </div>
       </div>
-    </AdminLayout>
+    </div>
   );
 }
