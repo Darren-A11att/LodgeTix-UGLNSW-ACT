@@ -292,9 +292,7 @@ const MasonForm: React.FC<MasonFormProps> = ({
   }, [primaryMasonData, mason.contactPreference]); 
   
   const handleRemoveSelf = useCallback(() => {
-      if (window.confirm("Are you sure you want to remove this attendee?")) {
-          removeAttendee(attendeeId);
-      }
+      removeAttendee(attendeeId);
   }, [removeAttendee, attendeeId]);
 
   // --- Transform Partner Data for LadyPartnerForm ---
