@@ -3,19 +3,19 @@ import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import { getEvents } from '../lib/api/events';
 import { EventType } from '../shared/types/event';
 import { ReservationProvider } from '../context/ReservationContext';
-import RegisterSteps from '../components/register/RegisterSteps';
-import RegistrationTypeSelection from '../components/register/RegistrationTypeSelection';
-import TicketSelection from '../components/register/TicketSelection';
-import AttendeeDetails from '../components/register/AttendeeDetails';
-import OrderSummarySection from '../components/register/OrderSummarySection';
-import PaymentSection from '../components/register/PaymentSection';
-import ConfirmationSection from '../components/register/ConfirmationSection';
-import AttendeeSummary from '../components/register/AttendeeSummary';
+import RegisterSteps from '../components/register/registration/RegisterSteps';
+import RegistrationTypeSelection from '../components/register/registration/RegistrationTypeSelection';
+import TicketSelection from '../components/register/ticket/TicketSelection';
+import AttendeeDetails from '../components/register/attendee/AttendeeDetails';
+import OrderSummarySection from '../components/register/order/OrderSummarySection';
+import PaymentSection from '../components/register/order/PaymentSection';
+import ConfirmationSection from '../components/register/order/ConfirmationSection';
+import AttendeeSummary from '../components/register/attendee/AttendeeSummary';
 import TicketingSummary from '../components/register/ticket/TicketingSummary';
-import ReservationTimerSection from '../components/register/ReservationTimerSection';
+import ReservationTimerSection from '../components/register/reservations/ReservationTimerSection';
 import { useRegistrationStore, UnifiedAttendeeData, RegistrationType, BillingDetailsType, PackageSelectionType } from '../store/registrationStore';
 import { FormState, TicketType } from '../shared/types/register';
-import DraftRecoveryModal from '../components/register/DraftRecoveryModal';
+import DraftRecoveryModal from '../components/register/functions/DraftRecoveryModal';
 
 // Email validation utility
 const isValidEmail = (email: string): boolean => {
@@ -410,20 +410,17 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
     price: 0, // Add placeholder price back for prop compatibility
   } : undefined;
 
-  // Define availableTickets - Placeholder: For now, just use events. 
-  // This needs to be replaced with logic combining packages and individual events later.
-  const availableTickets = eventsData.map(e => ({ 
+  // Recreate the availableTickets mapping for TicketSelection/TicketingSummary
+  const availableTickets: TicketType[] = eventsData.map(e => ({ 
       id: e.id, 
-      name: e.title ?? 'Event', 
-      // Add placeholder price back to satisfy TicketType
-      price: 0, 
-      // Add other fields needed by TicketType if necessary, using defaults
+      name: e.title ?? 'Event', // Use 'name' as required by TicketType
+      price: 0, // Placeholder price
       description: e.description ?? '',
-      includes: [],
+      includes: [], // Add empty 'includes' as required by TicketType
       availableTo: [], 
       maxQuantity: 10,
       attendeeTypes: [] 
-  })); // Map events to a structure TicketSelection might expect for now
+  }));
 
   // calculateTotalPrice needs update later based on package/event price logic
   const calculateTotalPrice = (): number => {
@@ -470,12 +467,21 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
       }
     }
     
+    // Ensure personId is always a string in the nested data object
+    const attendeeDataWithGuaranteedPersonId = {
+      ...attendee,
+      personId: attendee.personId ?? '', // Provide empty string if undefined
+      title: attendee.title ?? null, // Provide null if undefined
+      primaryEmail: attendee.primaryEmail ?? null, // Provide null if undefined
+      primaryPhone: attendee.primaryPhone ?? null, // Provide null if undefined
+    };
+
     return {
       type: attendee.attendeeType.toLowerCase(),
       id: attendee.attendeeId,
       name: `${attendee.firstName || ''} ${attendee.lastName || ''}`.trim(), 
       title: attendee.title ?? '', 
-      data: attendee,
+      data: attendeeDataWithGuaranteedPersonId as any, // Cast inner data to any for AttendeeItem compatibility
       ...(relatedTo ? { relatedTo } : {})
     };
   }) || [];
@@ -484,6 +490,12 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
     e.preventDefault();
     nextStep();
     // In a real application, you would process the payment and submit the form here
+  };
+
+  // Placeholder function for TicketSelection prop
+  const handleSelectAttendeeTicket = (attendeeId: string, ticketDefinitionId: string | null) => {
+    console.log(`Selected ticket ${ticketDefinitionId ?? 'None'} for attendee ${attendeeId}`);
+    // TODO: Implement actual logic to update store or state
   };
 
   // New function to handle going back to registration type selection
@@ -505,7 +517,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
     agreeToTerms: agreeToTerms,
     useUniformTicketing: true, 
     attendeeAddOrder: [],
-    attendees: attendees, 
+    attendees: attendees as any, // Cast to any to bypass attendeeType mismatch for now
     // Add missing fields required by FormState type
     registrationId: draftId, // Use draftId from store?
     customerId: null, // Placeholder
@@ -553,11 +565,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
             // const step3Errors = getTicketSelectionErrors(attendees, packages);
             return (
                 <TicketSelection
-                    // availableTickets={availableTickets} // Use fetched tickets
-                    availableTickets={eventsData} // Temp use eventsData
-                    attendees={attendees}
-                    packages={packages}
-                    updatePackageSelection={updatePackageSelection}
+                    formState={minimalFormState} // Pass formState
+                    selectAttendeeTicket={handleSelectAttendeeTicket} // Pass handler function
+                    availableTickets={availableTickets} // Pass the correctly mapped availableTickets
+                    // attendees={attendees} // Remove attendees prop as it's not expected
+                    // packages={packages} // Remove packages prop as it's not expected
                     nextStep={nextStep}
                     prevStep={prevStep}
                     // validationErrors={step3Errors} // Pass errors down
@@ -678,7 +690,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
                     
                     {/* Show TicketingSummary (renamed Order Summary) on Step 3, else show AttendeeSummary */}
                     {currentStep === 3 ? (
-                        <TicketingSummary />
+                        <TicketingSummary 
+                            formState={minimalFormState} 
+                            allAttendees={allAttendees}
+                            availableTickets={availableTickets} 
+                        />
                     ) : (
                         <AttendeeSummary />
                     )}
@@ -712,7 +728,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
                         {currentStep >= 3 && <ReservationTimerSection />}
                         
                         {currentStep === 3 ? (
-                            <TicketingSummary />
+                            <TicketingSummary 
+                                formState={minimalFormState} 
+                                allAttendees={allAttendees}
+                                availableTickets={availableTickets}
+                            />
                         ) : (
                             <AttendeeSummary />
                         )}

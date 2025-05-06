@@ -1,9 +1,7 @@
 import React from 'react';
 import { FormState, TicketType } from '../../../shared/types/register';
 import { TicketDefinitionType } from '../../../shared/types/ticket';
-import { events } from '../../../shared/data/events';
-import { AttendeeData } from '../../../lib/api/registrations';
-import { useRegistrationStore } from '../../../store/registrationStore';
+import { useRegistrationStore, RegistrationState, UnifiedAttendeeData as StoreUnifiedAttendeeData } from '../../../store/registrationStore';
 
 // Define the structure for the flattened attendee list passed from the parent
 interface AttendeeItem {
@@ -11,28 +9,27 @@ interface AttendeeItem {
   id: string;
   name: string;
   title: string;
-  data: AttendeeData;
+  data: StoreUnifiedAttendeeData;
   relatedTo?: string;
 }
 
 interface TicketingSummaryProps {
-  formState: FormState;
-  allAttendees: AttendeeItem[];
-  // Support both ticket types for backward compatibility
-  availableTickets: (TicketType | TicketDefinitionType)[];
+  // formState: FormState;
+  // allAttendees: AttendeeItem[];
+  // availableTickets: (TicketType | TicketDefinitionType)[];
 }
 
 // Helper Utilities
 const ticketUtils = {
   // Helper to get friendly ticket name
-  getTicketName: (ticketId: string | undefined, availableTickets: (TicketType | TicketDefinitionType)[]): string => {
+  getTicketName: (ticketId: string | undefined | null, availableTickets: (TicketType | TicketDefinitionType)[]): string => {
     if (!ticketId) return "";
     const ticket = availableTickets.find(t => t.id === ticketId);
     return ticket?.name || "Unknown Ticket";
   },
 
   // Helper to get ticket price - price is now required by the database schema
-  getTicketPrice: (ticketId: string | undefined, availableTickets: (TicketType | TicketDefinitionType)[]): number => {
+  getTicketPrice: (ticketId: string | undefined | null, availableTickets: (TicketType | TicketDefinitionType)[]): number => {
     if (!ticketId) return 0;
     const ticket = availableTickets.find(t => t.id === ticketId);
     // Since price is required in the updated schema, we can confidently return the price
@@ -54,20 +51,18 @@ const ticketUtils = {
   }
 };
 
-const TicketingSummary: React.FC = () => {
-  // Access state from the registration store
-  const { attendees, availableTickets } = useRegistrationStore(state => ({
-    attendees: state.attendees,
-    availableTickets: state.availableTickets || [] // Ensure this is correctly defined in the store
-  }));
+const TicketingSummary: React.FC<TicketingSummaryProps> = () => {
+  // Access state slices individually from the registration store
+  const attendees = useRegistrationStore((state: RegistrationState) => state.attendees);
+  const availableTickets = useRegistrationStore((state: RegistrationState) => state.availableTickets || []);
 
-  // Correct type comparisons
-  const sortedAttendees = [...attendees].sort((a, b) => {
-    // Primary mason first
+  // Sort using the StoreUnifiedAttendeeData type
+  const sortedAttendees = [...attendees].sort((a: StoreUnifiedAttendeeData, b: StoreUnifiedAttendeeData) => {
+    // Primary mason first (use lowercase 'mason')
     if (a.attendeeType === 'mason' && a.isPrimary) return -1;
     if (b.attendeeType === 'mason' && b.isPrimary) return 1;
 
-    // For partners, always keep them right after their related attendee
+    // Partners after related attendee (use lowercase types)
     if ((b.attendeeType === 'lady_partner' || b.attendeeType === 'guest_partner') && 
         b.relatedAttendeeId === a.attendeeId) {
       return -1; // a should come before b
@@ -78,27 +73,31 @@ const TicketingSummary: React.FC = () => {
       return 1; // b should come before a
     }
     
-    return (attendees.findIndex(att => att.attendeeId === a.attendeeId)) - 
-           (attendees.findIndex(att => att.attendeeId === b.attendeeId));
+    // Use StoreUnifiedAttendeeData type for findIndex parameters
+    return (attendees.findIndex((att: StoreUnifiedAttendeeData) => att.attendeeId === a.attendeeId)) - 
+           (attendees.findIndex((att: StoreUnifiedAttendeeData) => att.attendeeId === b.attendeeId));
   });
 
-  // Map the sorted AttendeeData to the AttendeeItem format expected
-  const displayAttendees = sortedAttendees.map(attendee => {
+  // Map sorted StoreUnifiedAttendeeData to AttendeeItem format
+  const displayAttendees: AttendeeItem[] = sortedAttendees.map((attendee): AttendeeItem => {
     const isPartner = attendee.attendeeType === 'lady_partner' || attendee.attendeeType === 'guest_partner';
     let relatedTo = '';
     
     if (isPartner && attendee.relatedAttendeeId) {
-      const relatedAttendee = attendees.find(a => 
+      // Use StoreUnifiedAttendeeData type for find parameter
+      const relatedAttendee = attendees.find((a: StoreUnifiedAttendeeData) => 
         a.attendeeId === attendee.relatedAttendeeId
       );
       
       if (relatedAttendee) {
+        // Use lowercase type in the string
         relatedTo = `${relatedAttendee.attendeeType} ${relatedAttendee.firstName} ${relatedAttendee.lastName}`;
       }
     }
     
+    // Return type matches AttendeeItem, no cast needed if mapping is correct
     return {
-      type: attendee.attendeeType.toLowerCase(),
+      type: attendee.attendeeType ? attendee.attendeeType : 'unknown',
       id: attendee.attendeeId,
       name: `${attendee.firstName || ''} ${attendee.lastName || ''}`,
       title: attendee.title || '',
@@ -108,7 +107,7 @@ const TicketingSummary: React.FC = () => {
   });
 
   const totalAttendees = displayAttendees.length;
-  const totalPrice = ticketUtils.calculateTotalPrice(displayAttendees as AttendeeItem[], availableTickets);
+  const totalPrice = ticketUtils.calculateTotalPrice(displayAttendees, availableTickets);
 
   if (totalAttendees === 0) {
     return null;
@@ -133,7 +132,7 @@ const TicketingSummary: React.FC = () => {
                 </span>
               </div>
               <div className="flex justify-between text-xs text-slate-500">
-                <span>{attendee.data.attendeeType}</span>
+                <span>{attendee.type}</span>
                 <span>{hasTicket ? ticketName : 'No ticket selected'}</span>
               </div>
               {attendee.relatedTo && (
