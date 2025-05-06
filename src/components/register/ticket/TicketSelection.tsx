@@ -64,13 +64,12 @@ interface TicketSelectionProps {
 }
 
 // --- Type Guard --- 
-// Check for a property that exists on TicketType but not TicketDefinitionType
-// (e.g., `.includes` based on previous error message, adjust if needed)
+// Check for the presence and type of the `includes` array property 
+// which is specific to the legacy TicketType.
 function isLegacyTicketType(ticket: TicketType | TicketDefinitionType): ticket is TicketType {
-  // Add a check for null/undefined ticket object
   if (!ticket) return false;
-  // Check for a property reasonably unique to the legacy TicketType
-  return typeof (ticket as TicketType).includes === 'string'; // Adjust property name if needed
+  // Check if 'includes' property exists and is an array
+  return Array.isArray((ticket as TicketType).includes);
 }
 
 const TicketSelection: React.FC<TicketSelectionProps> = ({ 
@@ -135,6 +134,12 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
 
   // Filter for legacy tickets expected by UniformTicketing
   const legacyTicketsOnly = ticketsToUse.filter(isLegacyTicketType);
+
+  // --- LOGGING --- 
+  console.log('[TicketSelection] Props received:', { availableTickets, tickets });
+  console.log('[TicketSelection] Derived ticketsToUse (Content):', JSON.stringify(ticketsToUse, null, 2)); // Log content
+  console.log('[TicketSelection] Filtered legacyTicketsOnly (for UniformTicketing):', legacyTicketsOnly);
+  // --- END LOGGING ---
 
   // --- Helper Functions (Defined once) ---
   const getSelectedTicketId = (attendeeId: string): string | null => {
