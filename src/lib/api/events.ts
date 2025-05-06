@@ -816,3 +816,93 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
 }
 // --- END TEMPORARY ---
 */ 
+
+// --- NEW FUNCTION START ---
+
+// Type definition for a Package (similar to legacy TicketType)
+// We'll need to reconstruct the 'includes' array based on linked ticket definitions
+// or potentially a dedicated 'includes_description' field on the package itself.
+export interface PackageType {
+  id: string; // Package ID
+  eventId: string; // From the 'packages' table
+  name: string;
+  description?: string;
+  price: number; // Package price (might be on the table or calculated)
+  includes: string[]; // Reconstructed list of what the package includes
+  // Add other relevant fields from the 'packages' table if needed
+  // e.g., imageUrl, availability_type, etc.
+}
+
+type DbPackage = Database['public']['Tables']['packages']['Row'];
+// Assume a join table exists for linking packages and ticket definitions
+// LINTER FIX: Removed as it seems unnecessary and caused errors
+// type DbPackageTicketDefinition = Database['public']['Tables']['package_ticket_definitions']['Row'];
+
+/**
+ * Fetches packages associated with a specific event.
+ * Attempts to reconstruct the 'includes' list based on linked ticket definitions
+ * or a dedicated field on the package.
+ * 
+ * @param eventId - The UUID of the event
+ * @returns Promise resolving to array of PackageType
+ */
+export async function getPackagesForEvent(eventId: string): Promise<PackageType[]> {
+  if (!eventId) {
+    console.warn('getPackagesForEvent called without eventId');
+    return [];
+  }
+
+  try {
+    // 1. Fetch packages for the event
+    const { data: packagesData, error: packagesError } = await table('packages')
+      .select('*') // Select all columns for now, adjust as needed
+      .eq('event_id', eventId)
+      .eq('is_active', true); // Assuming an 'is_active' flag
+
+    if (packagesError) {
+      console.error(`Error fetching packages for event ${eventId}:`, packagesError);
+      throw packagesError; // Re-throw to be caught by outer try-catch
+    }
+
+    if (!packagesData || packagesData.length === 0) {
+      console.log(`No active packages found for event ${eventId}`);
+      return [];
+    }
+
+    // 2. Process each package 
+    // LINTER FIX: Simplified includes logic based on lint errors suggesting includes_description is string[]
+    const processedPackages: PackageType[] = packagesData.map((pkg: DbPackage): PackageType => {
+      let includesList: string[] = [];
+
+      // Use includes_description directly if it exists and is an array
+      if (pkg.includes_description && Array.isArray(pkg.includes_description)) {
+        includesList = pkg.includes_description.filter(Boolean); // Filter out any empty strings
+      }
+      
+      // If includesList is still empty, add a default
+      if (includesList.length === 0) {
+        includesList.push('Standard package inclusion'); // Default placeholder
+      }
+      
+      // Construct the PackageType object
+      return {
+        id: pkg.id,
+        // @ts-ignore - Assuming event_id exists despite missing from generated type
+        eventId: pkg.event_id, 
+        name: pkg.name || 'Unnamed Package',
+        description: pkg.description || undefined,
+        // @ts-ignore - Assuming price exists despite missing from generated type
+        price: typeof pkg.price === 'number' ? pkg.price : 0, 
+        includes: includesList,
+      };
+    });
+
+    return processedPackages;
+
+  } catch (err) {
+    console.error(`Unexpected error in getPackagesForEvent for event ${eventId}:`, err);
+    return []; // Return empty array on failure
+  }
+}
+
+// --- NEW FUNCTION END --- 

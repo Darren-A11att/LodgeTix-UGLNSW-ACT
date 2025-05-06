@@ -16,6 +16,9 @@ import ReservationTimerSection from '../components/register/reservations/Reserva
 import { useRegistrationStore, UnifiedAttendeeData, RegistrationType, BillingDetailsType, PackageSelectionType } from '../store/registrationStore';
 import { FormState, TicketType } from '../shared/types/register';
 import DraftRecoveryModal from '../components/register/functions/DraftRecoveryModal';
+import { getPackagesForEvent, PackageType, getTicketDefinitionsForEvent } from '../lib/api/events';
+import { TicketDefinitionType } from '../shared/types/ticket';
+import { getChildEvents } from '../lib/api/events';
 
 // Email validation utility
 const isValidEmail = (email: string): boolean => {
@@ -147,6 +150,12 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
   const [eventsData, setEventsData] = useState<EventType[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [eventsError, setEventsError] = useState<string | null>(null);
+
+  // --- State for selected event and its related tickets/packages ---
+  const [selectedEvent, setSelectedEvent] = useState<EventType | null>(null);
+  const [eventPackages, setEventPackages] = useState<PackageType[]>([]);
+  const [eventTicketDefinitions, setEventTicketDefinitions] = useState<TicketDefinitionType[]>([]);
+  const [isLoadingEventDetails, setIsLoadingEventDetails] = useState(false);
   
   // Get state and actions from the registration store
   const {
@@ -232,15 +241,14 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
     }
   }, [routeRegistrationType, registrationType, setRegistrationType]);
 
-  // --- Fetch Events --- 
+  // --- Fetch ALL Events (Initial Load) --- 
   useEffect(() => {
     const fetchEvents = async () => {
       setIsLoadingEvents(true);
       setEventsError(null);
       try {
-        // Fetch events (assuming no pagination needed for initial load here)
-        const response = await getEvents({}); // Pass empty object for default params
-        setEventsData(response.events); // Extract events array from response
+        const response = await getEvents({});
+        setEventsData(response.events || []); // Ensure eventsData is always an array
       } catch (error) {
         console.error("Error fetching events:", error);
         setEventsError("Failed to load event data.");
@@ -249,8 +257,90 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
       }
     };
     fetchEvents();
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []);
 
+  // --- Set Initial Selected Event (Always default to Parent) ---
+  useEffect(() => {
+    const parentEventId = "307c2d85-72d5-48cf-ac94-082ca2a5d23d"; // Define constant
+
+    // Only run if events are loaded and selectedEvent is not yet set
+    if (eventsData.length > 0 && !selectedEvent) {
+      const parentEvent = eventsData.find(event => event.id === parentEventId);
+
+      if (parentEvent) {
+        setSelectedEvent(parentEvent);
+        console.log(`RegisterPage: Defaulting selected event to Parent Event ID: ${parentEvent.id}`);
+      } else {
+        console.error(`RegisterPage: Default Parent Event ID (${parentEventId}) not found in fetched eventsData! Cannot proceed.`);
+        setEventsError('Could not find the main event configuration. Please contact support.');
+        // Set selectedEvent to null to prevent potential errors downstream
+        setSelectedEvent(null); 
+      }
+    }
+    // Removed dependency on preselectedEventId as we always default to parent
+  }, [eventsData, selectedEvent]); 
+
+  // --- Fetch Packages and Ticket Definitions for CHILD Events of selectedEvent ---
+  useEffect(() => {
+    const fetchEventDetails = async () => {
+      // Ensure the selected event is the intended parent event
+      const parentEventId = "307c2d85-72d5-48cf-ac94-082ca2a5d23d";
+      if (!selectedEvent?.id || selectedEvent.id !== parentEventId) {
+        setEventPackages([]);
+        setEventTicketDefinitions([]);
+        console.log('RegisterPage: Selected event is not the target parent event, skipping child data fetch.');
+        return; // Only fetch children for the specific parent event
+      }
+
+      console.log(`RegisterPage: Fetching child events and their details for parent: ${selectedEvent.id}`);
+      setIsLoadingEventDetails(true);
+      setEventsError(null); // Clear previous errors
+      try {
+        // 1. Fetch Child Events
+        const childEvents = await getChildEvents(selectedEvent.id);
+        if (!childEvents || childEvents.length === 0) {
+          console.log(`RegisterPage: No child events found for parent ${selectedEvent.id}`);
+          setEventPackages([]);
+          setEventTicketDefinitions([]);
+          setIsLoadingEventDetails(false);
+          return;
+        }
+
+        console.log(`RegisterPage: Found ${childEvents.length} child events. Fetching their packages/definitions...`);
+
+        // 2. Fetch Packages and Definitions for EACH Child Event
+        const packagePromises = childEvents.map(child => getPackagesForEvent(child.id));
+        const definitionPromises = childEvents.map(child => getTicketDefinitionsForEvent(child.id));
+
+        // 3. Await all fetches and flatten results
+        const allPackagesNested = await Promise.all(packagePromises);
+        const allDefinitionsNested = await Promise.all(definitionPromises);
+
+        const allPackages = allPackagesNested.flat();
+        const allDefinitions = allDefinitionsNested.flat();
+        
+        // Remove duplicates (based on ID) - important if a package/definition could belong to multiple children?
+        const uniquePackages = Array.from(new Map(allPackages.map(p => [p.id, p])).values());
+        const uniqueDefinitions = Array.from(new Map(allDefinitions.map(d => [d.id, d])).values());
+
+        setEventPackages(uniquePackages);
+        setEventTicketDefinitions(uniqueDefinitions);
+        console.log('RegisterPage: Aggregated Packages from children:', uniquePackages);
+        console.log('RegisterPage: Aggregated Definitions from children:', uniqueDefinitions);
+
+      } catch (error) {
+        console.error(`Error fetching child event details for parent ${selectedEvent.id}:`, error);
+        setEventsError('Failed to load ticket or package data for the event sessions.');
+        setEventPackages([]);
+        setEventTicketDefinitions([]);
+      } finally {
+        setIsLoadingEventDetails(false);
+      }
+    };
+
+    fetchEventDetails();
+  }, [selectedEvent]); // Dependency: only re-run when selectedEvent object changes
+  
   // --- Step Navigation (update to use URL-based navigation) ---
   const nextStep = useCallback(() => {
     const nextStepNumber = currentStep + 1;
@@ -388,25 +478,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
   };
 
   // Find the selected event data
-  const selectedEvent = eventsData.find((event) => event.id === registrationType);
-  
-  // Available tickets are now just the main events list
-  const availableEvents = eventsData; // Rename for clarity
-
-  // Get validation errors for Step 2
-  const step2ValidationErrors = getAttendeeDetailErrors(attendees, agreeToTerms);
-
-  // Calculate if Attendee Details step is complete
-  const isStep2Complete = agreeToTerms && step2ValidationErrors.length === 0;
-
-  // Get single event ticket if coming from event page
-  const foundEvent = registrationType
-    ? eventsData.find(e => e.id === registrationType)
-    : undefined;
-
-  // Ensure the selectedEvent object matches the expected structure, providing a default price
-  const selectedEventObj = foundEvent ? {
-    ...foundEvent,
+  const selectedEventObj = selectedEvent ? {
+    ...selectedEvent,
     price: 0, // Add placeholder price back for prop compatibility
   } : undefined;
 
@@ -561,18 +634,34 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ preselectedEventId }) => {
                 />
             );
         case 3:
-            // Get errors for step 3 (Tickets)
-            // const step3Errors = getTicketSelectionErrors(attendees, packages);
+            if (!selectedEvent) {
+                // TODO: Show an event selection UI or message if no event is selected
+                return <div>Please select an event first. (UI Placeholder)</div>;
+            }
+            if (isLoadingEventDetails) {
+                return <div>Loading ticket information...</div>;
+            }
             return (
                 <TicketSelection
-                    formState={minimalFormState} // Pass formState
-                    selectAttendeeTicket={handleSelectAttendeeTicket} // Pass handler function
-                    availableTickets={availableTickets} // Pass the correctly mapped availableTickets
-                    // attendees={attendees} // Remove attendees prop as it's not expected
-                    // packages={packages} // Remove packages prop as it's not expected
-                    nextStep={nextStep}
-                    prevStep={prevStep}
-                    // validationErrors={step3Errors} // Pass errors down
+                    formState={{ attendees: attendees }} 
+                    availablePackages={eventPackages} 
+                    availableDefinitions={eventTicketDefinitions}
+                    selectedEvent={selectedEvent ? { 
+                      id: selectedEvent.id, 
+                      title: selectedEvent.title || 'Untitled Event',
+                      day: selectedEvent.eventStart ? new Date(selectedEvent.eventStart).toLocaleDateString(undefined, { weekday: 'long' }) : 'N/A', 
+                      time: selectedEvent.eventStart ? new Date(selectedEvent.eventStart).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : 'N/A', 
+                      price: 0
+                    } : undefined }
+                    selectAttendeeTicket={(attendeeId, ticketId) => updateAttendee(attendeeId, { ticket: { ticketDefinitionId: ticketId, selectedEvents: [] } })}
+                    applyTicketToAllAttendees={(ticketId) => { 
+                      attendees.forEach(att => updateAttendee(att.attendeeId, { ticket: { ticketDefinitionId: ticketId, selectedEvents: [] } }));
+                    }}
+                    toggleUniformTicketing={(enabled) => { 
+                      console.log('Uniform ticketing toggled:', enabled);
+                    }}
+                    nextStep={() => setCurrentStep(4)}
+                    prevStep={() => setCurrentStep(2)}
                 />
             );
         case 4:

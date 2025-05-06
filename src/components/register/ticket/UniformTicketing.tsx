@@ -1,8 +1,10 @@
 import React from 'react';
 import { TicketType, MasonData, LadyPartnerData, GuestData, GuestPartnerData } from '../../../shared/types/register';
+import { TicketDefinitionType } from '../../../shared/types/ticket';
 import PackageTicketSection from './PackageTicketSection';
 import { TrendingUp } from 'lucide-react';
 import { getTicketAvailability } from '../../../lib/api/events';
+import { PackageType } from '../../../lib/api/events';
 
 // Define AttendeeType locally (or import if moved to shared types)
 interface AttendeeType {
@@ -16,11 +18,10 @@ interface AttendeeType {
 
 interface UniformTicketingProps {
   selectedTicketId: string;
-  availableTickets: TicketType[];
+  availableTickets: PackageType[];
   allAttendees: AttendeeType[];
   onSelectTicket: (ticketId: string) => void;
   onSwitchToIndividualMode?: () => void; // Optional callback to switch to individual ticketing mode
-  isReserving?: boolean; // Indicates if a reservation is in progress
 }
 
 const UniformTicketing: React.FC<UniformTicketingProps> = ({
@@ -28,8 +29,7 @@ const UniformTicketing: React.FC<UniformTicketingProps> = ({
   availableTickets,
   allAttendees,
   onSelectTicket,
-  onSwitchToIndividualMode,
-  isReserving = false
+  onSwitchToIndividualMode
 }) => {
   // State for ticket availability data
   const [capacityData, setCapacityData] = React.useState<Record<string, {
@@ -84,17 +84,16 @@ const UniformTicketing: React.FC<UniformTicketingProps> = ({
       
       setIsLoadingCapacity(true);
       try {
-        // For each ticket, get its availability
+        // Map over the available packages
         const capacityPromises = availableTickets.map(async (ticket) => {
-          // Use the ticket's event ID or the form state selectedEventId (if available via parent)
-          const eventId = ticket.eventId || ticket.id; 
+          // LINTER FIX: Use eventId property from PackageType
+          const eventId = ticket.eventId;
           const availability = await getTicketAvailabilityWrapper(eventId, ticket.id);
           return { ticketId: ticket.id, availability };
         });
         
         const results = await Promise.all(capacityPromises);
         
-        // Convert to record format
         const capacityRecord: Record<string, any> = {};
         results.forEach(result => {
           capacityRecord[result.ticketId] = result.availability;
@@ -137,7 +136,6 @@ const UniformTicketing: React.FC<UniformTicketingProps> = ({
         onSelectTicket={onSelectTicket}
         capacityInfo={capacityData}
         attendeeCount={allAttendees.length}
-        isReserving={isReserving}
         onSwitchToIndividualMode={onSwitchToIndividualMode}
       />
       

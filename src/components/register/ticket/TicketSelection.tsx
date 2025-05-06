@@ -18,6 +18,8 @@ import EventSelectionList from './EventSelectionList';
 import { useReservationBypass as useReservationHook } from '../../../hooks/useReservationBypass';
 import { useReservation as useReservationContext } from '../../../context/ReservationContext';
 import { preventRedirect, startRedirectPreventionKeepAlive } from '../../../lib/redirectPrevention';
+// LINTER FIX: Import PackageType
+import { PackageType } from '../../../lib/api/events';
 
 // Type definition for the structure expected by child components like UniformTicketing/AttendeeTicketItem
 // Based on the legacy types
@@ -50,34 +52,28 @@ function generateId() {
 }
 
 interface TicketSelectionProps {
-  formState: RegistrationState; // Use RegistrationState from the store
-  tickets?: TicketType[]; 
-  availableTickets?: TicketType[];
-  // selectedEventId is removed from FormState, rely on selectedEvent prop
+  // LINTER FIX: Only require the attendees part of the state
+  formState: { attendees: StoreUnifiedAttendeeData[] | undefined }; 
+  // --- NEW PROPS for separate data sources ---
+  availablePackages?: PackageType[];
+  availableDefinitions?: TicketDefinitionType[];
+  // --- Deprecated/Removed Props ---
+  // tickets?: TicketType[]; // Replaced by availablePackages
+  // availableTickets?: TicketType[]; // Replaced by availableDefinitions/availablePackages
   selectedEvent?: { id: string; title: string; day: string; time: string; price: number };
-  selectTicket?: (ticketId: string) => void; 
+  // selectTicket?: (ticketId: string) => void; // Likely handled by applyTicketToAllAttendees now
   selectAttendeeTicket: (attendeeId: string, ticketDefinitionId: string | null) => void;
-  toggleUniformTicketing?: (enabled: boolean) => void; 
+  toggleUniformTicketing?: (enabled: boolean) => void; // Keep if mode toggle is external
   applyTicketToAllAttendees?: (ticketId: string) => void; 
   nextStep: () => void;
   prevStep: () => void;
 }
 
-// --- Type Guard --- 
-// Check for the presence and type of the `includes` array property 
-// which is specific to the legacy TicketType.
-function isLegacyTicketType(ticket: TicketType | TicketDefinitionType): ticket is TicketType {
-  if (!ticket) return false;
-  // Check if 'includes' property exists and is an array
-  return Array.isArray((ticket as TicketType).includes);
-}
-
 const TicketSelection: React.FC<TicketSelectionProps> = ({ 
   formState, 
-  availableTickets, 
-  tickets, 
-  selectedEvent, // Rely on this prop for event info
-  selectTicket,
+  availablePackages = [], 
+  availableDefinitions = [],
+  selectedEvent, 
   selectAttendeeTicket,
   toggleUniformTicketing,
   applyTicketToAllAttendees,
@@ -129,54 +125,49 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
 
   console.log('TicketSelection - formState:', formState); // Log incoming state
 
-  // Combine TicketType and TicketDefinitionType for ticketsToUse
-  const ticketsToUse: (TicketType | TicketDefinitionType)[] = availableTickets || tickets || [];
-
-  // Filter for legacy tickets expected by UniformTicketing
-  const legacyTicketsOnly = ticketsToUse.filter(isLegacyTicketType);
-
-  // --- LOGGING --- 
-  console.log('[TicketSelection] Props received:', { availableTickets, tickets });
-  console.log('[TicketSelection] Derived ticketsToUse (Content):', JSON.stringify(ticketsToUse, null, 2)); // Log content
-  console.log('[TicketSelection] Filtered legacyTicketsOnly (for UniformTicketing):', legacyTicketsOnly);
-  // --- END LOGGING ---
-
   // --- Helper Functions (Defined once) ---
   const getSelectedTicketId = (attendeeId: string): string | null => {
+    // LINTER FIX: Add null check for formState.attendees
     const attendee = formState.attendees?.find((a: StoreUnifiedAttendeeData) => a.attendeeId === attendeeId);
     return attendee?.ticket?.ticketDefinitionId || null;
   };
 
   const getSelectedEvents = (attendeeId: string): string[] => {
+    // LINTER FIX: Add null check for formState.attendees
     const attendee = formState.attendees?.find((a: StoreUnifiedAttendeeData) => a.attendeeId === attendeeId);
     return attendee?.ticket?.selectedEvents || [];
   };
   
   const isPackage = (ticketId: string | null): boolean => {
     if (!ticketId) return false;
-    return ticketsToUse.some((t: TicketType | TicketDefinitionType) => t.id === ticketId && t.name.toLowerCase().includes('package')); 
+    // Check against availablePackages
+    return availablePackages.some((pkg: PackageType) => pkg.id === ticketId);
   };
 
   const getTicketPriceForAttendee = (attendeeId: string): number => {
       const ticketId = getSelectedTicketId(attendeeId);
-      const ticket = ticketsToUse.find((t: TicketType | TicketDefinitionType) => t.id === ticketId);
+      // Check both packages and definitions
+      const ticket = availablePackages.find(p => p.id === ticketId) || availableDefinitions.find(d => d.id === ticketId);
       return ticket?.price ?? 0; 
   };
   
   const allAttendeesHaveTickets = (): boolean => {
+    // LINTER FIX: Add null check for formState.attendees
     return formState.attendees?.every((attendee: StoreUnifiedAttendeeData) => 
       attendee.ticket?.ticketDefinitionId != null && attendee.ticket?.ticketDefinitionId !== ''
     ) ?? false;
   };
 
   // Get flat list of all attendees, mapping StoreUnifiedAttendeeData to MappedAttendeeItem
-  const allAttendees: MappedAttendeeItem[] = formState.attendees ? 
-    formState.attendees.map((attendee: StoreUnifiedAttendeeData, idx: number): MappedAttendeeItem => {
+  // LINTER FIX: Add null check and default empty array
+  const allAttendees: MappedAttendeeItem[] = (formState.attendees || []).map((attendee: StoreUnifiedAttendeeData, idx: number): MappedAttendeeItem => {
       
+      // LINTER FIX: Add null check for formState.attendees inside map
+      const currentAttendees = formState.attendees || [];
       const isPartnerCheck = attendee.attendeeType === 'lady_partner' || attendee.attendeeType === 'guest_partner';
       let relatedTo: string | undefined = undefined; 
       if (isPartnerCheck && attendee.relatedAttendeeId) { 
-          const relatedAttendee = formState.attendees?.find((a: StoreUnifiedAttendeeData) => a.attendeeId === attendee.relatedAttendeeId);
+          const relatedAttendee = currentAttendees.find((a: StoreUnifiedAttendeeData) => a.attendeeId === attendee.relatedAttendeeId);
           if (relatedAttendee) {
               relatedTo = `${relatedAttendee.attendeeType} ${relatedAttendee.firstName} ${relatedAttendee.lastName}`.trim();
           }
@@ -209,7 +200,7 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
             rank: attendee.rank || '', 
             lodge: attendee.lodgeNameNumber || '', 
             grandLodge: '', 
-            hasLadyPartner: formState.attendees.some((p: StoreUnifiedAttendeeData) => p.relatedAttendeeId === attendee.attendeeId && p.attendeeType === 'lady_partner'),
+            hasLadyPartner: currentAttendees.some((p: StoreUnifiedAttendeeData) => p.relatedAttendeeId === attendee.attendeeId && p.attendeeType === 'lady_partner'),
             grandRank: attendee.grandRank,
             grandOfficer: attendee.grandOfficer,
             grandOffice: attendee.grandOffice,
@@ -228,7 +219,7 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
           mappedLegacyData = {
             ...baseLegacyData,
             attendeeType: AttendeeType.Guest, 
-            hasPartner: formState.attendees.some((p: StoreUnifiedAttendeeData) => p.relatedAttendeeId === attendee.attendeeId && p.attendeeType === 'guest_partner'),
+            hasPartner: currentAttendees.some((p: StoreUnifiedAttendeeData) => p.relatedAttendeeId === attendee.attendeeId && p.attendeeType === 'guest_partner'),
             relationship: attendee.relationship || '',
           } as GuestData;
           break;
@@ -283,9 +274,7 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
         data: mappedLegacyData, 
         ...(relatedTo && { relatedTo })
       };
-    })
-  : 
-    [];
+    });
 
   // --- Handlers --- 
   const toggleExpandAttendee = (attendeeId: string) => {
@@ -294,7 +283,6 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
 
   const handleUniformTicketSelect = (ticketId: string) => {
     setUniformTicketId(ticketId);
-    if (selectTicket) selectTicket(ticketId); 
     if (applyTicketToAllAttendees) applyTicketToAllAttendees(ticketId); 
   };
 
@@ -410,13 +398,10 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
 
       {ticketingMode === 'uniform' ? (
         <UniformTicketing
-           // Pass only legacy TicketType items
-           availableTickets={legacyTicketsOnly}
-           onSelectTicket={handleUniformTicketSelect}
-           selectedTicketId={uniformTicketId ?? ''} 
-           allAttendees={allAttendees as any} 
-           // Pass calculated localRemainingTime if needed by component (add prop back if required)
-           // remainingTime={localRemainingTime} 
+          selectedTicketId={uniformTicketId ?? ''}
+          availableTickets={availablePackages}
+          allAttendees={allAttendees} 
+          onSelectTicket={handleUniformTicketSelect}
         />
       ) : (
         <div>
@@ -442,7 +427,7 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
                   {expandedAttendee === attendeeId && (
                     <div className="p-4 border-t border-slate-200">
                       <h4 className="font-semibold mb-2">Select Ticket/Package</h4>
-                      {ticketsToUse.map(ticketDef => (
+                      {availableDefinitions.map(ticketDef => (
                         <div key={ticketDef.id} className="mb-2 flex items-center">
                           <input 
                             type="radio" 
@@ -462,10 +447,8 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
                         </div>
                       ))}
                       
-                      {/* Conditionally render EventSelectionList if needed (e.g., if not a package) */}
                       {!isPackage(selectedTicketId) && (
                          <EventSelectionList
-                           // Use more robust type assertion
                            events={getEligibleEvents(sortedEvents, attendeeItem.type, attendeeItem.data as unknown as EligibilityAttendeeData)} 
                            selectedEvents={selectedEvents} 
                            toggleEvent={(eventId: string) => { 
@@ -501,7 +484,6 @@ const TicketSelection: React.FC<TicketSelectionProps> = ({
         </button>
       </div>
 
-      {/* Example: Display Timer */}
       {localRemainingTime !== null && (
         <div className="text-center text-sm text-red-600 font-medium mt-4">
           Reservation expires in: {Math.floor(localRemainingTime / 60000)}:{String(Math.floor((localRemainingTime % 60000) / 1000)).padStart(2, '0')}

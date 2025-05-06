@@ -1,11 +1,14 @@
 import React from 'react';
 import { CheckCircle, AlertCircle, Users, TrendingUp, Loader2 } from 'lucide-react';
-import { TicketType } from '../../../shared/types/register';
+// LINTER FIX: Remove TicketType import if no longer directly used, or keep if needed for internal logic
+// import { TicketType } from '../../../shared/types/register';
 import { TicketDefinitionType } from '../../../shared/types/ticket';
+// LINTER FIX: Import PackageType
+import { PackageType } from '../../../lib/api/events';
 
 interface PackageTicketSectionProps {
-  // Support for both TicketType and TicketDefinitionType for backward compatibility
-  availableTickets: (TicketType | TicketDefinitionType)[];
+  // LINTER FIX: Explicitly allow PackageType or TicketDefinitionType
+  availableTickets: (PackageType | TicketDefinitionType)[];
   selectedTicketId: string;
   onSelectTicket: (ticketId: string) => void;
   // New props for capacity handling
