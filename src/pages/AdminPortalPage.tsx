@@ -25,6 +25,15 @@ import {
 } from '@heroicons/react/24/outline';
 import { ChevronDownIcon, MagnifyingGlassIcon, ChevronRightIcon } from '@heroicons/react/20/solid';
 
+// Import admin pages
+import {
+  AdminDashboardPage,
+  EventsListPage,
+  EventDetailPage,
+  EventFormPage,
+  EventCapacityPage
+} from './admin';
+
 // Dashboard component
 const Dashboard = () => {
   return (
@@ -302,15 +311,149 @@ function classNames(...classes) {
 const AdminPortalPage = () => {
   // Using React.useState instead of destructuring useState from React
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const [expandedSections, setExpandedSections] = React.useState<string[]>([]);
   const location = useLocation();
   
-  // Determine active route
+  // Determine active route and parent section
   const getIsActive = (path) => {
     const currentPath = location.pathname.replace(/\/$/, ''); // Remove trailing slash if present
     if (path === 'dashboard' && currentPath === '/admin-portal') {
       return true;
     }
     return currentPath === `/admin-portal/${path}`;
+  };
+
+  // Toggle section expansion
+  const toggleSection = (sectionName: string) => {
+    if (expandedSections.includes(sectionName)) {
+      setExpandedSections(expandedSections.filter(name => name !== sectionName));
+    } else {
+      setExpandedSections([...expandedSections, sectionName]);
+    }
+  };
+
+  // Check if a section or any of its children are active
+  const isSectionActive = (section) => {
+    if (section.path && getIsActive(section.path)) {
+      return true;
+    }
+    
+    if (section.children) {
+      return section.children.some(child => getIsActive(child.path));
+    }
+    
+    return false;
+  };
+  
+  // Automatically expand sections with active children
+  React.useEffect(() => {
+    const activeSections = navigation
+      .filter(item => item.children && item.children.some(child => getIsActive(child.path)))
+      .map(item => item.name);
+    
+    if (activeSections.length > 0) {
+      setExpandedSections(prev => {
+        const newExpandedSections = [...prev];
+        activeSections.forEach(section => {
+          if (!newExpandedSections.includes(section)) {
+            newExpandedSections.push(section);
+          }
+        });
+        return newExpandedSections;
+      });
+    }
+  }, [location.pathname]);
+
+  // Render navigation item
+  const renderNavItem = (item, mobile = false) => {
+    // If item has children, render as expandable section
+    if (item.children) {
+      const isExpanded = expandedSections.includes(item.name);
+      const isActive = isSectionActive(item);
+      
+      return (
+        <li key={item.name}>
+          <Disclosure as="div" defaultOpen={isActive}>
+            {() => (
+              <>
+                <button
+                  className={classNames(
+                    isActive ? 'bg-indigo-700 text-white' : 'text-indigo-200 hover:bg-indigo-700 hover:text-white',
+                    'group flex w-full items-center gap-x-3 rounded-md p-2 text-left text-sm font-semibold'
+                  )}
+                  onClick={() => toggleSection(item.name)}
+                >
+                  <item.icon
+                    className={classNames(
+                      isActive ? 'text-white' : 'text-indigo-200 group-hover:text-white',
+                      'h-6 w-6 shrink-0'
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span className="flex-1">{item.name}</span>
+                  <ChevronRightIcon
+                    className={classNames(
+                      isExpanded ? 'rotate-90 text-indigo-200' : 'text-indigo-200',
+                      'h-5 w-5 shrink-0 transition-transform duration-150'
+                    )}
+                  />
+                </button>
+                {isExpanded && (
+                  <ul className="mt-1 space-y-1 pl-9">
+                    {item.children.map(child => (
+                      <li key={child.name}>
+                        <Link
+                          to={`/admin-portal/${child.path}`}
+                          className={classNames(
+                            getIsActive(child.path)
+                              ? 'bg-indigo-700 text-white'
+                              : 'text-indigo-200 hover:bg-indigo-700 hover:text-white',
+                            'group flex gap-x-3 rounded-md p-2 text-sm font-semibold'
+                          )}
+                        >
+                          <child.icon
+                            className={classNames(
+                              getIsActive(child.path) ? 'text-white' : 'text-indigo-200 group-hover:text-white',
+                              'h-5 w-5 shrink-0'
+                            )}
+                            aria-hidden="true"
+                          />
+                          {child.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+          </Disclosure>
+        </li>
+      );
+    }
+    
+    // Otherwise render as a simple link
+    return (
+      <li key={item.name}>
+        <Link
+          to={`/admin-portal/${item.path}`}
+          className={classNames(
+            getIsActive(item.path)
+              ? 'bg-indigo-700 text-white'
+              : 'text-indigo-200 hover:bg-indigo-700 hover:text-white',
+            'group flex gap-x-3 rounded-md p-2 text-sm font-semibold'
+          )}
+        >
+          <item.icon
+            className={classNames(
+              getIsActive(item.path) ? 'text-white' : 'text-indigo-200 group-hover:text-white',
+              'h-6 w-6 shrink-0'
+            )}
+            aria-hidden="true"
+          />
+          {item.name}
+        </Link>
+      </li>
+    );
   };
 
   return (
@@ -352,33 +495,12 @@ const AdminPortalPage = () => {
                 <ul role="list" className="flex flex-1 flex-col gap-y-7">
                   <li>
                     <ul role="list" className="-mx-2 space-y-1">
-                      {navigation.map((item) => (
-                        <li key={item.name}>
-                          <Link
-                            to={`/admin-portal/${item.path}`}
-                            className={classNames(
-                              getIsActive(item.path)
-                                ? 'bg-indigo-700 text-white'
-                                : 'text-indigo-200 hover:bg-indigo-700 hover:text-white',
-                              'group flex gap-x-3 rounded-md p-2 text-sm font-semibold'
-                            )}
-                          >
-                            <item.icon
-                              className={classNames(
-                                getIsActive(item.path) ? 'text-white' : 'text-indigo-200 group-hover:text-white',
-                                'h-6 w-6 shrink-0'
-                              )}
-                              aria-hidden="true"
-                            />
-                            {item.name}
-                          </Link>
-                        </li>
-                      ))}
+                      {navigation.map(item => renderNavItem(item, true))}
                     </ul>
                   </li>
                   <li className="mt-auto">
                     <Link
-                      to="/admin-portal/settings"
+                      to="/admin-portal/system-config"
                       className="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold text-indigo-200 hover:bg-indigo-700 hover:text-white"
                     >
                       <Cog6ToothIcon
@@ -411,33 +533,12 @@ const AdminPortalPage = () => {
             <ul role="list" className="flex flex-1 flex-col gap-y-7">
               <li>
                 <ul role="list" className="-mx-2 space-y-1">
-                  {navigation.map((item) => (
-                    <li key={item.name}>
-                      <Link
-                        to={`/admin-portal/${item.path}`}
-                        className={classNames(
-                          getIsActive(item.path)
-                            ? 'bg-indigo-700 text-white'
-                            : 'text-indigo-200 hover:bg-indigo-700 hover:text-white',
-                          'group flex gap-x-3 rounded-md p-2 text-sm font-semibold'
-                        )}
-                      >
-                        <item.icon
-                          className={classNames(
-                            getIsActive(item.path) ? 'text-white' : 'text-indigo-200 group-hover:text-white',
-                            'h-6 w-6 shrink-0'
-                          )}
-                          aria-hidden="true"
-                        />
-                        {item.name}
-                      </Link>
-                    </li>
-                  ))}
+                  {navigation.map(item => renderNavItem(item))}
                 </ul>
               </li>
               <li className="mt-auto">
                 <Link
-                  to="/admin-portal/settings"
+                  to="/admin-portal/system-config"
                   className="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold text-indigo-200 hover:bg-indigo-700 hover:text-white"
                 >
                   <Cog6ToothIcon
@@ -532,10 +633,36 @@ const AdminPortalPage = () => {
         <main className="py-10">
           <div className="px-4 sm:px-6 lg:px-8">
             <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="dashboard" element={<Dashboard />} />
+              {/* Main routes */}
+              <Route path="/" element={<AdminDashboardPage />} />
+              <Route path="dashboard" element={<AdminDashboardPage />} />
+              
+              {/* People section */}
               <Route path="customers" element={<CustomersPage />} />
-              <Route path="events" element={<EventsPage />} />
+              <Route path="attendees" element={<AttendeesPage />} />
+              <Route path="masonic-data" element={<MasonicDataPage />} />
+              
+              {/* Events section */}
+              <Route path="events" element={<EventsListPage />} />
+              <Route path="events/:id/view" element={<EventDetailPage />} />
+              <Route path="events/new" element={<EventFormPage />} />
+              <Route path="events/:id/edit" element={<EventFormPage />} />
+              <Route path="events/:id/capacity" element={<EventCapacityPage />} />
+              <Route path="packages" element={<PackagesPage />} />
+              <Route path="locations" element={<LocationsPage />} />
+              
+              {/* Sales section */}
+              <Route path="registrations" element={<RegistrationsPage />} />
+              <Route path="tickets" element={<TicketsPage />} />
+              <Route path="value-added-services" element={<ValueAddedServicesPage />} />
+              <Route path="payments" element={<PaymentsPage />} />
+              
+              {/* Analysis section */}
+              <Route path="reports" element={<ReportsPage />} />
+              
+              {/* System section */}
+              <Route path="system-config" element={<SystemConfigPage />} />
+              
               <Route path="*" element={<Navigate to="/admin-portal" replace />} />
             </Routes>
           </div>

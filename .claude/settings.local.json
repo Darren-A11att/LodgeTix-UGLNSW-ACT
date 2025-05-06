@@ -24,7 +24,8 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(./scripts/fix-supabase-imports.sh:*)",
-      "mcp__supabase__list_tables"
+      "mcp__supabase__list_tables",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   }

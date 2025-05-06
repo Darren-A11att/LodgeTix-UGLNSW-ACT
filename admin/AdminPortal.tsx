@@ -13,17 +13,33 @@ import {
   TicketIcon,
   BanknotesIcon,
   ClipboardDocumentCheckIcon,
+  CubeIcon,
 } from '@heroicons/react/24/outline';
 import { ChevronDownIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid';
 
-// Import dashboard component - we'll create this separately
+// Import dashboard component
 import AdminDashboard from './components/dashboard/AdminDashboard';
+
+// Import admin page components
+import {
+  // Event pages
+  EventsListPage,
+  EventDetailPage,
+  EventFormPage,
+  EventCapacityPage,
+  // Package pages
+  PackagesListPage,
+  PackageDetailPage,
+  PackageFormPage,
+  PackageEventsAddPage
+} from '../src/pages/admin';
 
 // Define routes for admin navigation
 const routes = [
   { name: 'Dashboard', path: 'dashboard', icon: HomeIcon },
   { name: 'Customers', path: 'customers', icon: UsersIcon },
   { name: 'Events', path: 'events', icon: CalendarIcon },
+  { name: 'Packages', path: 'packages', icon: CubeIcon },
   { name: 'Registrations', path: 'registrations', icon: ClipboardDocumentCheckIcon },
   { name: 'Tickets', path: 'tickets', icon: TicketIcon },
   { name: 'Payments', path: 'payments', icon: BanknotesIcon },
@@ -117,7 +133,7 @@ export default function AdminPortal() {
                   </ul>
                 </nav>
               </div>
-            </DialogPanel>
+            </Dialog.Panel>
           </div>
         </Dialog>
 
@@ -242,7 +258,7 @@ export default function AdminPortal() {
                   </Menu.Items>
                 </Menu>
               </div>
-            </Dialog.Panel>
+            </div>
           </div>
 
           <main className="py-10">
@@ -267,9 +283,23 @@ export default function AdminPortal() {
                 </div>
               } />
               <Route path="dashboard" element={<AdminDashboard />} />
+              
+              {/* Events Routes */}
+              <Route path="events" element={<EventsListPage />} />
+              <Route path="events/:id/view" element={<EventDetailPage />} />
+              <Route path="events/new" element={<EventFormPage />} />
+              <Route path="events/:id/edit" element={<EventFormPage />} />
+              <Route path="events/:id/capacity" element={<EventCapacityPage />} />
+              
+              {/* Packages Routes */}
+              <Route path="packages" element={<PackagesListPage />} />
+              <Route path="packages/:id/view" element={<PackageDetailPage />} />
+              <Route path="packages/new" element={<PackageFormPage />} />
+              <Route path="packages/:id/edit" element={<PackageFormPage />} />
+              <Route path="packages/:id/events/add" element={<PackageEventsAddPage />} />
+              
               {/* Add more routes as components are created */}
               {/* <Route path="customers" element={<AdminCustomers />} /> */}
-              {/* <Route path="events" element={<AdminEvents />} /> */}
               {/* <Route path="registrations" element={<AdminRegistrations />} /> */}
               {/* <Route path="tickets" element={<AdminTickets />} /> */}
               {/* <Route path="payments" element={<AdminPayments />} /> */}

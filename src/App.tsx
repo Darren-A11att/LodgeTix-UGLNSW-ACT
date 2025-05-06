@@ -25,7 +25,7 @@ import clsx from 'clsx';
 // Helper component to conditionally render header
 const ConditionalHeader: React.FC = () => {
   const location = useLocation();
-  const hideHeaderPaths: string[] = ['/admin']; // Hide header on admin pages
+  const hideHeaderPaths: string[] = ['/admin', '/admin-portal']; // Hide header on admin pages
 
   // Check if the current path starts with any of the paths to hide on
   const shouldHideHeader = hideHeaderPaths.some(path => 
@@ -38,7 +38,7 @@ const ConditionalHeader: React.FC = () => {
 // Helper component to conditionally render footer
 const ConditionalFooter: React.FC = () => {
   const location = useLocation();
-  const hideFooterPaths: string[] = ['/admin']; // Hide footer on admin pages
+  const hideFooterPaths: string[] = ['/admin', '/admin-portal']; // Hide footer on admin pages
 
   // Check if the current path starts with any of the paths to hide on
   const shouldHideFooter = hideFooterPaths.some(path => 
