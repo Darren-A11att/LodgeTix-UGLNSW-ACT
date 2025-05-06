@@ -20,7 +20,7 @@ const LadyPartnerToggle: React.FC<LadyPartnerToggleProps> = ({
             : 'btn-secondary'
         }`}
       >
-        {hasPartner ? 'Remove Lady or Partner' : 'Register Lady or Partner'}
+        {hasPartner ? 'Remove Lady or Partner' : 'Register Partner'}
       </button>
     </div>
   );
